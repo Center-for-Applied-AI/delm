@@ -1,0 +1,63 @@
+# DELM Configuration Example
+model_name: "gpt-4o-mini"
+temperature: 0.0
+max_retries: 3
+
+# Configurable extraction schema
+extraction:
+  prompt_template: |
+    Extract the following information from the financial report text:
+    
+    {variables}
+    
+    Text to analyze:
+    {text}
+    
+    Return the extracted data in the specified format.
+  
+  variables:
+    - name: "oil_types"
+      description: "Types of oil mentioned in the text"
+      data_type: "string"
+      required: false
+      allowed_values:
+        - "WTI"
+        - "Brent"
+        - "OPEC"
+        - "Light Sweet"
+        - "Heavy Sour"
+    
+    - name: "gas_types"
+      description: "Types of natural gas mentioned in the text"
+      data_type: "string"
+      required: false
+      allowed_values:
+        - "Henry Hub"
+        - "TTF"
+        - "JKM"
+        - "LNG"
+        - "Pipeline"
+    
+    - name: "forecast_dates"
+      description: "Dates mentioned for forecasts or predictions"
+      data_type: "date"
+      required: false
+    
+    - name: "company_codes"
+      description: "Company ticker codes mentioned in the text"
+      data_type: "string"
+      required: false
+      allowed_values:
+        - "AAPL"
+        - "MSFT"
+        - "XOM"
+        - "CVX"
+        - "SHEL"
+        - "BP"
+        - "GOOGL"
+        - "AMZN"
+    
+    - name: "production_volumes"
+      description: "Production volumes or quantities mentioned"
+      data_type: "number"
+      required: false
