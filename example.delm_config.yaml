@@ -1,63 +1,247 @@
-# DELM Configuration Example
+# DELM Configuration Specification Template
+# =======================================
+# This file serves as a comprehensive template for configuring DELM (Data Extraction with LLMs).
+# Copy this file and modify the sections you need for your specific use case.
+# Remove or comment out sections you don't need.
+
+# =============================================================================
+# CORE MODEL CONFIGURATION
+# =============================================================================
+
+# OpenAI model to use for extraction
+# Options: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo, etc.
 model_name: "gpt-4o-mini"
+
+# Temperature for LLM responses (0.0 = deterministic, 1.0 = creative)
+# Recommended: 0.0 for data extraction to ensure consistency
 temperature: 0.0
+
+# Maximum number of retries for failed API calls
 max_retries: 3
 
-# Configurable extraction schema
+# Batch processing configuration
+batch_size: 10          # Number of chunks to process in parallel
+max_workers: 4          # Maximum number of worker threads
+
+# =============================================================================
+# EXTRACTION SCHEMA CONFIGURATION
+# =============================================================================
+
 extraction:
-  prompt_template: |
-    Extract the following information from the financial report text:
-    
-    {variables}
-    
-    Text to analyze:
-    {text}
-    
-    Return the extracted data in the specified format.
+  # Schema type determines how data is structured
+  # Options: "simple", "nested", "multiple"
+  # - simple: Key-value pairs (e.g., {"price": 100, "company": "Apple"})
+  # - nested: List of objects (e.g., {"commodities": [{"type": "oil", "price": 100}]})
+  # - multiple: Multiple independent schemas in one config
+  schema_type: "nested"
   
+  # Container name for nested schemas (only used when schema_type = "nested")
+  # This becomes the key that holds the list of extracted objects
+  container_name: "commodities"
+  
+  # Variables to extract from text
+  # Each variable defines a field in your extracted data
   variables:
-    - name: "oil_types"
-      description: "Types of oil mentioned in the text"
+    # Example 1: Required string with allowed values
+    - name: "commodity_type"
+      description: "Type of commodity mentioned in the text"
       data_type: "string"
-      required: false
-      allowed_values:
-        - "WTI"
-        - "Brent"
-        - "OPEC"
-        - "Light Sweet"
-        - "Heavy Sour"
+      required: true
+      allowed_values: ["oil", "gas", "copper", "gold", "silver", "steel", "aluminum"]
     
-    - name: "gas_types"
-      description: "Types of natural gas mentioned in the text"
-      data_type: "string"
-      required: false
-      allowed_values:
-        - "Henry Hub"
-        - "TTF"
-        - "JKM"
-        - "LNG"
-        - "Pipeline"
-    
-    - name: "forecast_dates"
-      description: "Dates mentioned for forecasts or predictions"
-      data_type: "date"
+    # Example 2: Optional boolean field
+    - name: "price_mention"
+      description: "Whether a specific price is mentioned"
+      data_type: "boolean"
       required: false
     
-    - name: "company_codes"
-      description: "Company ticker codes mentioned in the text"
-      data_type: "string"
-      required: false
-      allowed_values:
-        - "AAPL"
-        - "MSFT"
-        - "XOM"
-        - "CVX"
-        - "SHEL"
-        - "BP"
-        - "GOOGL"
-        - "AMZN"
-    
-    - name: "production_volumes"
-      description: "Production volumes or quantities mentioned"
+    # Example 3: Optional numeric field
+    - name: "price_value"
+      description: "Numeric price value if mentioned"
       data_type: "number"
       required: false
+    
+    # Example 4: Optional string without restrictions
+    - name: "price_unit"
+      description: "Unit of the price (e.g., barrel, ton, MMBtu)"
+      data_type: "string"
+      required: false
+    
+    # Example 5: Optional string with allowed values
+    - name: "expectation_type"
+      description: "Type of price expectation mentioned"
+      data_type: "string"
+      required: false
+      allowed_values: ["forecast", "guidance", "estimate", "projection", "outlook"]
+    
+    # Example 6: Optional string for company names
+    - name: "company_mention"
+      description: "Company names mentioned in relation to commodities"
+      data_type: "string"
+      required: false
+  
+  # Prompt template for LLM extraction
+  # Use {text} for the input text and {variables} for variable descriptions
+  # Add any additional instructions at the end such as important instructions
+  prompt_template: |
+    You are assisting a finance professor who expects meticulous and reliable results.
+
+    Extract commodity price information from the following text:
+
+    {variables}
+
+    Text to analyze:
+    {text}
+
+    CRITICAL INSTRUCTIONS:
+    - ONLY extract commodities that are EXPLICITLY mentioned in the text
+    - If NO commodities are mentioned, return an empty list []
+    - Do NOT infer or guess commodity types based on company names or context
+    - Do NOT extract commodities just because a company might be in the energy sector
+    - Focus on EXPLICIT mentions of: oil, gas, copper, gold, silver, steel, aluminum
+    - For each commodity mentioned, create a separate entry with all relevant details
+    - If a field is not mentioned in the text, leave it as null/None rather than guessing
+
+    Examples of what NOT to extract:
+    - "1-800 CONTACTS" → NOT oil (even though contacts might use oil-based solutions)
+    - "Apple Inc." → NOT aluminum (even though phones contain aluminum)
+    - "Bank of America" → NOT gold (even though banks might trade gold)
+
+# =============================================================================
+# ALTERNATIVE SCHEMA EXAMPLES
+# =============================================================================
+
+# Example 1: Simple Schema (Key-Value Pairs)
+# Uncomment and modify this section to use simple extraction
+# simple_extraction:
+#   schema_type: "simple"
+#   variables:
+#     - name: "price"
+#       description: "Price mentioned in the text"
+#       data_type: "number"
+#       required: false
+#     - name: "company"
+#       description: "Company name mentioned"
+#       data_type: "string"
+#       required: false
+#   prompt_template: "Extract the following information from the text: {variables}\n\nText: {text}"
+
+# Example 2: Multiple Schemas (Independent Extraction Tasks)
+# Uncomment and modify this section to extract multiple types of data
+# multiple_extraction:
+#   schema_type: "multiple"
+#   commodities:
+#     schema_type: "nested"
+#     container_name: "commodities"
+#     variables:
+#       - name: "type"
+#         description: "Commodity type"
+#         data_type: "string"
+#         required: true
+#       - name: "price"
+#         description: "Price value"
+#         data_type: "number"
+#         required: false
+#     prompt_template: "Extract commodity information: {variables}\n\nText: {text}"
+#   
+#   companies:
+#     schema_type: "nested"
+#     container_name: "companies"
+#     variables:
+#       - name: "name"
+#         description: "Company name"
+#         data_type: "string"
+#         required: true
+#       - name: "sector"
+#         description: "Business sector"
+#         data_type: "string"
+#         required: false
+#     prompt_template: "Extract company information: {variables}\n\nText: {text}"
+
+# =============================================================================
+# DATA TYPE REFERENCE
+# =============================================================================
+
+# Available data types for variables:
+# - "string": Text values (default)
+# - "number": Floating-point numbers
+# - "integer": Whole numbers
+# - "boolean": True/False values
+# - "date": Date strings (YYYY-MM-DD format recommended)
+
+# Field properties:
+# - name: Unique identifier for the field (required)
+# - description: Human-readable description for the LLM (required)
+# - data_type: Type of data to extract (required)
+# - required: Whether the field must be present (default: false)
+# - allowed_values: List of valid values for the field (optional)
+
+# =============================================================================
+# PROMPT TEMPLATE GUIDELINES
+# =============================================================================
+
+# Best practices for prompt templates:
+# 1. Be explicit about what to extract and what NOT to extract
+# 2. Provide clear examples of correct and incorrect extractions
+# 3. Use {variables} placeholder to include variable descriptions
+# 4. Use {text} placeholder for the input text
+# 5. Include validation rules in the prompt
+# 6. Specify what to do when information is not found (null vs. empty)
+
+# =============================================================================
+# USAGE EXAMPLES
+# =============================================================================
+
+# 1. Basic commodity extraction (current example):
+#    - Extracts commodity types, prices, and related information
+#    - Good for financial reports, market analysis documents
+
+# 2. Company information extraction:
+#    - Extract company names, sectors, financial metrics
+#    - Good for earnings reports, company profiles
+
+# 3. Event extraction:
+#    - Extract dates, locations, participants, outcomes
+#    - Good for news articles, event reports
+
+# 4. Product information extraction:
+#    - Extract product names, features, prices, specifications
+#    - Good for product catalogs, reviews
+
+# =============================================================================
+# ENVIRONMENT SETUP
+# =============================================================================
+
+# Required environment variables:
+# - OPENAI_API_KEY: Your OpenAI API key
+# - (Optional) Other API keys for different providers
+
+# File structure:
+# - .env: Environment variables (create this file)
+# - example.delm_config.yaml: This configuration file
+# - data/input/: Input files (CSV, Parquet, etc.)
+# - data/output/: Output files
+
+# =============================================================================
+# COMMON CONFIGURATION PATTERNS
+# =============================================================================
+
+# Pattern 1: Financial Data Extraction
+# - Focus on numbers, dates, company names
+# - Use number and date data types
+# - Include validation for financial metrics
+
+# Pattern 2: News Article Analysis
+# - Focus on entities, events, sentiment
+# - Use string data types with allowed values
+# - Include context and relationships
+
+# Pattern 3: Technical Documentation
+# - Focus on specifications, requirements, features
+# - Use structured data types
+# - Include hierarchical relationships
+
+# Pattern 4: Social Media Analysis
+# - Focus on mentions, hashtags, sentiment
+# - Use list-based extraction
+# - Include temporal and spatial data

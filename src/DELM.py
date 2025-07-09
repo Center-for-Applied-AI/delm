@@ -22,7 +22,7 @@ import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple, Optional
 
 import dotenv
 import pandas as pd
@@ -33,6 +33,11 @@ from tqdm.auto import tqdm
 import openai  # type: ignore
 import instructor  # type: ignore
 from pydantic import BaseModel, Field
+
+# Import new schema system and processing utilities
+from schemas import SchemaRegistry
+from processing import BatchProcessor, CostTracker, RetryHandler
+from models import ExtractionVariable
 
 try:
     from bs4 import BeautifulSoup  # type: ignore
@@ -121,105 +126,7 @@ class FuzzyScorer(RelevanceScorer):
         return max(self.fuzz.partial_ratio(lowered, kw) / 100 for kw in self.keywords)
 
 
-# --------------------------------------------------------------------------- #
-# Configurable extraction schema system                                       #
-# --------------------------------------------------------------------------- #
-class ExtractionVariable:
-    """Defines a variable to extract from text."""
-    
-    def __init__(self, name: str, description: str, data_type: str, required: bool = False, allowed_values: List[str] | None = None):
-        self.name = name
-        self.description = description
-        self.data_type = data_type
-        self.required = required
-        self.allowed_values = allowed_values or []
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ExtractionVariable':
-        return cls(
-            name=data['name'],
-            description=data['description'],
-            data_type=data['data_type'],
-            required=data.get('required', False),
-            allowed_values=data.get('allowed_values', None)
-        )
-
-
-class ExtractionSchema:
-    """Configurable extraction schema with variables and prompt."""
-    
-    def __init__(self, variables: List[ExtractionVariable], prompt_template: str):
-        self.variables = variables
-        self.prompt_template = prompt_template
-    
-    @classmethod
-    def from_config(cls, config: Dict[str, Any]) -> 'ExtractionSchema':
-        variables = [ExtractionVariable.from_dict(v) for v in config.get('variables', [])]
-        prompt_template = config.get('prompt_template', 'Extract the following information from the text: {text}')
-        return cls(variables, prompt_template)
-    
-    def create_pydantic_schema(self):
-        """Dynamically create Pydantic schema from variables."""
-        if instructor is None:
-            return None
-        
-        # Create a proper dynamic class with proper annotations
-        class DynamicExtractSchema(BaseModel):
-            pass
-        
-        # Add fields dynamically with proper annotations
-        for var in self.variables:
-            if var.data_type == 'string':
-                field_type = List[str]
-            elif var.data_type == 'number':
-                field_type = List[float]
-            elif var.data_type == 'integer':
-                field_type = List[int]
-            elif var.data_type == 'date':
-                field_type = List[str]  # Could be enhanced with datetime
-            else:
-                field_type = List[str]
-            
-            # Add validation for allowed values if specified
-            field_kwargs = {
-                'default_factory': list,
-                'description': var.description
-            }
-            
-            if var.allowed_values:
-                field_kwargs['description'] += f" (must be one of: {', '.join(var.allowed_values)})"
-                # For now, keep it as List[str] to avoid Literal complexity
-                # The allowed values are enforced through the description
-            
-            # Use setattr to properly set the field with annotation
-            setattr(DynamicExtractSchema, var.name, Field(**field_kwargs))
-            # Set the annotation using __annotations__
-            if not hasattr(DynamicExtractSchema, '__annotations__'):
-                DynamicExtractSchema.__annotations__ = {}
-            DynamicExtractSchema.__annotations__[var.name] = field_type
-        
-        return DynamicExtractSchema
-    
-    def create_prompt(self, text: str) -> str:
-        """Create extraction prompt from template and variables."""
-        variable_descriptions = []
-        for var in self.variables:
-            desc = f"- {var.name}: {var.description} ({var.data_type})"
-            if var.required:
-                desc += " [REQUIRED]"
-            
-            # Add allowed values to description so the model knows what to extract
-            if var.allowed_values:
-                allowed_list = ", ".join([f'"{v}"' for v in var.allowed_values])
-                desc += f" (allowed values: {allowed_list})"
-            
-            variable_descriptions.append(desc)
-        
-        variables_text = "\n".join(variable_descriptions)
-        return self.prompt_template.format(
-            text=text,
-            variables=variables_text
-        )
+# ExtractionVariable and ExtractionSchema moved to models.py and schemas.py
 
 
 # --------------------------------------------------------------------------- #
@@ -242,14 +149,21 @@ def load_html(path: Path) -> str:
 def load_docx(path: Path) -> str:
     if docx is None:
         raise ImportError("python-docx not installed but required for .docx loading")
-    doc = docx.Document(path)
+    doc = docx.Document(str(path))
     return "\n".join(p.text for p in doc.paragraphs)
 
 
 def load_pdf(path: Path) -> str:
     if marker is None:
         raise ImportError("marker (OCR) not installed – PDF loading unavailable")
-    return "\n".join(marker.parse(path).paragraphs)
+    # Handle different marker API versions with type ignore
+    try:
+        # Try newer API
+        doc = marker.Marker(str(path))  # type: ignore
+        return "\n".join([p.text for p in doc.paragraphs])  # type: ignore
+    except AttributeError:
+        # Fallback to older API
+        return "\n".join(marker.parse(str(path)).paragraphs)  # type: ignore
 
 def load_csv(path: Path) -> pd.DataFrame:
     return pd.read_csv(path)
@@ -300,10 +214,22 @@ class DELM:
         self.splitter: SplitStrategy = split_strategy or ParagraphSplit()
         self.scorer: RelevanceScorer = relevance_scorer or KeywordScorer(DEFAULT_KEYWORDS)
 
-        # Extraction schema ------------------------------------------------- #
-        self.extraction_schema: ExtractionSchema | None = None
+        # Schema system ---------------------------------------------------- #
+        self.schema_registry = SchemaRegistry()
+        self.extraction_schema = None
+        
         if 'extraction' in self.config:
-            self.extraction_schema = ExtractionSchema.from_config(self.config['extraction'])
+            self.extraction_schema = self.schema_registry.create(self.config['extraction'])
+
+        # Enhanced processing components ------------------------------------ #
+        self.batch_processor = BatchProcessor(
+            batch_size=self.config.get("batch_size", 10),
+            max_workers=self.config.get("max_workers", 4)
+        )
+        self.cost_tracker = CostTracker()
+        self.retry_handler = RetryHandler(
+            max_retries=self.max_retries
+        )
 
         # Runtime artefacts ------------------------------------------------ #
         self.raw_df: pd.DataFrame | None = None
@@ -344,31 +270,69 @@ class DELM:
         
         return df
 
-    def process_via_llm(self, data: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+    def process_via_llm(self, data: pd.DataFrame, verbose: bool = False, use_batching: bool = False, use_regex_fallback: bool = False) -> pd.DataFrame:
+        """Process data through LLM extraction with optional batching and regex fallback."""
         if verbose:
             print("Validating input DataFrame")
         self._validate_input_df(data)
 
         # TODO: add filtering for score
 
-        results: List[Dict[str, Any]] = []
-        for paragraph in tqdm(data[self.CHUNK_COLUMN_NAME].tolist(), desc="Extracting via LLM"):
-            if self.api_key:
-                if verbose:
-                    print(f"Extracting LLM for text chunk of size {len(paragraph)}")
-                json_obj = self._instructor_extract(paragraph)
-                if verbose:
-                    print(f"LLM extraction result: {json_obj}")
-            else:
-                print("No API key found, falling back to regex extraction")
-                json_obj = self._regex_extract(paragraph)
-            results.append(json_obj)
+        paragraphs = data[self.CHUNK_COLUMN_NAME].tolist()
+        
+        if use_batching and self.api_key:
+            results = self._process_paragraphs_batch(paragraphs, verbose, use_regex_fallback)
+        else:
+            results = self._process_paragraphs_sequential(paragraphs, verbose, use_regex_fallback)
+        
         out = data.copy()
         out["llm_json"] = results
         if verbose:
             print(f"Processed {len(out)} rows. Saved json to `llm_json` column")
         self.processed_df = out
         return out
+    
+    def _process_paragraphs_sequential(self, paragraphs: List[str], verbose: bool = False, use_regex_fallback: bool = False) -> List[Dict[str, Any]]:
+        """Process paragraphs sequentially."""
+        results = []
+        for paragraph in tqdm(paragraphs, desc="Extracting via LLM"):
+            result = self._extract_from_paragraph(paragraph, verbose, use_regex_fallback)
+            results.append(result)
+        return results
+    
+    def _process_paragraphs_batch(self, paragraphs: List[str], verbose: bool = False, use_regex_fallback: bool = False) -> List[Dict[str, Any]]:
+        """Process paragraphs in parallel batches."""
+        return self.batch_processor.process_batch(
+            paragraphs, 
+            lambda p: self._extract_from_paragraph(p, verbose, use_regex_fallback)
+        )
+    
+    def _extract_from_paragraph(self, paragraph: str, verbose: bool = False, use_regex_fallback: bool = False) -> Dict[str, Any]:
+        """Extract data from a single paragraph with optional fallback."""
+        if not self.api_key:
+            if verbose:
+                print("No API key found, falling back to regex extraction")
+            return self._regex_extract(paragraph)
+        
+        try:
+            if verbose:
+                print(f"Extracting LLM for text chunk of size {len(paragraph)}")
+            result = self._instructor_extract(paragraph)
+            if verbose:
+                print(f"LLM extraction result: {result}")
+            return result
+        except Exception as e:
+            if verbose:
+                print(f"Error processing paragraph: {e}")
+            if use_regex_fallback:
+                if verbose:
+                    print("Falling back to regex extraction")
+                return self._regex_extract(paragraph)
+            else:
+                if verbose:
+                    print("No regex fallback enabled, returning empty result")
+                # Return empty result instead of falling back to regex
+                return {}
 
     def evaluate_output_metrics(self, data: pd.DataFrame) -> Dict[str, float]:
         self._validate_output_df(data)
@@ -377,11 +341,67 @@ class DELM:
         avg_numbers = float(
             data["llm_json"].apply(lambda x: len(x.get("numbers", [])) if isinstance(x, dict) else 0).mean()
         )
+        
+        # Get cost summary
+        cost_summary = self.cost_tracker.get_summary()
+        
         return {
             "rows": float(len(data)),
             "valid_json": round(valid_ratio, 4),
             "avg_numbers": round(avg_numbers, 2),
+            **cost_summary
         }
+    
+    def get_cost_summary(self) -> Dict[str, Any]:
+        """Get detailed cost and usage summary."""
+        return self.cost_tracker.get_summary()
+    
+    def parse_to_dataframe(self, data: pd.DataFrame, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+        """Parse LLM responses into a structured DataFrame."""
+        if self.processed_df is None:
+            raise ValueError("No processed data available. Run process_via_llm first.")
+        
+        all_results = []
+        for idx, row in data.iterrows():
+            response = row.get("llm_json")
+            paragraph = row.get(self.CHUNK_COLUMN_NAME, "")
+            
+            # Add row metadata
+            row_metadata = {
+                'chunk_id': row.get('chunk_id', idx),
+                'score': row.get('score', 0.0)
+            }
+            if metadata:
+                row_metadata.update(metadata)
+            
+            # Parse response using the schema
+            if self.extraction_schema and response is not None:
+                # Handle both Pydantic models and dictionaries
+                if hasattr(response, 'dict'):
+                    # It's a Pydantic model
+                    parsed_df = self.extraction_schema.parse_response(response, str(paragraph), row_metadata)
+                elif isinstance(response, dict):
+                    # It's a dictionary (fallback case)
+                    # Try to convert to Pydantic model if possible
+                    try:
+                        schema_class = self.extraction_schema.create_pydantic_schema()
+                        if hasattr(response, 'get') and self.extraction_schema.container_name in response:
+                            # For nested schemas, we need to handle the container structure
+                            parsed_df = self.extraction_schema.parse_response(response, str(paragraph), row_metadata)
+                        else:
+                            # For simple schemas, try to create a model instance
+                            model_instance = schema_class(**response)
+                            parsed_df = self.extraction_schema.parse_response(model_instance, str(paragraph), row_metadata)
+                    except Exception as e:
+                        print(f"Failed to parse response as Pydantic model: {e}")
+                        parsed_df = pd.DataFrame()
+                else:
+                    parsed_df = pd.DataFrame()
+                all_results.append(parsed_df)
+        
+        if all_results:
+            return pd.concat(all_results, ignore_index=True)
+        return pd.DataFrame()
 
     # -------------------------- Extraction helpers ----------------------- #
     def _regex_extract(self, paragraph: str) -> Dict[str, List[str]]:
@@ -389,56 +409,51 @@ class DELM:
 
     def _instructor_extract(self, paragraph: str) -> Dict[str, Any]:
         """Use Instructor + Pydantic schema for structured output."""
-        attempt = 0
-        while attempt < self.max_retries:
-            attempt += 1
-            try:
-                client = instructor.patch(openai.OpenAI(api_key=self.api_key))
-                
-                # Use configurable schema if available, otherwise create a simple default schema
-                if self.extraction_schema:
-                    schema = self.extraction_schema.create_pydantic_schema()
-                    prompt = self.extraction_schema.create_prompt(paragraph)
-                else:
-                    # Create a simple default schema for numeric extraction
-                    class DefaultExtractSchema(BaseModel):
-                        numbers: List[str] = Field(
-                            default_factory=list,
-                            description="Numeric strings (keep punctuation), in order of appearance",
-                        )
-                    schema = DefaultExtractSchema
-                    prompt = f"Extract all numeric strings from the following paragraph:\n\n{paragraph}"
-                
-                print(f"Prompt: {prompt}")
+        def extract_with_schema():
+            client = instructor.patch(openai.OpenAI(api_key=self.api_key))
+            
+            # Use configurable schema if available, otherwise create a simple default schema
+            if self.extraction_schema:
+                schema = self.extraction_schema.create_pydantic_schema()
+                prompt = self.extraction_schema.create_prompt(paragraph)
+            else:
+                # Create a simple default schema for numeric extraction
+                class DefaultExtractSchema(BaseModel):
+                    numbers: List[str] = Field(
+                        default_factory=list,
+                        description="Numeric strings (keep punctuation), in order of appearance",
+                    )
+                schema = DefaultExtractSchema
+                prompt = f"Extract all numeric strings from the following paragraph:\n\n{paragraph}"
+            
+            print(f"Prompt: {prompt}")
 
-                response = client.chat.completions.create(  # type: ignore
-                    model=self.model_name,
-                    temperature=self.temperature,
-                    response_model=schema,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are a precise data‑extraction assistant.",
-                            # TODO: make system prompt configurable
-                        },
-                        {
-                            "role": "user",
-                            "content": prompt,
-                            # TODO: incorporate Kirill's repo prompting strategy for more comprehensive extraction
-                        },
-                    ],
-                )
-                return response.dict()
-            except Exception as e:
-                if attempt >= self.max_retries:
-                    print(f"Failed to extract data from paragraph: {paragraph}. Falling back to regex extraction.")
-                    # TODO: Give details on why exactly it failed
-                    # Goal: Print which variables were not extracted
-                    print(f"Error: {e}")
-                    return self._regex_extract(paragraph)
-                # Exponential backoff for api rate limits
-                time.sleep(2 ** attempt)
-        return self._regex_extract(paragraph)
+            response = client.chat.completions.create(  # type: ignore
+                model=self.model_name,
+                temperature=self.temperature,
+                response_model=schema,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a precise data‑extraction assistant.",
+                        # TODO: make system prompt configurable
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                        # TODO: incorporate Kirill's repo prompting strategy for more comprehensive extraction
+                    },
+                ],
+            )
+            # Return the Pydantic model instance
+            return response
+        
+        try:
+            return self.retry_handler.execute_with_retry(extract_with_schema)
+        except Exception as e:
+            print(f"Failed to extract data from paragraph: {paragraph}.")
+            print(f"Error: {e}")
+            raise
 
     # --------------------------- Validation utils ------------------------ #
     def _validate_input_df(self, df: pd.DataFrame) -> None:
@@ -462,65 +477,3 @@ class DELM:
         if p.suffix.lower() == ".json":
             return json.loads(p.read_text())
         raise ValueError("Config must be YAML or JSON")
-
-
-# # Test Code
-# TEST_KEYWORDS = (
-# "price",
-# "prices",
-# "oil",
-# "gas",
-# "expect",
-# "barrel",
-# "ton",
-# "used",
-# "expectations",
-# "using"
-# )
-
-# DELM_CONFIG_PATH = Path("example.delm_config.yaml")
-# DOTENV_PATH = Path(".env")
-# TEST_FILE_PATH = Path("data/input/input2.csv")
-# report_text_df = pd.read_csv(TEST_FILE_PATH).iloc[:10]
-# report_text_df = report_text_df.drop(columns=["Unnamed: 0"])
-# # The date is given in an inconsistent format, so it is cropped at 10 characters.
-# date_clean = pd.to_datetime(report_text_df["date"].astype(str).apply(lambda x: x[:10]))
-# report_text_df["date"] = date_clean
-# report_text_df = report_text_df[["report", "date", "title", "subtitle", "firm_name", "text"]]
-# print(report_text_df.head())
-# print(report_text_df.info())
-# print(report_text_df.columns)
-# # print(len(report_text_df.iloc[0]["text"].split(" ")))
-
-# # Assuming DELM is the class defined above, instantiate and use it to process input_df
-# delm = DELM(
-#     config_path=DELM_CONFIG_PATH, 
-#     dotenv_path=DOTENV_PATH, 
-#     split_strategy=ParagraphSplit(),
-#     relevance_scorer=KeywordScorer(TEST_KEYWORDS)
-# )
-# output_df = delm.prep_data_from_df(report_text_df, "text")
-
-# # Histogram of score
-# import matplotlib.pyplot as plt
-# plt.hist(output_df["score"])
-# plt.show()
-
-# llm_output_df = delm.process_via_llm(output_df.iloc[:2], verbose=True)
-
-# print(output_df.head())
-# print(output_df.info())
-# print(output_df.columns)
-# print(output_df.iloc[0]["text_chunk"])
-# # print(len(output_df.iloc[0]["text_chunk"].split(" ")))
-
-
-# # look at expected output
-# test_output_df = pd.read_excel("data/output/output.xlsx").iloc[:100]
-# print(test_output_df.head())
-# print(test_output_df.info())
-# print(test_output_df.columns)
-# print(test_output_df.iloc[0])
-
-
-
