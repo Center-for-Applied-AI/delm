@@ -1,0 +1,414 @@
+"""
+DELM Schema System
+==================
+Unified schema system for data extraction with extensible registry pattern.
+Supports simple, nested, and multiple schema types with progressive complexity.
+"""
+
+from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Optional, Type
+import pandas as pd
+from pydantic import BaseModel, Field
+
+from models import ExtractionVariable
+
+
+class BaseSchema(ABC):
+    """Base interface for all schema types."""
+    
+    @property
+    @abstractmethod
+    def variables(self) -> List[ExtractionVariable]:
+        """Get variables for this schema."""
+        pass
+    
+    @property
+    def container_name(self) -> str:
+        """Get container name for nested schemas."""
+        return getattr(self, '_container_name', 'instances')
+    
+    @property
+    def schemas(self) -> Dict[str, 'BaseSchema']:
+        """Get sub-schemas for multiple schemas."""
+        return getattr(self, '_schemas', {})
+    
+    @abstractmethod
+    def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create Pydantic model for extraction."""
+        pass
+    
+    @abstractmethod
+    def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
+        """Create extraction prompt."""
+        pass
+    
+    @abstractmethod
+    def parse_response(self, response: Any, paragraph: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+        """Parse LLM response into DataFrame."""
+        pass
+
+
+class SimpleSchema(BaseSchema):
+    """Simple key-value extraction (current DELM behavior)."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        self._variables = [ExtractionVariable.from_dict(v) for v in config.get("variables", [])]
+        self.prompt_template = config.get("prompt_template", "Extract the following information from the text: {text}")
+    
+    @property
+    def variables(self) -> List[ExtractionVariable]:
+        return self._variables
+    
+    def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create simple Pydantic schema from variables."""
+        fields = {}
+        annotations = {}
+        
+        # Add fields dynamically with proper annotations
+        for var in self.variables:
+            if var.data_type == 'string':
+                field_type = List[str]
+            elif var.data_type == 'number':
+                field_type = List[float]
+            elif var.data_type == 'integer':
+                field_type = List[int]
+            elif var.data_type == 'date':
+                field_type = List[str]
+            else:
+                field_type = List[str]
+            
+            # Add validation for allowed values if specified
+            field_kwargs = {
+                'default_factory': list,
+                'description': var.description
+            }
+            
+            if var.allowed_values:
+                field_kwargs['description'] += f" (must be one of: {', '.join(var.allowed_values)})"
+            
+            fields[var.name] = Field(**field_kwargs)
+            annotations[var.name] = field_type
+        
+        # Create the schema class
+        DynamicExtractSchema = type(
+            'DynamicExtractSchema',
+            (BaseModel,),
+            {
+                '__annotations__': annotations,
+                **fields
+            }
+        )
+        
+        return DynamicExtractSchema
+    
+    def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
+        """Create extraction prompt from template and variables."""
+        variable_descriptions = []
+        for var in self.variables:
+            desc = f"- {var.name}: {var.description} ({var.data_type})"
+            if var.required:
+                desc += " [REQUIRED]"
+            
+            # Add allowed values to description so the model knows what to extract
+            if var.allowed_values:
+                allowed_list = ", ".join([f'"{v}"' for v in var.allowed_values])
+                desc += f" (allowed values: {allowed_list})"
+            
+            variable_descriptions.append(desc)
+        
+        variables_text = "\n".join(variable_descriptions)
+        return self.prompt_template.format(
+            text=text,
+            variables=variables_text
+        )
+    
+    def parse_response(self, response: Any, paragraph: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+        """Parse simple response into DataFrame."""
+        if response is None:
+            return pd.DataFrame()
+        
+        if isinstance(response, dict):
+            row = {'paragraph': paragraph}
+            row.update(response)
+            
+            if metadata:
+                row.update(metadata)
+            
+            return pd.DataFrame([row])
+        
+        return pd.DataFrame()
+
+
+class NestedSchema(BaseSchema):
+    """Nested object extraction (like commodity data)."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        self._container_name = config.get("container_name", "instances")
+        self._variables = [ExtractionVariable.from_dict(v) for v in config.get("variables", [])]
+        self.prompt_template = config.get("prompt_template", "")
+    
+    @property
+    def container_name(self) -> str:
+        return self._container_name
+    
+    @property
+    def variables(self) -> List[ExtractionVariable]:
+        return self._variables
+    
+    def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create nested Pydantic schema with container and item classes."""
+        # Create item schema class with proper field definitions
+        item_fields = {}
+        item_annotations = {}
+        
+        for var in self.variables:
+            field_type = self._get_field_type(var.data_type, var.required)
+            
+            # Create field with proper defaults
+            description = var.description
+            if var.allowed_values:
+                description += f" (allowed values: {', '.join(var.allowed_values)})"
+            
+            if var.required:
+                field = Field(description=description)
+            else:
+                field = Field(default=None, description=description)
+            
+            item_fields[var.name] = field
+            item_annotations[var.name] = field_type
+        
+        # Create the item schema class
+        DynamicItemSchema = type(
+            'DynamicItemSchema',
+            (BaseModel,),
+            {
+                '__annotations__': item_annotations,
+                **item_fields
+            }
+        )
+        
+        # Create container schema class
+        container_fields = {
+            self.container_name: Field(default_factory=list, description=f"List of {self.container_name}")
+        }
+        container_annotations = {
+            self.container_name: List[DynamicItemSchema]
+        }
+        
+        DynamicContainerSchema = type(
+            'DynamicContainerSchema',
+            (BaseModel,),
+            {
+                '__annotations__': container_annotations,
+                **container_fields
+            }
+        )
+        
+        return DynamicContainerSchema
+    
+    def _get_field_type(self, data_type: str, required: bool = True):
+        """Map data types to Python types."""
+        base_type_mapping = {
+            'string': str,
+            'number': float,
+            'integer': int,
+            'boolean': bool,
+            'date': str,
+            'optional_string': Optional[str],
+            'optional_number': Optional[float],
+            'optional_integer': Optional[int],
+            'optional_boolean': Optional[bool],
+            'optional_date': Optional[str],
+        }
+        
+        base_type = base_type_mapping.get(data_type, str)
+        
+        # If field is not required, make it optional
+        if not required:
+            if base_type == str:
+                return Optional[str]
+            elif base_type == float:
+                return Optional[float]
+            elif base_type == int:
+                return Optional[int]
+            elif base_type == bool:
+                return Optional[bool]
+            else:
+                return Optional[str]  # Default to optional string
+        
+        return base_type
+    
+    def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
+        """Create extraction prompt with context."""
+        # Build variable descriptions
+        variable_descriptions = []
+        for var in self.variables:
+            desc = f"- {var.name}: {var.description} ({var.data_type})"
+            if var.required:
+                desc += " [REQUIRED]"
+            
+            if var.allowed_values:
+                allowed_list = ", ".join([f'"{v}"' for v in var.allowed_values])
+                desc += f" (allowed values: {allowed_list})"
+            
+            variable_descriptions.append(desc)
+        
+        variables_text = "\n".join(variable_descriptions)
+        
+        # Format the prompt template
+        if self.prompt_template:
+            if context:
+                context_str = "\n".join([f"{k}: {v}" for k, v in context.items()])
+                return self.prompt_template.format(text=text, variables=variables_text, context=context_str)
+            return self.prompt_template.format(text=text, variables=variables_text)
+        else:
+            # Default prompt if no template provided
+            return f"Extract the following information from the text:\n\n{variables_text}\n\nText to analyze:\n{text}"
+    
+    def parse_response(self, response: Any, paragraph: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+        """Parse nested response into DataFrame with validation."""
+        if response is None:
+            return pd.DataFrame()
+        
+        instances = []
+        
+        # Handle both Pydantic models and dictionaries
+        if hasattr(response, self.container_name):
+            # It's a Pydantic model
+            instances = getattr(response, self.container_name)
+        elif isinstance(response, dict) and self.container_name in response:
+            # It's a dictionary with the container key
+            instances = response[self.container_name]
+        else:
+            return pd.DataFrame()
+        
+        if not instances:
+            return pd.DataFrame()
+        
+        data = []
+        paragraph_lower = paragraph.lower()
+        
+        for instance in instances:
+            row: Dict[str, Any] = {'paragraph': paragraph}
+            
+            # Extract all fields from the instance
+            for var in self.variables:
+                if hasattr(instance, var.name):
+                    # It's a Pydantic model instance
+                    value = getattr(instance, var.name, None)
+                elif isinstance(instance, dict) and var.name in instance:
+                    # It's a dictionary
+                    value = instance[var.name]
+                else:
+                    value = None
+                
+                # Validate commodity_type field - ensure it's actually mentioned in the text
+                if var.name == 'commodity_type' and value is not None:
+                    # Check if the commodity is actually mentioned in the text
+                    if value.lower() not in paragraph_lower:
+                        # If commodity is not mentioned, set it to None
+                        value = None
+                        print(f"Warning: Commodity '{value}' extracted but not found in text. Setting to None.")
+                
+                row[var.name] = value  # Keep original type
+            
+            # Add metadata if provided
+            if metadata:
+                row.update(metadata)
+            
+            data.append(row)
+        
+        return pd.DataFrame(data)
+
+
+class MultipleSchema(BaseSchema):
+    """Multiple independent schemas in one config."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        self._schemas = {}
+        self.schema_registry = SchemaRegistry()
+        
+        for name, schema_config in config.items():
+            if name != "schema_type":
+                self._schemas[name] = self.schema_registry.create(schema_config)
+    
+    @property
+    def schemas(self) -> Dict[str, 'BaseSchema']:
+        return self._schemas
+    
+    @property
+    def variables(self) -> List[ExtractionVariable]:
+        """Get variables from all sub-schemas."""
+        all_variables = []
+        for schema in self._schemas.values():
+            all_variables.extend(schema.variables)
+        return all_variables
+    
+    def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create combined Pydantic schema for multiple schemas."""
+        # This is complex - for now, we'll use the first schema
+        # In a full implementation, we'd combine multiple schemas
+        if self.schemas:
+            first_schema = list(self.schemas.values())[0]
+            return first_schema.create_pydantic_schema()
+        
+        # Fallback to simple schema
+        return SimpleSchema({}).create_pydantic_schema()
+    
+    def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
+        """Create combined prompt for multiple schemas."""
+        prompts = []
+        for name, schema in self.schemas.items():
+            schema_prompt = schema.create_prompt(text, context)
+            prompts.append(f"## {name.upper()} EXTRACTION:\n{schema_prompt}")
+        
+        return "\n\n".join(prompts)
+    
+    def parse_response(self, response: Any, paragraph: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+        """Parse multiple schema responses into DataFrame."""
+        all_data = []
+        
+        for name, schema in self.schemas.items():
+            # Try to extract response for this schema
+            schema_response = getattr(response, name, None) if hasattr(response, name) else response
+            
+            schema_df = schema.parse_response(schema_response, paragraph, metadata)
+            if not schema_df.empty:
+                # Add schema identifier
+                schema_df['schema_type'] = name
+                all_data.append(schema_df)
+        
+        if all_data:
+            return pd.concat(all_data, ignore_index=True)
+        return pd.DataFrame()
+
+
+class SchemaRegistry:
+    """Registry for different schema types - extensible and maintainable."""
+    
+    def __init__(self):
+        self._schemas = {}
+        self._register_default_schemas()
+    
+    def register(self, name: str, schema_class: Type[BaseSchema]):
+        """Register a new schema type."""
+        self._schemas[name] = schema_class
+    
+    def create(self, config: Dict[str, Any]) -> BaseSchema:
+        """Create schema instance from config."""
+        schema_type = config.get("schema_type", "simple")
+        
+        if schema_type not in self._schemas:
+            raise ValueError(f"Unknown schema type: {schema_type}. Available: {list(self._schemas.keys())}")
+        
+        return self._schemas[schema_type](config)
+    
+    def _register_default_schemas(self):
+        """Register built-in schema types."""
+        self.register("simple", SimpleSchema)
+        self.register("nested", NestedSchema)
+        self.register("multiple", MultipleSchema)
+    
+    def list_available(self) -> List[str]:
+        """List all available schema types."""
+        return list(self._schemas.keys()) 
