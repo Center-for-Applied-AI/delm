@@ -11,10 +11,10 @@ import sys
 from pathlib import Path
 
 # Add src directory to Python path
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from DELM import DELM, ParagraphSplit, KeywordScorer
-from schemas import SchemaRegistry
+from DELM import DELM, ParagraphSplit, KeywordScorer # type: ignore
+from schemas import SchemaRegistry # type: ignore
 
 def test_simple_schema():
     """Test Level 1: Simple Schema (current DELM behavior)."""
@@ -78,7 +78,8 @@ def test_nested_schema():
                     "name": "name",
                     "description": "Company name",
                     "data_type": "string",
-                    "required": True
+                    "required": True,
+                    "validate_in_text": True
                 },
                 {
                     "name": "revenue",
@@ -131,11 +132,12 @@ def test_multiple_schema():
                 "schema_type": "nested",
                 "container_name": "companies",
                 "variables": [
-                    {
-                        "name": "name",
-                        "description": "Company name",
-                        "data_type": "string"
-                    },
+                                    {
+                    "name": "name",
+                    "description": "Company name",
+                    "data_type": "string",
+                    "validate_in_text": True
+                },
                     {
                         "name": "revenue",
                         "description": "Revenue figure",
@@ -147,11 +149,12 @@ def test_multiple_schema():
                 "schema_type": "nested",
                 "container_name": "products",
                 "variables": [
-                    {
-                        "name": "name",
-                        "description": "Product name",
-                        "data_type": "string"
-                    },
+                                    {
+                    "name": "name",
+                    "description": "Product name",
+                    "data_type": "string",
+                    "validate_in_text": True
+                },
                     {
                         "name": "price",
                         "description": "Product price",
@@ -210,7 +213,8 @@ def test_delm_integration():
                 {
                     "name": "name",
                     "description": "Company name",
-                    "data_type": "string"
+                    "data_type": "string",
+                    "validate_in_text": True
                 },
                 {
                     "name": "revenue",

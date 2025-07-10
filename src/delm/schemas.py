@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Type
 import pandas as pd
 from pydantic import BaseModel, Field
 
-from models import ExtractionVariable
+from .models import ExtractionVariable
 
 
 class BaseSchema(ABC):
@@ -43,7 +43,7 @@ class BaseSchema(ABC):
         pass
     
     @abstractmethod
-    def parse_response(self, response: Any, paragraph: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+    def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
         """Parse LLM response into DataFrame."""
         pass
 
@@ -53,7 +53,7 @@ class SimpleSchema(BaseSchema):
     
     def __init__(self, config: Dict[str, Any]):
         self._variables = [ExtractionVariable.from_dict(v) for v in config.get("variables", [])]
-        self.prompt_template = config.get("prompt_template", "Extract the following information from the text: {text}")
+        self.prompt_template = config.get("prompt_template", "Extract the following information from the text:\n\n{variables}\n\nText to analyze:\n{text}")
     
     @property
     def variables(self) -> List[ExtractionVariable]:
@@ -122,13 +122,13 @@ class SimpleSchema(BaseSchema):
             variables=variables_text
         )
     
-    def parse_response(self, response: Any, paragraph: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+    def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
         """Parse simple response into DataFrame."""
         if response is None:
             return pd.DataFrame()
         
         if isinstance(response, dict):
-            row = {'paragraph': paragraph}
+            row = {'text_chunk': text_chunk}
             row.update(response)
             
             if metadata:
@@ -265,7 +265,7 @@ class NestedSchema(BaseSchema):
             # Default prompt if no template provided
             return f"Extract the following information from the text:\n\n{variables_text}\n\nText to analyze:\n{text}"
     
-    def parse_response(self, response: Any, paragraph: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+    def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
         """Parse nested response into DataFrame with validation."""
         if response is None:
             return pd.DataFrame()
@@ -286,31 +286,38 @@ class NestedSchema(BaseSchema):
             return pd.DataFrame()
         
         data = []
-        paragraph_lower = paragraph.lower()
+        text_chunk_lower = text_chunk.lower()
         
         for instance in instances:
-            row: Dict[str, Any] = {'paragraph': paragraph}
+            row: Dict[str, Any] = {'text_chunk': text_chunk}
             
             # Extract all fields from the instance
-            for var in self.variables:
-                if hasattr(instance, var.name):
-                    # It's a Pydantic model instance
-                    value = getattr(instance, var.name, None)
-                elif isinstance(instance, dict) and var.name in instance:
-                    # It's a dictionary
-                    value = instance[var.name]
-                else:
-                    value = None
+            # Handle both Pydantic models and dictionaries
+            if hasattr(instance, 'model_dump'):
+                # It's a Pydantic model
+                instance_dict = instance.model_dump()
+            elif hasattr(instance, 'dict'):
+                # It's a Pydantic model (older version)
+                instance_dict = instance.dict()
+            elif isinstance(instance, dict):
+                # It's already a dictionary
+                instance_dict = instance
+            else:
+                # Unknown type, skip this instance
+                continue
                 
-                # Validate commodity_type field - ensure it's actually mentioned in the text
-                if var.name == 'commodity_type' and value is not None:
-                    # Check if the commodity is actually mentioned in the text
-                    if value.lower() not in paragraph_lower:
-                        # If commodity is not mentioned, set it to None
-                        value = None
-                        print(f"Warning: Commodity '{value}' extracted but not found in text. Setting to None.")
-                
-                row[var.name] = value  # Keep original type
+            for field_name, field_value in instance_dict.items():
+                if field_value is not None:
+                    # Find the corresponding variable definition for validation
+                    var_def = next((v for v in self.variables if v.name == field_name), None)
+                    
+                    if var_def and var_def.validate_in_text and isinstance(field_value, str):
+                        # Validate that the extracted value appears in the original text
+                        if field_value.lower() not in text_chunk_lower:
+                            print(f"Warning: Extracted value '{field_value}' for field '{field_name}' not found in text chunk")
+                            continue  # Skip this field if validation fails
+                    
+                    row[field_name] = field_value
             
             # Add metadata if provided
             if metadata:
@@ -364,7 +371,7 @@ class MultipleSchema(BaseSchema):
         
         return "\n\n".join(prompts)
     
-    def parse_response(self, response: Any, paragraph: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
+    def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
         """Parse multiple schema responses into DataFrame."""
         all_data = []
         
@@ -372,7 +379,7 @@ class MultipleSchema(BaseSchema):
             # Try to extract response for this schema
             schema_response = getattr(response, name, None) if hasattr(response, name) else response
             
-            schema_df = schema.parse_response(schema_response, paragraph, metadata)
+            schema_df = schema.parse_response(schema_response, text_chunk, metadata)
             if not schema_df.empty:
                 # Add schema identifier
                 schema_df['schema_type'] = name

@@ -1,0 +1,58 @@
+schema_type: "nested"
+container_name: "commodities"
+variables:
+  - name: "commodity_type"
+    description: "Type of commodity mentioned"
+    data_type: "string"
+    required: true
+    allowed_values: ["oil", "gas", "copper", "gold", "silver", "steel", "aluminum"]
+  
+  - name: "price_mention"
+    description: "Whether a specific price is mentioned"
+    data_type: "boolean"
+    required: false
+  
+  - name: "price_value"
+    description: "Numeric price value if mentioned"
+    data_type: "number"
+    required: false
+  
+  - name: "price_unit"
+    description: "Unit of the price (e.g., barrel, ton, MMBtu)"
+    data_type: "string"
+    required: false
+  
+  - name: "expectation_type"
+    description: "Type of price expectation mentioned"
+    data_type: "string"
+    required: false
+    allowed_values: ["forecast", "guidance", "estimate", "projection", "outlook"]
+  
+  - name: "company_mention"
+    description: "Company names mentioned in relation to commodities"
+    data_type: "string"
+    required: false
+
+prompt_template: |
+  You are assisting a finance professor who expects meticulous and reliable results.
+
+  Extract commodity price information from the following text:
+
+  {variables}
+
+  Text to analyze:
+  {text}
+
+  CRITICAL INSTRUCTIONS:
+  - ONLY extract commodities that are EXPLICITLY mentioned in the text
+  - If NO commodities are mentioned, return an empty list []
+  - Do NOT infer or guess commodity types based on company names or context
+  - Do NOT extract commodities just because a company might be in the energy sector
+  - Focus on EXPLICIT mentions of: oil, gas, copper, gold, silver, steel, aluminum
+  - For each commodity mentioned, create a separate entry with all relevant details
+  - If a field is not mentioned in the text, leave it as null/None rather than guessing
+
+  Examples of what NOT to extract:
+  - "1-800 CONTACTS" → NOT oil (even though contacts might use oil-based solutions)
+  - "Apple Inc." → NOT aluminum (even though phones contain aluminum)
+  - "Bank of America" → NOT gold (even though banks might trade gold) 

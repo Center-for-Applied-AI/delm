@@ -5,3 +5,6 @@ data/
 .DS_Store
 __pycache__/
 .python-version
+src/delm.egg-info/
+delm_experiments/
+test-experiments/

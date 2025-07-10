@@ -10,14 +10,12 @@ A comprehensive toolkit for extracting structured data from unstructured text an
 - **Unified Schema System**: Progressive complexity from simple to nested to multiple schemas
 - **Structured Extraction**: Instructor + Pydantic schemas with fallback mechanisms
 - **Batch Processing**: Parallel execution for efficient large-scale processing
-- **Cost Tracking**: Real-time API cost monitoring and usage statistics
 
 ### Advanced Extraction
 - **Progressive Complexity**: Start simple, scale to complex nested structures
 - **Schema Registry**: Extensible system for custom schema types
 - **Context-Aware Processing**: Metadata integration and contextual prompts
 - **Validation & Error Handling**: Robust error recovery and validation
-- **Multiple Output Formats**: JSON, Parquet, Excel, CSV
 
 ### Evaluation & Monitoring
 - **Comprehensive Metrics**: Accuracy, precision, recall, cost analysis
@@ -46,16 +44,22 @@ cp example.env .env
 ```python
 from DELM import DELM, ParagraphSplit, KeywordScorer
 
-# Initialize DELM
+# Initialize DELM with schema specification
 delm = DELM(
-    config_path="example.delm_config.yaml",
+    schema_spec_path="example.schema_spec.yaml",
     dotenv_path=".env",
+    model_name="gpt-4o-mini",
+    temperature=0.0,
+    max_retries=3,
+    batch_size=10,
+    max_workers=4,
     split_strategy=ParagraphSplit(),
-    relevance_scorer=KeywordScorer(["price", "forecast", "estimate"])
+    relevance_scorer=KeywordScorer(["price", "forecast", "estimate"]),
+    regex_fallback_pattern=r'\d+'  # Extract numbers as fallback
 )
 
 # Load and process data
-df = delm.prep_data_from_file("data/input/report.txt")
+df = delm.prep_data("data/input/report.txt")
 processed_df = delm.process_via_llm(df, verbose=True)
 
 # Get results
@@ -66,14 +70,16 @@ metrics = delm.evaluate_output_metrics(processed_df)
 ### Commodity Price Extraction Example
 
 ```python
-# Use the commodity extraction configuration
+# Use the commodity extraction schema
 delm = DELM(
-    config_path="commodity_extraction_config.yaml",
-    dotenv_path=".env"
+    schema_spec_path="commodity_extraction_schema.yaml",
+    dotenv_path=".env",
+    model_name="gpt-4o-mini",
+    temperature=0.0
 )
 
 # Process earnings call transcripts
-df = delm.prep_data_from_df(report_df, "text")
+df = delm.prep_data(report_df, target_column="text")
 relevant_chunks = df[df["score"] > 0]
 results = delm.process_via_llm(relevant_chunks, use_batching=True)
 commodity_data = delm.parse_to_dataframe(results)
@@ -81,81 +87,81 @@ commodity_data = delm.parse_to_dataframe(results)
 
 ## 📋 Configuration
 
-DELM uses YAML configuration files to define extraction schemas and processing parameters.
+DELM separates configuration into two parts:
+1. **Schema Specification**: YAML file defining the extraction schema
+2. **Runtime Parameters**: Constructor arguments for model and processing settings
 
-### Basic Configuration
+### Schema Specification
+
+The schema specification file (e.g., `example.schema_spec.yaml`) defines what data to extract:
 
 ```yaml
-model_name: "gpt-4o-mini"
-temperature: 0.0
-max_retries: 3
-batch_size: 10
-max_workers: 4
+# Schema type: simple, nested, or multiple
+schema_type: "nested"
+container_name: "commodities"
 
-extraction:
-  variables:
-    - name: "oil_types"
-      description: "Types of oil mentioned"
-      data_type: "string"
-      allowed_values: ["WTI", "Brent", "OPEC"]
-    
-    - name: "price_forecast"
-      description: "Price forecasts mentioned"
-      data_type: "number"
-      required: false
+variables:
+  - name: "commodity_type"
+    description: "Type of commodity mentioned"
+    data_type: "string"
+    required: true
+    allowed_values: ["oil", "gas", "copper", "gold"]
+  
+  - name: "price_value"
+    description: "Price mentioned in text"
+    data_type: "number"
+    required: false
+
+prompt_template: |
+  Extract commodity information from the text:
+  {variables}
+  
+  Text: {text}
 ```
 
-### Progressive Schema Complexity
+### Runtime Configuration
 
-#### Level 1: Simple Schema (Current DELM)
-```yaml
-extraction:
-  variables:
-    - name: "company_names"
-      description: "Company names mentioned"
-      data_type: "string"
-    - name: "revenue_numbers"
-      description: "Revenue figures"
-      data_type: "number"
+Model and processing parameters are passed to the constructor:
+
+```python
+delm = DELM(
+    schema_spec_path="example.schema_spec.yaml",
+    model_name="gpt-4o-mini",
+    temperature=0.0,
+    max_retries=3,
+    batch_size=10,
+    max_workers=4,
+    regex_fallback_pattern=r'\d+'  # Optional: custom regex for fallback extraction
+)
 ```
 
-#### Level 2: Nested Schema (Enhanced)
-```yaml
-extraction:
-  schema_type: "nested"
-  container_name: "companies"
-  variables:
-    - name: "name"
-      description: "Company name"
-      data_type: "string"
-    - name: "revenue"
-      description: "Revenue figure"
-      data_type: "number"
-    - name: "sector"
-      description: "Business sector"
-      data_type: "string"
-      allowed_values: ["technology", "finance", "healthcare"]
+#### Regex Fallback Configuration
+
+You can provide a custom regex pattern for fallback extraction when LLM processing fails:
+
+```python
+# Extract numbers when LLM fails
+delm = DELM(regex_fallback_pattern=r'\d+')
+
+# Extract email addresses
+delm = DELM(regex_fallback_pattern=r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
+
+# Extract currency amounts
+delm = DELM(regex_fallback_pattern=r'\$\d+(?:,\d{3})*(?:\.\d{2})?')
+
+# No regex fallback (default)
+delm = DELM()  # regex_fallback_pattern=None
 ```
 
-#### Level 3: Multiple Schemas (Advanced)
-```yaml
-extraction:
-  schema_type: "multiple"
-  companies:
-    schema_type: "nested"
-    container_name: "companies"
-    variables:
-      - name: "name"
-        description: "Company name"
-        data_type: "string"
-  products:
-    schema_type: "nested"
-    container_name: "products"
-    variables:
-      - name: "name"
-        description: "Product name"
-        data_type: "string"
-```
+### Schema Types
+
+DELM supports three levels of schema complexity:
+
+- **Simple Schema (Level 1)**: Basic key-value extraction
+- **Nested Schema (Level 2)**: Structured objects with multiple fields  
+- **Multiple Schemas (Level 3)**: Multiple independent structured objects
+
+For detailed examples and configuration options, see [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md).
 
 ## 🏗️ Architecture
 

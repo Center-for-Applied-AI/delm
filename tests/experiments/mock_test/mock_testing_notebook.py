@@ -1,14 +1,11 @@
 """
 Mock testing for DELM - Jupyter REPL version
 Run this cell by cell in Jupyter for interactive testing
-Updated for unified schema system
+Updated for new DELM structure with external schema specification
 """
 
 import sys
 from pathlib import Path
-
-# Add src directory to Python path
-sys.path.append(str(Path(__file__).parent.parent))
 
 import pandas as pd
 import numpy as np
@@ -16,8 +13,7 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import json
 
-from DELM import DELM, ParagraphSplit, KeywordScorer
-from schemas import SchemaRegistry
+from delm import DELM, ParagraphSplit, KeywordScorer
 
 # Test configuration
 TEST_KEYWORDS = (
@@ -33,78 +29,10 @@ TEST_KEYWORDS = (
     "using"
 )
 
-# Create config directly in Python (no external file needed)
-DELM_CONFIG = {
-    "model_name": "gpt-4o-mini",
-    "temperature": 0.0,
-    "max_retries": 3,
-    "batch_size": 10,
-    "max_workers": 4,
-    "extraction": {
-        "schema_type": "nested",
-        "container_name": "commodities",
-        "variables": [
-            {
-                "name": "commodity_type",
-                "description": "Type of commodity mentioned",
-                "data_type": "string",
-                "required": True,
-                "allowed_values": ["oil", "gas", "copper", "gold", "silver", "steel", "aluminum"]
-            },
-            {
-                "name": "price_mention",
-                "description": "Whether a specific price is mentioned",
-                "data_type": "boolean",
-                "required": False
-            },
-            {
-                "name": "price_value",
-                "description": "Numeric price value if mentioned",
-                "data_type": "number",
-                "required": False
-            },
-            {
-                "name": "price_unit",
-                "description": "Unit of the price (e.g., barrel, ton, MMBtu)",
-                "data_type": "string",
-                "required": False
-            },
-            {
-                "name": "expectation_type",
-                "description": "Type of price expectation mentioned",
-                "data_type": "string",
-                "required": False,
-                "allowed_values": ["forecast", "guidance", "estimate", "projection", "outlook"]
-            },
-            {
-                "name": "company_mention",
-                "description": "Company names mentioned in relation to commodities",
-                "data_type": "string",
-                "required": False
-            }
-        ],
-        "prompt_template": """You're assisting a finance professor who expects meticulous and reliable results.
-
-Extract commodity price information from the following text:
-
-{variables}
-
-Text to analyze:
-{text}
-
-Focus on:
-- Specific commodity types (oil, gas, metals, etc.)
-- Price mentions and values
-- Price expectations and forecasts
-- Companies mentioned in commodity context
-- Units of measurement (barrel, ton, MMBtu, etc.)
-
-For each commodity mentioned, create a separate entry with all relevant details.
-IMPORTANT: If a field is not mentioned in the text, leave it as null/None rather than guessing."""
-    }
-}
-
-DOTENV_PATH = Path(".env")
+# Paths
+EXPERIMENT_DIR = Path("test-experiments")
+SCHEMA_SPEC_PATH = Path("tests/experiments/mock_test/schema_spec.yaml")
+DOTENV_PATH = Path("tests/experiments/mock_test/.env")
 
 # Create mock data (run this cell first)
 np.random.seed(42)  # For reproducible results
@@ -192,134 +120,59 @@ print(f"Columns: {list(report_text_df.columns)}")
 print("\nFirst few rows:")
 print(report_text_df.head())
 
-# Initialize DELM (run this cell)
+# Initialize DELM with new structure (run this cell)
 delm = DELM(
-    config_path=None,  # No external config file
-    dotenv_path=DOTENV_PATH, 
+    data_source=report_text_df.iloc[:3],
+    schema_spec_path=SCHEMA_SPEC_PATH,
+    experiment_name="mock_test",
+    experiments_dir="experiments",
+    overwrite_experiment=True,
+    model_name="gpt-4o-mini",
+    temperature=0.0,
+    max_retries=3,
+    batch_size=1,
+    max_workers=1,
+    target_column="text",
+    drop_target_column=True,
     split_strategy=ParagraphSplit(),
-    relevance_scorer=KeywordScorer(TEST_KEYWORDS)
+    relevance_scorer=KeywordScorer(TEST_KEYWORDS),
+    verbose=True
 )
-
-# Set the config manually
-delm.config = DELM_CONFIG
-delm.extraction_schema = delm.schema_registry.create(DELM_CONFIG['extraction'])
 
 print("DELM initialized successfully!")
 
 # Process data with DELM (run this cell)
-output_df = delm.prep_data_from_df(report_text_df, "text")
+output_df = delm.prep_data()
 
-print(f"Data processed successfully!")
-print(f"Output shape: {output_df.shape}")
-print(f"Output columns: {list(output_df.columns)}")
+print(f"Data preprocessed successfully!")
+print(f"Prepped Data columns: {list(output_df.columns)}")
 
-# Show score distribution (run this cell)
-plt.figure(figsize=(10, 6))
-plt.hist(output_df["score"], bins=20, alpha=0.7, edgecolor='black')
-plt.title("Relevance Score Distribution (Mock Data)")
-plt.xlabel("Score")
-plt.ylabel("Frequency")
-plt.grid(True, alpha=0.3)
-plt.show()
-
-print(f"Score statistics:")
-print(f"  Mean: {output_df['score'].mean():.3f}")
-print(f"  Median: {output_df['score'].median():.3f}")
-print(f"  Std: {output_df['score'].std():.3f}")
-print(f"  Min: {output_df['score'].min():.3f}")
-print(f"  Max: {output_df['score'].max():.3f}")
-
-# Show top scoring chunks (run this cell)
-print("Top 5 scoring chunks:")
-top_chunks = output_df.nlargest(5, 'score')
-for i, (idx, row) in enumerate(top_chunks.iterrows()):
-    print(f"\n{i+1}. Score: {row['score']:.3f}")
-    print(f"   Report: {row['report']}")
-    print(f"   Text: {row['text_chunk'][:150]}...")
-
-# Test LLM extraction on top chunks (run this cell)
-print("Testing LLM extraction on top 3 chunks...")
-top_chunks_for_llm = output_df.nlargest(3, 'score')
-# Set use_regex_fallback=False to see only LLM results, no fallback to regex
-llm_output_df = delm.process_via_llm(top_chunks_for_llm, verbose=True, use_regex_fallback=False)
+# Process with LLM (no parameters needed - uses constructor config)
+llm_output_df = delm.process_via_llm()
 
 print(f"LLM processing completed!")
-print(f"LLM output shape: {llm_output_df.shape}")
+print(f"LLM output columns: {list(llm_output_df.columns)}")
 
 if not llm_output_df.empty:
     print("\nLLM Output sample:")
     print(llm_output_df.head())
 
 # Parse to structured DataFrame using new schema system
-print("\nParsing to structured DataFrame...")
+print("\nParsing to structured output DataFrame...")
 structured_df = delm.parse_to_dataframe(llm_output_df)
 print(f"Structured output shape: {structured_df.shape}")
 
 if not structured_df.empty:
-    print("\nStructured DataFrame sample:")
+    print("\nStructured output DataFrame sample:")
     print(structured_df.head())
     
-    # Show commodity types found
-    if 'commodity_type' in structured_df.columns:
-        print(f"\nCommodity types found: {structured_df['commodity_type'].value_counts().to_dict()}")
-    
-    # Show price mentions
-    if 'price_mention' in structured_df.columns:
-        price_mentions = structured_df['price_mention'].value_counts()
-        print(f"\nPrice mentions: {price_mentions.to_dict()}")
-    
-    # Show price values
-    if 'price_value' in structured_df.columns:
-        non_null_prices = structured_df['price_value'].dropna()
-        if len(non_null_prices) > 0:
-            print(f"\nPrice values found: {non_null_prices.tolist()}")
-    
-    # Show price units
-    if 'price_unit' in structured_df.columns:
-        units = structured_df['price_unit'].value_counts()
-        print(f"\nPrice units: {units.to_dict()}")
-    
-    # Show expectation types
-    if 'expectation_type' in structured_df.columns:
-        expectations = structured_df['expectation_type'].value_counts()
-        print(f"\nExpectation types: {expectations.to_dict()}")
-    
-    # Show companies
-    if 'company_mention' in structured_df.columns:
-        companies = structured_df['company_mention'].value_counts()
-        print(f"\nCompanies mentioned: {companies.to_dict()}")
-    
-    # Show total instances found
-    print(f"\nTotal commodity instances found: {len(structured_df)}")
 
 # Print formatted JSON output
 print("\nRaw LLM JSON output (cleaned):")
 for idx, row in llm_output_df.head().iterrows():
     response = row["llm_json"]
     print(f"\nResponse {idx}:")
-    try:
-        if hasattr(response, 'model_dump'):
-            # It's a Pydantic model - get clean dict
-            clean_dict = response.model_dump(mode="json") # type: ignore
-            print(json.dumps(clean_dict, indent=2, default=str))
-        elif isinstance(response, dict):
-            # It's already a dict
-            print(json.dumps(response, indent=2, default=str))
-        else:
-            print(f"Unknown response type: {type(response)}")
-            print(response)
-    except Exception as e:
-        print(f"Error processing response: {e}")
-        print(f"Response type: {type(response)}")
-        print(response)
-
-# Test cost tracking
-print(f"\nCost summary:")
-cost_summary = delm.get_cost_summary()
-for key, value in cost_summary.items():
-    print(f"  {key}: {value}")
+    clean_dict = response.model_dump(mode="json") # type: ignore
+    print(json.dumps(clean_dict, indent=2, default=str))
 
 print("\nMock testing complete! You can now experiment with the data.") 
-
-
-print(llm_output_df.loc[4]["text_chunk"])
