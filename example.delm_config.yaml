@@ -32,7 +32,7 @@ extraction:
   # Options: "simple", "nested", "multiple"
   # - simple: Key-value pairs (e.g., {"price": 100, "company": "Apple"})
   # - nested: List of objects (e.g., {"commodities": [{"type": "oil", "price": 100}]})
-  # - multiple: Multiple independent schemas in one config
+  # - multiple: Multiple independent schemas in one config (e.g., {"commodities": [{"type": "oil", "price": 100}], "companies": [{"name": "Apple", "sector": "Technology"}]})
   schema_type: "nested"
   
   # Container name for nested schemas (only used when schema_type = "nested")
@@ -187,61 +187,3 @@ extraction:
 # 4. Use {text} placeholder for the input text
 # 5. Include validation rules in the prompt
 # 6. Specify what to do when information is not found (null vs. empty)
-
-# =============================================================================
-# USAGE EXAMPLES
-# =============================================================================
-
-# 1. Basic commodity extraction (current example):
-#    - Extracts commodity types, prices, and related information
-#    - Good for financial reports, market analysis documents
-
-# 2. Company information extraction:
-#    - Extract company names, sectors, financial metrics
-#    - Good for earnings reports, company profiles
-
-# 3. Event extraction:
-#    - Extract dates, locations, participants, outcomes
-#    - Good for news articles, event reports
-
-# 4. Product information extraction:
-#    - Extract product names, features, prices, specifications
-#    - Good for product catalogs, reviews
-
-# =============================================================================
-# ENVIRONMENT SETUP
-# =============================================================================
-
-# Required environment variables:
-# - OPENAI_API_KEY: Your OpenAI API key
-# - (Optional) Other API keys for different providers
-
-# File structure:
-# - .env: Environment variables (create this file)
-# - example.delm_config.yaml: This configuration file
-# - data/input/: Input files (CSV, Parquet, etc.)
-# - data/output/: Output files
-
-# =============================================================================
-# COMMON CONFIGURATION PATTERNS
-# =============================================================================
-
-# Pattern 1: Financial Data Extraction
-# - Focus on numbers, dates, company names
-# - Use number and date data types
-# - Include validation for financial metrics
-
-# Pattern 2: News Article Analysis
-# - Focus on entities, events, sentiment
-# - Use string data types with allowed values
-# - Include context and relationships
-
-# Pattern 3: Technical Documentation
-# - Focus on specifications, requirements, features
-# - Use structured data types
-# - Include hierarchical relationships
-
-# Pattern 4: Social Media Analysis
-# - Focus on mentions, hashtags, sentiment
-# - Use list-based extraction
-# - Include temporal and spatial data
