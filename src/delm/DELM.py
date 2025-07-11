@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-DELM v0.2 – “Phase‑2” implementation
+DELM v0.2 – "Phase‑2" implementation
 -----------------------------------
 Major upgrades from the Phase‑1 prototype:
 • Multi‑format loaders (.txt, .html/.md, .docx, .pdf*)
@@ -41,6 +41,15 @@ from .data_loaders import loader_factory
 # Import extraction engine
 from .extraction_engine import ExtractionEngine
 
+# Import new config system
+from .config import DELMConfig, ConfigValidationError
+
+# Import system constants
+from .constants import (
+    SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, 
+    SYSTEM_LLM_JSON_COLUMN, SYSTEM_CHUNK_ID_COLUMN
+)
+
 
 
 
@@ -49,7 +58,6 @@ from .extraction_engine import ExtractionEngine
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
 # --------------------------------------------------------------------------- #
-DEFAULT_KEYWORDS = ("price", "forecast", "guidance", "estimate", "expectation")
 
 
 class DELM:
@@ -57,63 +65,104 @@ class DELM:
 
     def __init__(
         self,
-        *,
-        data_source: Union[str, Path, pd.DataFrame],
-        schema_spec_path: str | Path,
-        dotenv_path: str | Path | None = None,
-        experiment_name: str,
-        experiments_dir: str | Path = "delm_experiments",
-        overwrite_experiment: bool = False,
-        model_name: str = "gpt-4o-mini",
-        temperature: float = 0.0,
-        max_retries: int = 3,
-        batch_size: int = 10,
-        max_workers: int = 1,
-        target_column: str = "",
-        drop_target_column: bool = True,
-        split_strategy: SplitStrategy | None = None,
-        relevance_scorer: RelevanceScorer | None = None,
-        regex_fallback_pattern: str | None = None,
-        verbose: bool = False,
+        config: DELMConfig,
     ) -> None:
+        # Validate and store config
+        config.validate()
+        self.config = config
+        
+        # Load configuration and initialize components
+        self._load_config()
+        
+        # Runtime artefacts
+        self.raw_df: pd.DataFrame | None = None
+        self.processed_df: pd.DataFrame | None = None
+
+    @classmethod
+    def from_yaml(cls, config_path: Union[str, Path]) -> "DELM":
+        """
+        Create a DELM instance from a YAML configuration file.
+        
+        This is the recommended way to create DELM instances for most use cases.
+        
+        Args:
+            config_path: Path to YAML configuration file
+            
+        Returns:
+            Configured DELM instance
+            
+        Example:
+            delm = DELM.from_yaml("config.yaml")
+        """
+        config = DELMConfig.from_yaml(Path(config_path))
+        return cls(config=config)
+
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> "DELM":
+        """
+        Create a DELM instance from a configuration dictionary.
+        
+        Args:
+            config_dict: Configuration dictionary
+            
+        Returns:
+            Configured DELM instance
+            
+        Example:
+            config = {
+                "model": {"name": "gpt-4o-mini"},
+                "data": {"target_column": "text"},
+                "schema": {"spec_path": "schema.yaml"},
+                "experiment": {"name": "test"}
+            }
+            delm = DELM.from_dict(config)
+            # Data is passed to methods, not stored in config
+            output_df = delm.prep_data(my_dataframe)
+            # This choice was made to allow for more flexibility: a dataframe could not be stored in config.yaml
+        """
+        config = DELMConfig.from_dict(config_dict)
+        return cls(config=config)
+
+    def _load_config(self) -> None:
+        """Load configuration and initialize all components."""
         # Constants ------------------------------------------------------- #
-        self.TARGET_COLUMN_NAME = "text"
-        self.CHUNK_COLUMN_NAME = "text_chunk"
+        self.TARGET_COLUMN_NAME = self.config.data.target_column
+        self.CHUNK_COLUMN_NAME = SYSTEM_CHUNK_COLUMN  # This is internal, not configurable
         self.root_dir = Path.cwd()
 
         # Environment & secrets -------------------------------------------- #
-        if dotenv_path:
-            dotenv.load_dotenv(dotenv_path)
+        if self.config.model.dotenv_path:
+            dotenv.load_dotenv(self.config.model.dotenv_path)
         self.api_key: str | None = os.getenv("OPENAI_API_KEY")
         if self.api_key and openai is not None:
             openai.api_key = self.api_key
 
         # Experiment configuration ----------------------------------------- #
         # Make sure experiments dir exists and create if not
-        self.experiments_dir = Path(experiments_dir)
+        self.experiments_dir = self.config.experiment.directory
         self.experiments_dir.mkdir(parents=True, exist_ok=True)
 
         # Check if experiment name is already in use
-        if (self.experiments_dir / experiment_name).exists() and not overwrite_experiment:
-            raise ValueError(f"Experiment name '{experiment_name}' already exists in {self.experiments_dir}")
-        elif (self.experiments_dir / experiment_name).exists() and overwrite_experiment:
-            shutil.rmtree(self.experiments_dir / experiment_name)
+        if (self.experiments_dir / self.config.experiment.name).exists() and not self.config.experiment.overwrite_experiment:
+            raise ValueError(f"Experiment name '{self.config.experiment.name}' already exists in {self.experiments_dir}")
+        elif (self.experiments_dir / self.config.experiment.name).exists() and self.config.experiment.overwrite_experiment:
+            shutil.rmtree(self.experiments_dir / self.config.experiment.name)
 
         # Create experiment directory
-        self.experiment_name = experiment_name
+        self.experiment_name = self.config.experiment.name
         self.experiment_dir = self.experiments_dir / self.experiment_name
 
         # TODO: Implement experiment resumption via an experiment_path argument
 
         # Model configuration ---------------------------------------------- #
-        self.model_name = model_name
-        self.temperature = temperature
-        self.max_retries = max_retries
-        self.regex_fallback_pattern = regex_fallback_pattern
+        self.model_name = self.config.model.name
+        self.temperature = self.config.model.temperature
+        self.max_retries = self.config.model.max_retries
+        self.regex_fallback_pattern = self.config.model.regex_fallback_pattern
 
         # Strategy objects ------------------------------------------------- #
-        self.splitter: SplitStrategy = split_strategy or ParagraphSplit()
-        self.scorer: RelevanceScorer = relevance_scorer or KeywordScorer(DEFAULT_KEYWORDS)
+        self.splitter: SplitStrategy = self.config.data.splitting.strategy
+        self.scorer: RelevanceScorer = self.config.data.scoring.scorer
 
         # Schema system ---------------------------------------------------- #
         self.schema_registry = SchemaRegistry()
@@ -125,34 +174,32 @@ class DELM:
             model_name=self.model_name,
             temperature=self.temperature,
             max_retries=self.max_retries,
-            batch_size=batch_size,
-            max_workers=max_workers,
+            batch_size=self.config.model.batch_size,
+            max_workers=self.config.model.max_workers,
             regex_fallback_pattern=self.regex_fallback_pattern,
-            schema_spec_path=schema_spec_path
+            schema_spec_path=self.config.schema.spec_path
         )
 
         # Data processing configuration ------------------------------------ #
-        self.data_source = data_source
-        self.target_column = target_column
-        self.drop_target_column = drop_target_column
-        self.verbose = verbose
-
-        # Runtime artefacts ------------------------------------------------ #
-        self.raw_df: pd.DataFrame | None = None
-        self.processed_df: pd.DataFrame | None = None
+        self.target_column = self.config.data.target_column
+        self.drop_target_column = self.config.data.drop_target_column
+        self.verbose = self.config.experiment.verbose
 
     # ------------------------------ Public API --------------------------- #
-    def prep_data(self) -> pd.DataFrame:
+    def prep_data(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
         """
         Prepare data for processing using configuration from constructor.
         Saves preprocessed data as .feather file in experiment directory.
         
+        Args:
+            data_source: Data to process (file path, Path, or DataFrame)
+            
         Returns:
             DataFrame with chunked and scored data ready for LLM processing
         """
-        if isinstance(self.data_source, (str, Path)):
+        if isinstance(data_source, (str, Path)):
             # Handle file loading
-            path = Path(self.data_source)
+            path = Path(data_source)
             
             try:
                 data = loader_factory.load_file(path)
@@ -180,7 +227,7 @@ class DELM:
             # Handle DataFrame input
             if self.target_column == "":
                 raise ValueError("Target column is required for DataFrame input")
-            df = self.data_source.copy()
+            df = data_source.copy()
         
         # Process the DataFrame (chunking and scoring)
         if self.target_column == "":
@@ -191,12 +238,12 @@ class DELM:
             
         df[self.CHUNK_COLUMN_NAME] = df[target_column].apply(self.splitter.split)
         df = df.explode(self.CHUNK_COLUMN_NAME).reset_index(drop=True)
-        df["chunk_id"] = range(len(df))
+        df[SYSTEM_CHUNK_ID_COLUMN] = range(len(df))
         
         if self.drop_target_column and target_column != self.TARGET_COLUMN_NAME:
             df = df.drop(columns=[target_column])
 
-        df["score"] = df[self.CHUNK_COLUMN_NAME].apply(self.scorer.score)
+        df[SYSTEM_SCORE_COLUMN] = df[self.CHUNK_COLUMN_NAME].apply(self.scorer.score)
         
         # Save preprocessed data to feather file
         self._save_preprocessed_data(df)
@@ -209,11 +256,10 @@ class DELM:
         preprocessed_dir = self.experiment_dir / "preprocessed"
         preprocessed_dir.mkdir(parents=True, exist_ok=True)
         
-        # Generate filename based on source data
-        if isinstance(self.data_source, (str, Path)):
-            source_name = Path(self.data_source).stem
-        else:
-            source_name = "dataframe"
+        # Generate filename based on experiment name and timestamp
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        source_name = f"{self.experiment_name}_{timestamp}"
         
         # Save as feather file
         feather_path = preprocessed_dir / f"{source_name}_prepped.feather"
@@ -243,33 +289,15 @@ class DELM:
         results = self.extraction_engine.process_text_chunks(text_chunks, self.verbose, use_regex_fallback)
         
         out = data.copy()
-        out["llm_json"] = results
+        out[SYSTEM_LLM_JSON_COLUMN] = results
         if self.verbose:
-            print(f"Processed {len(out)} rows. Saved json to `llm_json` column")
+            print(f"Processed {len(out)} rows. Saved json to `{SYSTEM_LLM_JSON_COLUMN}` column")
         self.processed_df = out
         return out
     
     def _process_text_chunks(self, text_chunks: List[str], verbose: bool = False, use_regex_fallback: bool = False) -> List[Dict[str, Any]]:
         """Process text chunks with configurable concurrency (defaults to sequential)."""
         return self.extraction_engine.process_text_chunks(text_chunks, verbose, use_regex_fallback)
-    
-
-
-    # def evaluate_output_metrics(self, data: pd.DataFrame) -> Dict[str, float]:
-    #     self._validate_output_df(data)
-
-    #     valid_ratio = float(data["llm_json"].apply(lambda x: isinstance(x, dict)).mean())
-    #     avg_numbers = float(
-    #         data["llm_json"].apply(lambda x: len(x.get("numbers", [])) if isinstance(x, dict) else 0).mean()
-    #     )
-        
-    #     return {
-    #         "rows": float(len(data)),
-    #         "valid_json": round(valid_ratio, 4),
-    #         "avg_numbers": round(avg_numbers, 2)
-    #     }
-    
-
     
     def parse_to_dataframe(self, data: pd.DataFrame, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
         """Parse LLM responses into a structured DataFrame."""
@@ -286,7 +314,7 @@ class DELM:
             
             # Preserve all original columns from the input DataFrame
             for col in row.index:
-                if col not in ['text_chunk', 'llm_json']:  # Skip the processed columns
+                if col not in [SYSTEM_CHUNK_COLUMN, SYSTEM_LLM_JSON_COLUMN]:  # Skip the processed columns
                     row_metadata[col] = row[col]
             
             # Add any additional metadata passed to the function

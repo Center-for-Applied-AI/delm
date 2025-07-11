@@ -1,7 +1,7 @@
 """
 Mock testing for DELM - Jupyter REPL version
 Run this cell by cell in Jupyter for interactive testing
-Updated for new DELM structure with external schema specification
+Updated to use YAML configuration file
 """
 
 import sys
@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import json
 
-from delm import DELM, ParagraphSplit, KeywordScorer
+from delm import DELM, DELMConfig
 
 # Test configuration
 TEST_KEYWORDS = (
@@ -31,6 +31,7 @@ TEST_KEYWORDS = (
 
 # Paths
 EXPERIMENT_DIR = Path("test-experiments")
+CONFIG_PATH = Path("tests/experiments/mock_test/config.yaml")
 SCHEMA_SPEC_PATH = Path("tests/experiments/mock_test/schema_spec.yaml")
 DOTENV_PATH = Path("tests/experiments/mock_test/.env")
 
@@ -120,29 +121,17 @@ print(f"Columns: {list(report_text_df.columns)}")
 print("\nFirst few rows:")
 print(report_text_df.head())
 
-# Initialize DELM with new structure (run this cell)
-delm = DELM(
-    data_source=report_text_df.iloc[:3],
-    schema_spec_path=SCHEMA_SPEC_PATH,
-    experiment_name="mock_test",
-    experiments_dir="experiments",
-    overwrite_experiment=True,
-    model_name="gpt-4o-mini",
-    temperature=0.0,
-    max_retries=3,
-    batch_size=1,
-    max_workers=1,
-    target_column="text",
-    drop_target_column=True,
-    split_strategy=ParagraphSplit(),
-    relevance_scorer=KeywordScorer(TEST_KEYWORDS),
-    verbose=True
-)
+# Initialize DELM with YAML config (run this cell)
+print("\nLoading DELM configuration from YAML...")
+config = DELMConfig.from_yaml(CONFIG_PATH)
+
+# Initialize DELM with config
+delm = DELM(config=config)
 
 print("DELM initialized successfully!")
 
 # Process data with DELM (run this cell)
-output_df = delm.prep_data()
+output_df = delm.prep_data(report_text_df.iloc[:3])
 
 print(f"Data preprocessed successfully!")
 print(f"Prepped Data columns: {list(output_df.columns)}")

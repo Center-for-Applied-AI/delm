@@ -1,6 +1,6 @@
 """
 Test script for DELM - designed for Jupyter REPL usage
-Updated for unified schema system with external YAML config
+Updated to use YAML configuration file
 """
 
 from pathlib import Path
@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import json
 import sys
 
-from delm import DELM, ParagraphSplit, KeywordScorer
+from delm import DELM, DELMConfig
 
 # Test configuration
 TEST_KEYWORDS = (
@@ -25,54 +25,50 @@ TEST_KEYWORDS = (
     "using"
 )
 
-# Paths
-SCHEMA_SPEC_PATH = Path("tests/experiments/calls_test/schema_spec.yaml")
-DOTENV_PATH = Path(".env")
 TEST_FILE_PATH = Path("tests/experiments/calls_test/data/input/input2_sample_1000.parquet")
+CONFIG_PATH = Path("tests/experiments/calls_test/config.yaml")
+
+def load_test_data(file_path: Path, num_rows: int = 2) -> pd.DataFrame:
+    """
+    Load and preprocess test data from parquet file.
+    
+    Args:
+        file_path: Path to the parquet file
+        num_rows: Number of rows to load (default: 2)
+    
+    Returns:
+        Preprocessed DataFrame ready for DELM processing
+    """
+    print("Loading test data...")
+    report_text_df = pd.read_parquet(file_path).iloc[:num_rows]
+    report_text_df = report_text_df.drop(columns=["Unnamed: 0"])
+
+    # The date is given in an inconsistent format, so it is cropped at 10 characters.
+    date_clean = pd.to_datetime(report_text_df["date"].astype(str).apply(lambda x: x[:10]))
+    report_text_df["date"] = date_clean
+    report_text_df = report_text_df[["report", "date", "title", "subtitle", "firm_name", "text"]]
+
+    print("Test data loaded successfully!")
+    print(f"Shape: {report_text_df.shape}")
+    print(f"Columns: {list(report_text_df.columns)}")
+    
+    return report_text_df
 
 # Load and prepare test data
-print("Loading test data...")
-report_text_df = pd.read_parquet(TEST_FILE_PATH).iloc[:2]
-report_text_df = report_text_df.drop(columns=["Unnamed: 0"])
+report_text_df = load_test_data(TEST_FILE_PATH)
 
-# The date is given in an inconsistent format, so it is cropped at 10 characters.
-date_clean = pd.to_datetime(report_text_df["date"].astype(str).apply(lambda x: x[:10]))
-report_text_df["date"] = date_clean
-report_text_df = report_text_df[["report", "date", "title", "subtitle", "firm_name", "text"]]
+# Initialize DELM with YAML config
+print("\nLoading DELM configuration from YAML...")
+config = DELMConfig.from_yaml(CONFIG_PATH)
 
-print("Test data loaded successfully!")
-print(f"Shape: {report_text_df.shape}")
-print(f"Columns: {list(report_text_df.columns)}")
-print("\nFirst few rows:")
-print(report_text_df.head())
-print("\nData info:")
-print(report_text_df.info())
-
-# Initialize DELM with new structure
-print("\nInitializing DELM...")
-delm = DELM(
-    data_source=report_text_df,
-    schema_spec_path=SCHEMA_SPEC_PATH,
-    experiment_name="calls_test",
-    experiments_dir="test-experiments",
-    overwrite_experiment=True,
-    model_name="gpt-4o-mini",
-    temperature=0.0,
-    max_retries=3,
-    batch_size=1,
-    max_workers=1,
-    target_column="text",
-    drop_target_column=True,
-    split_strategy=ParagraphSplit(),
-    relevance_scorer=KeywordScorer(TEST_KEYWORDS),
-    verbose=True
-)
+# Initialize DELM with config
+delm = DELM(config=config)
 
 print("DELM initialized successfully!")
 
 # Process data with DELM
 print("\nPreprocessing data...")
-output_df = delm.prep_data()
+output_df = delm.prep_data(report_text_df)
 
 print(f"Data preprocessed successfully!")
 print(f"Prepped Data columns: {list(output_df.columns)}")
