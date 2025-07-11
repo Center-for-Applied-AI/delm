@@ -61,33 +61,6 @@ variables:
     required: false
     validate_in_text: true
 
-# Prompt template for LLM extraction
-# Use {text} for the input text and {variables} for variable descriptions
-# Add any additional instructions at the end such as important instructions
-prompt_template: |
-  You are assisting a finance professor who expects meticulous and reliable results.
-
-  Extract commodity price information from the following text:
-
-  {variables}
-
-  Text to analyze:
-  {text}
-
-  CRITICAL INSTRUCTIONS:
-  - ONLY extract commodities that are EXPLICITLY mentioned in the text
-  - If NO commodities are mentioned, return an empty list []
-  - Do NOT infer or guess commodity types based on company names or context
-  - Do NOT extract commodities just because a company might be in the energy sector
-  - Focus on EXPLICIT mentions of: oil, gas, copper, gold, silver, steel, aluminum
-  - For each commodity mentioned, create a separate entry with all relevant details
-  - If a field is not mentioned in the text, leave it as null/None rather than guessing
-
-  Examples of what NOT to extract:
-  - "1-800 CONTACTS" → NOT oil (even though contacts might use oil-based solutions)
-  - "Apple Inc." → NOT aluminum (even though phones contain aluminum)
-  - "Bank of America" → NOT gold (even though banks might trade gold)
-
 # =============================================================================
 # ALTERNATIVE SCHEMA EXAMPLES
 # =============================================================================
@@ -104,7 +77,6 @@ prompt_template: |
 #     description: "Company name mentioned"
 #     data_type: "string"
 #     required: false
-# prompt_template: "Extract the following information from the text: {variables}\n\nText: {text}"
 
 # =============================================================================
 # DATA TYPE REFERENCE
@@ -123,16 +95,4 @@ prompt_template: |
 # - data_type: Type of data to extract (required)
 # - required: Whether the field must be present (default: false)
 # - allowed_values: List of valid values for the field (optional)
-# - validate_in_text: Whether to validate the extracted value appears in the text (default: false)
-
-# =============================================================================
-# PROMPT TEMPLATE GUIDELINES
-# =============================================================================
-
-# Best practices for prompt templates:
-# 1. Be explicit about what to extract and what NOT to extract
-# 2. Provide clear examples of correct and incorrect extractions
-# 3. Use {variables} placeholder to include variable descriptions
-# 4. Use {text} placeholder for the input text
-# 5. Include validation rules in the prompt
-# 6. Specify what to do when information is not found (null vs. empty) 
+# - validate_in_text: Whether to validate the extracted value appears in the text (default: false) 

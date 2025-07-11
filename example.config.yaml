@@ -1,0 +1,65 @@
+# DELM Configuration Example
+# This file shows all available configuration options for DELM
+
+# Model configuration
+model:
+  name: "gpt-4o-mini"           # LLM model to use
+  temperature: 0.0              # Temperature for generation (0.0-2.0)
+  max_retries: 3                # Maximum API retries
+  batch_size: 10                # Batch size for processing
+  max_workers: 1                # Number of concurrent workers
+  base_delay: 1.0               # Base delay for retry handler (seconds)
+  dotenv_path: ".env"           # Path to .env file (optional, can be null)
+  regex_fallback_pattern: null  # Regex pattern for fallback (optional, can be null)
+
+# Data configuration
+data:
+  target_column: "text"         # Column containing text to process
+  drop_target_column: true      # Whether to drop target column after processing
+  
+  # Splitting strategy configuration
+  splitting:
+    strategy:
+      type: "ParagraphSplit"    # Available: ParagraphSplit, FixedWindowSplit, RegexSplit
+      # For FixedWindowSplit, you can also specify:
+      # window: 5               # Number of sentences per chunk
+      # stride: 5               # Number of sentences to overlap
+      # For RegexSplit, you can also specify:
+      # pattern: "\n\n"         # Regex pattern to split on
+  
+  # Scoring strategy configuration  
+  scoring:
+    scorer:
+      type: "KeywordScorer"     # Available: KeywordScorer, FuzzyScorer
+      keywords:                 # List of keywords for relevance scoring
+        - "price"
+        - "forecast"
+        - "guidance"
+        - "estimate"
+        - "expectation"
+        - "revenue"
+        - "earnings"
+
+# Schema configuration
+schema:
+  spec_path: "tests/experiments/calls_test/schema_spec.yaml" # Path to schema specification file
+  container_name: "data"        # Container name for nested schemas
+  prompt_template: null         # Custom prompt template (optional, null = use default)
+  # Example custom prompt:
+  # prompt_template: |
+  #   You are a financial data extraction expert. Extract the following information:
+  #   
+  #   {variables}
+  #   
+  #   Text to analyze:
+  #   {text}
+  #   
+  #   Focus on extracting accurate financial data and return results in the specified format.
+
+# Experiment configuration
+experiment:
+  name: "my_experiment"         # Experiment name (required)
+  directory: "delm_experiments" # Experiment directory
+  save_intermediates: true      # Whether to save intermediate files
+  overwrite_experiment: false   # Whether to overwrite existing experiments
+  verbose: false                # Whether to enable verbose logging 

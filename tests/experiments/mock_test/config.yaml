@@ -1,0 +1,52 @@
+# Mock Test Configuration
+# This config file replaces the programmatic config creation in mock_testing_notebook.py
+
+# Model configuration
+model:
+  name: "gpt-4o-mini"
+  temperature: 0.0
+  max_retries: 3
+  batch_size: 1
+  max_workers: 1
+  dotenv_path: ".env"
+  regex_fallback_pattern: null
+
+# Data configuration
+data:
+  target_column: "text"
+  drop_target_column: true
+  
+  # Splitting strategy configuration
+  splitting:
+    strategy:
+      type: "ParagraphSplit"
+  
+  # Scoring strategy configuration  
+  scoring:
+    scorer:
+      type: "KeywordScorer"
+      keywords:
+        - "price"
+        - "prices" 
+        - "oil"
+        - "gas"
+        - "expect"
+        - "barrel"
+        - "ton"
+        - "used"
+        - "expectations"
+        - "using"
+
+# Schema configuration
+schema:
+  spec_path: "tests/experiments/mock_test/schema_spec.yaml"
+  container_name: "commodities"
+  prompt_template: null  # Use default prompt template
+
+# Experiment configuration
+experiment:
+  name: "mock_test"
+  directory: "experiments"
+  save_intermediates: true
+  overwrite_experiment: true
+  verbose: true 

@@ -31,24 +31,4 @@ variables:
   - name: "company_mention"
     description: "Company names mentioned in relation to commodities"
     data_type: "string"
-    required: false
-
-prompt_template: |
-  You're assisting a finance professor who expects meticulous and reliable results.
-
-  Extract commodity price information from the following text:
-
-  {variables}
-
-  Text to analyze:
-  {text}
-
-  Focus on:
-  - Specific commodity types (oil, gas, metals, etc.)
-  - Price mentions and values
-  - Price expectations and forecasts
-  - Companies mentioned in commodity context
-  - Units of measurement (barrel, ton, MMBtu, etc.)
-
-  For each commodity mentioned, create a separate entry with all relevant details.
-  IMPORTANT: If a field is not mentioned in the text, leave it as null/None rather than guessing. 
+    required: false 
