@@ -41,8 +41,12 @@ DEFAULT_SAVE_INTERMEDIATES = True   # Whether to save intermediates by default
 DEFAULT_OVERWRITE_EXPERIMENT = False # Whether to overwrite existing experiments by default
 DEFAULT_VERBOSE = False             # Whether to enable verbose logging by default
 
+# Extraction Defaults
+DEFAULT_EXTRACT_TO_DATAFRAME = False  # Whether to extract JSON to DataFrame by default
+
 # System Constants (Internal - Not User Configurable)
 SYSTEM_CHUNK_COLUMN = "text_chunk"   # Internal column name for text chunks
 SYSTEM_SCORE_COLUMN = "score"        # Internal column name for relevance scores
-SYSTEM_LLM_JSON_COLUMN = "llm_json"  # Internal column name for LLM responses
-SYSTEM_CHUNK_ID_COLUMN = "chunk_id"  # Internal column name for chunk IDs 
+SYSTEM_CHUNK_ID_COLUMN = "chunk_id"  # Internal column name for chunk IDs
+SYSTEM_EXTRACTED_DATA_COLUMN = "extracted_data"  # Internal column name for extracted JSON output
+PREPROCESSED_DIR_NAME = "preprocessed"  # Directory name for preprocessed data 

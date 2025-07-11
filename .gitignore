@@ -8,3 +8,6 @@ __pycache__/
 src/delm.egg-info/
 delm_experiments/
 test-experiments/
+experiments/
+REFACTORING_PROMPTS.md
+DELM_ARCHITECTURE_REVIEW.md

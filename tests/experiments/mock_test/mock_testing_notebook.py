@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import json
 
 from delm import DELM, DELMConfig
+from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN
 
 # Test configuration
 TEST_KEYWORDS = (
@@ -146,22 +147,83 @@ if not llm_output_df.empty:
     print("\nLLM Output sample:")
     print(llm_output_df.head())
 
-# Parse to structured DataFrame using new schema system
-print("\nParsing to structured output DataFrame...")
-structured_df = delm.parse_to_dataframe(llm_output_df)
-print(f"Structured output shape: {structured_df.shape}")
+# The output is now JSON by default - let's show how to work with it
+print("\n" + "="*60)
+print("WORKING WITH JSON OUTPUT")
+print("="*60)
 
-if not structured_df.empty:
-    print("\nStructured output DataFrame sample:")
-    print(structured_df.head())
+if not llm_output_df.empty:
+    print(f"\nJSON output format: {list(llm_output_df.columns)}")
     
+    # Show how to access JSON data
+    print("\nExample: Accessing JSON data from first chunk:")
+    first_row = llm_output_df.iloc[0]
+    if SYSTEM_EXTRACTED_DATA_COLUMN in first_row and first_row[SYSTEM_EXTRACTED_DATA_COLUMN] is not None:
+        import json
+        try:
+            extracted_data = json.loads(str(first_row[SYSTEM_EXTRACTED_DATA_COLUMN]))
+            print(f"Raw JSON: {json.dumps(extracted_data, indent=2)}")
+            
+            # Extract specific data
+            if 'commodities' in extracted_data:
+                commodities = extracted_data['commodities']
+                print(f"\nFound {len(commodities)} commodities:")
+                for i, commodity in enumerate(commodities):
+                    print(f"  {i+1}. {commodity.get('commodity_type', 'N/A')} - ${commodity.get('price_value', 'N/A')}")
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"Error parsing JSON: {e}")
 
-# Print formatted JSON output
-print("\nRaw LLM JSON output (cleaned):")
-for idx, row in llm_output_df.head().iterrows():
-    response = row["llm_json"]
-    print(f"\nResponse {idx}:")
-    clean_dict = response.model_dump(mode="json") # type: ignore
-    print(json.dumps(clean_dict, indent=2, default=str))
+print("\nMock testing complete! You can now experiment with the data.")
 
-print("\nMock testing complete! You can now experiment with the data.") 
+# DEMONSTRATION: How nested schemas handle multiple objects per text chunk
+print("\n" + "="*60)
+print("DEMONSTRATION: JSON Output Structure")
+print("="*60)
+
+print("\nWhen you have a nested schema (like 'commodities'), the system:")
+print("1. Extracts multiple objects from each text chunk")
+print(f"2. Stores them as JSON in the '{SYSTEM_EXTRACTED_DATA_COLUMN}' column")
+print("3. Maintains the original text_chunk and metadata for each row")
+
+print(f"\nExample: Your current schema extracts 'commodities' objects")
+print(f"Input text chunks: {len(report_text_df.iloc[:3])}")
+print(f"Output DataFrame rows: {len(llm_output_df)}")
+print(f"Each row contains JSON with extracted objects")
+
+if not llm_output_df.empty:
+    print(f"\nDataFrame columns: {list(llm_output_df.columns)}")
+    print(f"\nSample of how JSON data is structured:")
+    
+    # Show JSON structure for first few chunks
+    for idx, row in llm_output_df.head(3).iterrows():
+        print(f"\nChunk {row.get(SYSTEM_CHUNK_ID_COLUMN, idx)}:")
+        text_chunk = row.get(SYSTEM_CHUNK_COLUMN, '')
+        if text_chunk:
+            print(f"Text: {text_chunk[:100]}...")
+        else:
+            print(f"Text: (no text chunk)")
+        
+        if SYSTEM_EXTRACTED_DATA_COLUMN in row and row[SYSTEM_EXTRACTED_DATA_COLUMN] is not None:
+            import json
+            try:
+                data = json.loads(str(row[SYSTEM_EXTRACTED_DATA_COLUMN]))
+                if 'commodities' in data:
+                    commodities = data['commodities']
+                    print(f"  Found {len(commodities)} commodities in JSON:")
+                    for i, commodity in enumerate(commodities):
+                        commodity_info = f"    {i+1}. {commodity.get('commodity_type', 'N/A')}"
+                        if commodity.get('price_value'):
+                            commodity_info += f" @ ${commodity.get('price_value')} {commodity.get('price_unit', '')}"
+                        if commodity.get('company_mention'):
+                            commodity_info += f" (companies: {commodity.get('company_mention')})"
+                        print(commodity_info)
+                else:
+                    print(f"  JSON data: {json.dumps(data, indent=4)}")
+            except json.JSONDecodeError:
+                print(f"  Invalid JSON: {row[SYSTEM_EXTRACTED_DATA_COLUMN]}")
+
+print(f"\nThis JSON structure allows you to:")
+print("- Access all extracted data in its original structure")
+print("- Parse specific fields when needed")
+print("- Maintain all relationships between objects")
+print("- Handle any schema complexity without data loss") 

@@ -15,8 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
 from delm import DELM, DELMConfig
 from delm.config import ModelConfig, DataConfig, SchemaConfig, ExperimentConfig, SplittingConfig, ScoringConfig
-from delm.scoring_strategies import KeywordScorer
-from delm.splitting_strategies import ParagraphSplit
+from delm.strategies import KeywordScorer, ParagraphSplit
 
 def create_mock_data():
     """Create mock dataset for testing."""
@@ -125,9 +124,10 @@ def run_temperature_comparison():
         # Process data
         output_df = delm.prep_data(test_data)
         llm_output_df = delm.process_via_llm()
-        structured_df = delm.parse_to_dataframe(llm_output_df)
+        # The structured DataFrame is now returned directly from process_via_llm()
+        structured_df = llm_output_df
         
-        print(f'structured_df: {structured_df}') 
+        print(f'structured_df: {structured_df}')
 
 if __name__ == "__main__":
     run_temperature_comparison() 

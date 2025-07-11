@@ -1,25 +1,24 @@
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
-import pandas as pd
 import yaml
 import os
 
-from .scoring_strategies import RelevanceScorer, KeywordScorer, FuzzyScorer
-from .splitting_strategies import SplitStrategy, ParagraphSplit, FixedWindowSplit, RegexSplit
+from .strategies import RelevanceScorer, KeywordScorer, FuzzyScorer
+from .strategies import SplitStrategy, ParagraphSplit, FixedWindowSplit, RegexSplit
 from .constants import (
     DEFAULT_MODEL_NAME, DEFAULT_TEMPERATURE, DEFAULT_MAX_RETRIES, DEFAULT_BATCH_SIZE,
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR, DEFAULT_SAVE_INTERMEDIATES,
-    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_KEYWORDS
+    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_KEYWORDS, DEFAULT_EXTRACT_TO_DATAFRAME
 )
 
 class ConfigValidationError(Exception):
     """Raised when configuration validation fails."""
     pass
 
-def scorer_from_config(cfg):
+def _scorer_from_config(cfg):
     if isinstance(cfg, RelevanceScorer):
         return cfg
     if isinstance(cfg, dict):
@@ -39,7 +38,7 @@ def scorer_from_config(cfg):
             raise ValueError(f"Unknown scorer type: {cfg}")
     return KeywordScorer([])
 
-def splitter_from_config(cfg):
+def _splitter_from_config(cfg):
     if isinstance(cfg, SplitStrategy):
         return cfg
     if isinstance(cfg, dict):
@@ -74,6 +73,7 @@ class ModelConfig:
     base_delay: float = DEFAULT_BASE_DELAY
     dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
     regex_fallback_pattern: Optional[str] = DEFAULT_REGEX_FALLBACK_PATTERN
+    extract_to_dataframe: bool = DEFAULT_EXTRACT_TO_DATAFRAME
 
     def validate(self):
         if not isinstance(self.name, str) or not self.name:
@@ -92,6 +92,8 @@ class ModelConfig:
             raise ConfigValidationError(f"dotenv_path does not exist: {self.dotenv_path}")
         if self.regex_fallback_pattern is not None and not isinstance(self.regex_fallback_pattern, str):
             raise ConfigValidationError("regex_fallback_pattern must be a string or None.")
+        if not isinstance(self.extract_to_dataframe, bool):
+            raise ConfigValidationError("extract_to_dataframe must be a boolean.")
 
 @dataclass
 class SplittingConfig:
@@ -104,7 +106,7 @@ class SplittingConfig:
 
     @classmethod
     def from_config(cls, cfg):
-        return cls(strategy=splitter_from_config(cfg.get("strategy", {})))
+        return cls(strategy=_splitter_from_config(cfg.get("strategy", {})))
 
 @dataclass
 class ScoringConfig:
@@ -117,7 +119,7 @@ class ScoringConfig:
 
     @classmethod
     def from_config(cls, cfg):
-        return cls(scorer=scorer_from_config(cfg.get("scorer", {})))
+        return cls(scorer=_scorer_from_config(cfg.get("scorer", {})))
 
 @dataclass
 class DataConfig:
