@@ -1,4 +1,5 @@
 # DELM (Data Labeling with Language Models)
+### Last Updated - July 10th 2:00PM
 
 A comprehensive toolkit for extracting structured data from unstructured text and images using language models. DELM provides a configurable, scalable pipeline for data extraction with built-in evaluation capabilities and cost tracking.
 
