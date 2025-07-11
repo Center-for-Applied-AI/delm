@@ -84,22 +84,14 @@ if not llm_output_df.empty:
     print("\nLLM Output sample:")
     print(llm_output_df.head())
 
-# Parse to structured DataFrame
-print("\nParsing to structured output DataFrame...")
-structured_df = delm.parse_to_dataframe(llm_output_df)
+# The structured DataFrame is now returned directly from process_via_llm()
+# No need to call parse_to_dataframe() anymore
+structured_df = llm_output_df
 
 if not structured_df.empty:
     print("\nStructured output DataFrame sample:")
     print(structured_df.head())
     
-# Print formatted JSON output
-print("\nRaw LLM JSON output (cleaned):")
-for idx, row in llm_output_df.head().iterrows():
-    response = row["llm_json"]
-    print(f"\nResponse {idx}:")
-    clean_dict = response.model_dump(mode="json") # type: ignore
-    print(json.dumps(clean_dict, indent=2, default=str))
-
 # Final summary
 print("\n" + "="*50)
 print("EXPERIMENT SUMMARY")

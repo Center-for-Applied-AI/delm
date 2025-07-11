@@ -51,7 +51,7 @@ class BatchProcessor:
         semaphore = asyncio.Semaphore(self.max_workers)
         results = []
         
-        async def process_with_semaphore(item):
+        async def _process_with_semaphore(item):
             async with semaphore:
                 try:
                     # Check if the function is async
@@ -68,7 +68,7 @@ class BatchProcessor:
         # Process items in batches
         for batch_start in tqdm(range(0, len(items), self.batch_size), desc="Processing batches"):
             batch = items[batch_start:batch_start + self.batch_size]
-            batch_tasks = [process_with_semaphore(item) for item in batch]
+            batch_tasks = [_process_with_semaphore(item) for item in batch]
             batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
             
             # Handle exceptions in results

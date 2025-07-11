@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Type
 import pandas as pd
 from pydantic import BaseModel, Field
 
-from .models import ExtractionVariable
+from ..models import ExtractionVariable
 
 
 class BaseSchema(ABC):
