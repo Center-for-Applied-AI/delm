@@ -83,7 +83,6 @@ def create_base_config():
     experiment_config = ExperimentConfig(
         name="temp_comparison",  # Will be varied
         directory=Path("test-experiments"),
-        save_intermediates=False,  # Disable for cleaner output
         overwrite_experiment=True,
         verbose=False
     )

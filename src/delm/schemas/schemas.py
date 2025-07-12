@@ -11,6 +11,7 @@ import pandas as pd
 from pydantic import BaseModel, Field
 
 from ..models import ExtractionVariable
+from ..exceptions import SchemaError
 
 
 class BaseSchema(ABC):
@@ -406,7 +407,14 @@ class SchemaRegistry:
         schema_type = config.get("schema_type", "simple")
         
         if schema_type not in self._schemas:
-            raise ValueError(f"Unknown schema type: {schema_type}. Available: {list(self._schemas.keys())}")
+            raise SchemaError(
+                f"Unknown schema type: {schema_type}",
+                {
+                    "schema_type": schema_type,
+                    "available_types": list(self._schemas.keys()),
+                    "suggestion": f"Use one of: {', '.join(self._schemas.keys())}"
+                }
+            )
         
         return self._schemas[schema_type](config)
     

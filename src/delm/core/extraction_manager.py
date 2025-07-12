@@ -14,6 +14,7 @@ from ..schemas import SchemaManager
 from ..utils import RetryHandler, BatchProcessor
 from ..config import ModelConfig
 from ..constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN
+from ..exceptions import ProcessingError, APIError, ValidationError
 
 
 class ExtractionManager:
@@ -115,8 +116,10 @@ class ExtractionManager:
             matches = pattern.findall(text_chunk)
             return {"extracted": matches}
         except re.error as e:
-            print(f"Invalid regex pattern '{self.regex_fallback_pattern}': {e}")
-            return {}
+            raise ValidationError(
+                f"Invalid regex pattern '{self.regex_fallback_pattern}': {e}",
+                {"regex_pattern": self.regex_fallback_pattern, "text_length": len(text_chunk)}
+            )
     
     def _instructor_extract(self, text_chunk: str) -> Dict[str, Any]:
         """Use Instructor + Pydantic schema for structured output."""
@@ -157,8 +160,10 @@ class ExtractionManager:
         try:
             return self.retry_handler.execute_with_retry(_extract_with_schema)
         except Exception as e:
-            print(f"Failed to extract data from text chunk. Error: {e}.")
-            raise
+            raise ProcessingError(
+                f"Failed to extract data from text chunk: {e}",
+                {"text_length": len(text_chunk), "model_name": self.model_name}
+            ) from e
     
     def _parse_results_to_dataframe(
         self, 

@@ -32,9 +32,9 @@ TEST_KEYWORDS = (
 
 # Paths
 EXPERIMENT_DIR = Path("test-experiments")
-CONFIG_PATH = Path("tests/experiments/mock_test/config.yaml")
-SCHEMA_SPEC_PATH = Path("tests/experiments/mock_test/schema_spec.yaml")
-DOTENV_PATH = Path("tests/experiments/mock_test/.env")
+CONFIG_PATH = Path("tests/mock_test/config.yaml")
+SCHEMA_SPEC_PATH = Path("tests/mock_test/schema_spec.yaml")
+DOTENV_PATH = Path(".env")
 
 # Create mock data (run this cell first)
 np.random.seed(42)  # For reproducible results

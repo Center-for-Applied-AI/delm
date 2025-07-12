@@ -10,13 +10,10 @@ from .constants import (
     DEFAULT_MODEL_NAME, DEFAULT_TEMPERATURE, DEFAULT_MAX_RETRIES, DEFAULT_BATCH_SIZE,
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
-    DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR, DEFAULT_SAVE_INTERMEDIATES,
+    DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
     DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_KEYWORDS, DEFAULT_EXTRACT_TO_DATAFRAME
 )
-
-class ConfigValidationError(Exception):
-    """Raised when configuration validation fails."""
-    pass
+from .exceptions import ConfigurationError
 
 def _scorer_from_config(cfg):
     if isinstance(cfg, RelevanceScorer):
@@ -28,14 +25,20 @@ def _scorer_from_config(cfg):
         elif scorer_type == "FuzzyScorer":
             return FuzzyScorer(cfg.get("keywords", []))
         else:
-            raise ValueError(f"Unknown scorer type: {scorer_type}")
+            raise ConfigurationError(
+                f"Unknown scorer type: {scorer_type}",
+                {"scorer_type": scorer_type, "suggestion": "Use 'KeywordScorer' or 'FuzzyScorer'"}
+            )
     if isinstance(cfg, str):
         if cfg == "KeywordScorer":
             return KeywordScorer([])
         elif cfg == "FuzzyScorer":
             return FuzzyScorer([])
         else:
-            raise ValueError(f"Unknown scorer type: {cfg}")
+            raise ConfigurationError(
+                f"Unknown scorer type: {cfg}",
+                {"scorer_type": cfg, "suggestion": "Use 'KeywordScorer' or 'FuzzyScorer'"}
+            )
     return KeywordScorer([])
 
 def _splitter_from_config(cfg):
@@ -50,7 +53,10 @@ def _splitter_from_config(cfg):
         elif split_type == "RegexSplit":
             return RegexSplit(cfg.get("pattern", "\n\n"))
         else:
-            raise ValueError(f"Unknown split strategy: {split_type}")
+            raise ConfigurationError(
+                f"Unknown split strategy: {split_type}",
+                {"split_type": split_type, "suggestion": "Use 'ParagraphSplit', 'FixedWindowSplit', or 'RegexSplit'"}
+            )
     if isinstance(cfg, str):
         if cfg == "ParagraphSplit":
             return ParagraphSplit()
@@ -59,7 +65,10 @@ def _splitter_from_config(cfg):
         elif cfg == "RegexSplit":
             return RegexSplit("\n\n")
         else:
-            raise ValueError(f"Unknown split strategy: {cfg}")
+            raise ConfigurationError(
+                f"Unknown split strategy: {cfg}",
+                {"split_type": cfg, "suggestion": "Use 'ParagraphSplit', 'FixedWindowSplit', or 'RegexSplit'"}
+            )
     return ParagraphSplit()
 
 @dataclass
@@ -77,23 +86,50 @@ class ModelConfig:
 
     def validate(self):
         if not isinstance(self.name, str) or not self.name:
-            raise ConfigValidationError("Model name must be a non-empty string.")
+            raise ConfigurationError(
+                "Model name must be a non-empty string.",
+                {"model_name": self.name, "suggestion": "Provide a valid model name like 'gpt-4o-mini'"}
+            )
         if not (0.0 <= self.temperature <= 2.0):
-            raise ConfigValidationError("Temperature must be between 0.0 and 2.0.")
+            raise ConfigurationError(
+                "Temperature must be between 0.0 and 2.0.",
+                {"temperature": self.temperature, "suggestion": "Use a value between 0.0 and 2.0"}
+            )
         if self.max_retries < 0:
-            raise ConfigValidationError("max_retries must be non-negative.")
+            raise ConfigurationError(
+                "max_retries must be non-negative.",
+                {"max_retries": self.max_retries, "suggestion": "Use a non-negative integer"}
+            )
         if self.batch_size <= 0:
-            raise ConfigValidationError("batch_size must be positive.")
+            raise ConfigurationError(
+                "batch_size must be positive.",
+                {"batch_size": self.batch_size, "suggestion": "Use a positive integer"}
+            )
         if self.max_workers <= 0:
-            raise ConfigValidationError("max_workers must be positive.")
+            raise ConfigurationError(
+                "max_workers must be positive.",
+                {"max_workers": self.max_workers, "suggestion": "Use a positive integer"}
+            )
         if self.base_delay < 0:
-            raise ConfigValidationError("base_delay must be non-negative.")
+            raise ConfigurationError(
+                "base_delay must be non-negative.",
+                {"base_delay": self.base_delay, "suggestion": "Use a non-negative float"}
+            )
         if self.dotenv_path is not None and not Path(self.dotenv_path).exists():
-            raise ConfigValidationError(f"dotenv_path does not exist: {self.dotenv_path}")
+            raise ConfigurationError(
+                f"dotenv_path does not exist: {self.dotenv_path}",
+                {"dotenv_path": str(self.dotenv_path), "suggestion": "Check the file path or create the .env file"}
+            )
         if self.regex_fallback_pattern is not None and not isinstance(self.regex_fallback_pattern, str):
-            raise ConfigValidationError("regex_fallback_pattern must be a string or None.")
+            raise ConfigurationError(
+                "regex_fallback_pattern must be a string or None.",
+                {"regex_fallback_pattern": self.regex_fallback_pattern, "suggestion": "Provide a valid regex pattern or None"}
+            )
         if not isinstance(self.extract_to_dataframe, bool):
-            raise ConfigValidationError("extract_to_dataframe must be a boolean.")
+            raise ConfigurationError(
+                "extract_to_dataframe must be a boolean.",
+                {"extract_to_dataframe": self.extract_to_dataframe, "suggestion": "Use True or False"}
+            )
 
 @dataclass
 class SplittingConfig:
@@ -102,7 +138,10 @@ class SplittingConfig:
 
     def validate(self):
         if not isinstance(self.strategy, SplitStrategy):
-            raise ConfigValidationError("strategy must be a SplitStrategy instance.")
+            raise ConfigurationError(
+                "strategy must be a SplitStrategy instance.",
+                {"strategy_type": type(self.strategy).__name__, "suggestion": "Use a valid SplitStrategy subclass"}
+            )
 
     @classmethod
     def from_config(cls, cfg):
@@ -115,7 +154,10 @@ class ScoringConfig:
 
     def validate(self):
         if not isinstance(self.scorer, RelevanceScorer):
-            raise ConfigValidationError("scorer must be a RelevanceScorer instance.")
+            raise ConfigurationError(
+                "scorer must be a RelevanceScorer instance.",
+                {"scorer_type": type(self.scorer).__name__, "suggestion": "Use a valid RelevanceScorer subclass"}
+            )
 
     @classmethod
     def from_config(cls, cfg):
@@ -131,9 +173,15 @@ class DataConfig:
 
     def validate(self):
         if not isinstance(self.target_column, str) or not self.target_column:
-            raise ConfigValidationError("target_column must be a non-empty string.")
+            raise ConfigurationError(
+                "target_column must be a non-empty string.",
+                {"target_column": self.target_column, "suggestion": "Provide a valid column name"}
+            )
         if not isinstance(self.drop_target_column, bool):
-            raise ConfigValidationError("drop_target_column must be a boolean.")
+            raise ConfigurationError(
+                "drop_target_column must be a boolean.",
+                {"drop_target_column": self.drop_target_column, "suggestion": "Use True or False"}
+            )
         self.splitting.validate()
         self.scoring.validate()
 
@@ -146,34 +194,56 @@ class SchemaConfig:
 
     def validate(self):
         if not isinstance(self.spec_path, Path) or not str(self.spec_path):
-            raise ConfigValidationError("spec_path must be a valid Path.")
+            raise ConfigurationError(
+                "spec_path must be a valid Path.",
+                {"spec_path": str(self.spec_path), "suggestion": "Provide a valid file path"}
+            )
         if not self.spec_path.exists():
-            raise ConfigValidationError(f"Schema spec file does not exist: {self.spec_path}")
+            raise ConfigurationError(
+                f"Schema spec file does not exist: {self.spec_path}",
+                {"spec_path": str(self.spec_path), "suggestion": "Check the file path or create the schema file"}
+            )
         if not isinstance(self.container_name, str) or not self.container_name:
-            raise ConfigValidationError("container_name must be a non-empty string.")
+            raise ConfigurationError(
+                "container_name must be a non-empty string.",
+                {"container_name": self.container_name, "suggestion": "Provide a valid container name"}
+            )
         if self.prompt_template is not None and not isinstance(self.prompt_template, str):
-            raise ConfigValidationError("prompt_template must be a string or None.")
+            raise ConfigurationError(
+                "prompt_template must be a string or None.",
+                {"prompt_template": self.prompt_template, "suggestion": "Provide a valid string or None"}
+            )
 
 @dataclass
 class ExperimentConfig:
     """Configuration for experiment management."""
     name: str = ""
     directory: Path = DEFAULT_EXPERIMENT_DIR
-    save_intermediates: bool = DEFAULT_SAVE_INTERMEDIATES
     overwrite_experiment: bool = DEFAULT_OVERWRITE_EXPERIMENT
     verbose: bool = DEFAULT_VERBOSE
 
     def validate(self):
         if not isinstance(self.name, str) or not self.name:
-            raise ConfigValidationError("Experiment name must be a non-empty string.")
+            raise ConfigurationError(
+                "Experiment name must be a non-empty string.",
+                {"experiment_name": self.name, "suggestion": "Provide a valid experiment name"}
+            )
         if not isinstance(self.directory, Path):
-            raise ConfigValidationError("directory must be a Path object.")
-        if not isinstance(self.save_intermediates, bool):
-            raise ConfigValidationError("save_intermediates must be a boolean.")
+            raise ConfigurationError(
+                "directory must be a Path object.",
+                {"directory": str(self.directory), "suggestion": "Provide a valid Path object"}
+            )
+
         if not isinstance(self.overwrite_experiment, bool):
-            raise ConfigValidationError("overwrite_experiment must be a boolean.")
+            raise ConfigurationError(
+                "overwrite_experiment must be a boolean.",
+                {"overwrite_experiment": self.overwrite_experiment, "suggestion": "Use True or False"}
+            )
         if not isinstance(self.verbose, bool):
-            raise ConfigValidationError("verbose must be a boolean.")
+            raise ConfigurationError(
+                "verbose must be a boolean.",
+                {"verbose": self.verbose, "suggestion": "Use True or False"}
+            )
 
 @dataclass
 class DELMConfig:
@@ -194,10 +264,21 @@ class DELMConfig:
     @classmethod
     def from_yaml(cls, path: Path) -> "DELMConfig":
         if not path.exists():
-            raise ConfigValidationError(f"YAML config file does not exist: {path}")
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
-        return cls.from_dict(data)
+            raise ConfigurationError(
+                f"YAML config file does not exist: {path}",
+                {"file_path": str(path), "suggestion": "Check the file path or create the config file"}
+            )
+        try:
+            with open(path, "r") as f:
+                data = yaml.safe_load(f)
+            return cls.from_dict(data)
+        except yaml.YAMLError as e:
+            raise ConfigurationError(
+                f"Failed to parse YAML config file: {path}",
+                {"file_path": str(path), "parse_error": str(e)}
+            ) from e
+        except Exception as e:
+            raise ConfigurationError(f"Failed to load config file: {path}", {"file_path": str(path)}) from e
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DELMConfig":
@@ -245,7 +326,7 @@ class DELMConfig:
             experiment = ExperimentConfig(
                 name=experiment_data.get("name", ""),
                 directory=directory,
-                save_intermediates=experiment_data.get("save_intermediates", DEFAULT_SAVE_INTERMEDIATES),
+
                 overwrite_experiment=experiment_data.get("overwrite_experiment", DEFAULT_OVERWRITE_EXPERIMENT),
                 verbose=experiment_data.get("verbose", DEFAULT_VERBOSE)
             )
@@ -254,7 +335,7 @@ class DELMConfig:
             
             return config
         except Exception as e:
-            raise ConfigValidationError(f"Failed to load DELMConfig from dict: {e}")
+            raise ConfigurationError(f"Failed to load DELMConfig from dict: {e}", {"error": str(e)})
 
     @classmethod
     def from_env(cls) -> "DELMConfig":
@@ -271,4 +352,4 @@ class DELMConfig:
             # DataConfig and SchemaConfig from env is not robust, so recommend using from_yaml or from_dict
             raise NotImplementedError("from_env is not fully implemented. Use from_yaml or from_dict instead.")
         except Exception as e:
-            raise ConfigValidationError(f"Failed to load DELMConfig from environment: {e}") 
+            raise ConfigurationError(f"Failed to load DELMConfig from environment: {e}", {"error": str(e)}) 

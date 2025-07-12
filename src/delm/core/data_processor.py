@@ -11,8 +11,10 @@ import pandas as pd
 from ..strategies import loader_factory
 from ..config import DataConfig
 from ..constants import (
-    SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN
+    SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN,
+    DEFAULT_TARGET_COLUMN
 )
+from ..exceptions import DataError, ValidationError
 
 
 class DataProcessor:
@@ -26,7 +28,7 @@ class DataProcessor:
         self.drop_target_column = config.drop_target_column
         
         # Constants
-        self.TARGET_COLUMN_NAME = self.target_column
+        self.TARGET_COLUMN_NAME = self.target_column if self.target_column else DEFAULT_TARGET_COLUMN
         self.CHUNK_COLUMN_NAME = SYSTEM_CHUNK_COLUMN  # This is internal, not configurable
     
     def load_and_process(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
@@ -42,34 +44,45 @@ class DataProcessor:
             
             try:
                 data = loader_factory.load_file(path)
+                self.extension_requires_target_column = loader_factory.requires_target_column(path.suffix)
                 
-                # TODO: There has to be a better way to handle this.
-                # Maybe return a tuple of (data, target_column) and handle it in the caller?
-                file_suffix = path.suffix.lower()
-                if file_suffix == ".csv":
+                if self.extension_requires_target_column:
                     if self.target_column == "":
-                        raise ValueError("Target column is required for CSV files")
+                        raise ValidationError(
+                            f"Target column is required for {path.suffix} files",
+                            {"file_path": str(path), "file_type": path.suffix, "suggestion": "Specify target_column in config"}
+                        )
                     if isinstance(data, pd.DataFrame):
                         df = data
                     else:
-                        raise ValueError("CSV loader should return DataFrame")
-                elif file_suffix == ".txt":
+                        raise DataError(
+                            f"{path.suffix} loader should return DataFrame",
+                            {"file_path": str(path), "actual_type": type(data).__name__}
+                        )
+                else:
                     # data is a string for text-based files
                     if isinstance(data, str):
                         df = pd.DataFrame({
                             self.TARGET_COLUMN_NAME: [data]
                         })
                     else:
-                        raise ValueError("Text loader should return string")
-                else:
-                    raise ValueError(f"Unsupported file type: {path.suffix}")
+                        raise DataError(
+                            f"{path.suffix} loader should return string",
+                            {"file_path": str(path), "actual_type": type(data).__name__}
+                        )
                         
             except ValueError:
-                raise ValueError(f"Unsupported file type: {path.suffix}")
+                raise DataError(
+                    f"Unsupported file type: {path.suffix}",
+                    {"file_path": str(path), "file_extension": path.suffix, "suggestion": "Use supported file types"}
+                )
         else:
             # Handle DataFrame input
             if self.target_column == "":
-                raise ValueError("Target column is required for DataFrame input")
+                raise ValidationError(
+                    "Target column is required for DataFrame input",
+                    {"data_type": "DataFrame", "suggestion": "Specify target_column in config"}
+                )
             df = data_source.copy()
         
         return df
@@ -77,19 +90,19 @@ class DataProcessor:
     def _process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply chunking and scoring to DataFrame."""
         # Process the DataFrame (chunking and scoring)
-        if self.target_column == "":
-            # For text files, use the default target column
-            target_column = self.TARGET_COLUMN_NAME
-        else:
-            target_column = self.target_column
+        target_column = self.TARGET_COLUMN_NAME
             
+        # 1. Chunk the data
         df[self.CHUNK_COLUMN_NAME] = df[target_column].apply(self.splitter.split)
         df = df.explode(self.CHUNK_COLUMN_NAME).reset_index(drop=True)
         df[SYSTEM_CHUNK_ID_COLUMN] = range(len(df))
-        
-        if self.drop_target_column and target_column != self.TARGET_COLUMN_NAME:
+        # Drop target column if requested or if it's a text file
+        if self.drop_target_column or not self.extension_requires_target_column:
             df = df.drop(columns=[target_column])
 
+        # 2. Score the chunks
         df[SYSTEM_SCORE_COLUMN] = df[self.CHUNK_COLUMN_NAME].apply(self.scorer.score)
+
+        # 3. TODO: Implement filtering by score
         
         return df 

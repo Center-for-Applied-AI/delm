@@ -33,6 +33,7 @@ from .constants import (
     SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, 
     SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN
 )
+from .exceptions import DataError, ProcessingError
 
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
@@ -151,7 +152,10 @@ class DELM:
         """Process data through LLM extraction using configuration from constructor."""
         # Load preprocessed data from feather file
         if not hasattr(self, 'preprocessed_data_path') or not self.preprocessed_data_path.exists():
-            raise ValueError("No preprocessed data found. Run prep_data() first.")
+            raise DataError(
+                "No preprocessed data found. Run prep_data() first.",
+                {"suggestion": "Call prep_data() with your data source before processing"}
+            )
         
         data = self.experiment_manager.load_preprocessed_data(self.preprocessed_data_path)
         
