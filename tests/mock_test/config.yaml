@@ -1,5 +1,5 @@
-# Calls Test Configuration
-# This config file replaces the programmatic config creation in earning_report_delm_testing.py
+# Mock Test Configuration
+# This config file replaces the programmatic config creation in mock_testing_notebook.py
 
 # Model configuration
 model:
@@ -39,14 +39,13 @@ data:
 
 # Schema configuration
 schema:
-  spec_path: "tests/experiments/calls_test/schema_spec.yaml"
+  spec_path: "tests/mock_test/schema_spec.yaml"
   container_name: "commodities"
   prompt_template: null  # Use default prompt template
 
 # Experiment configuration
 experiment:
-  name: "calls_test"
-  directory: "test-experiments"
-  save_intermediates: true
+  name: "mock_test"
+  directory: "experiments"
   overwrite_experiment: true
   verbose: true 

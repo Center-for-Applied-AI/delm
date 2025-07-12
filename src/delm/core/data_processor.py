@@ -13,6 +13,7 @@ from ..config import DataConfig
 from ..constants import (
     SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN
 )
+from ..exceptions import DataError, ValidationError
 
 
 class DataProcessor:
@@ -48,11 +49,17 @@ class DataProcessor:
                 file_suffix = path.suffix.lower()
                 if file_suffix == ".csv":
                     if self.target_column == "":
-                        raise ValueError("Target column is required for CSV files")
+                        raise ValidationError(
+                            "Target column is required for CSV files",
+                            {"file_path": str(path), "file_type": "csv", "suggestion": "Specify target_column in config"}
+                        )
                     if isinstance(data, pd.DataFrame):
                         df = data
                     else:
-                        raise ValueError("CSV loader should return DataFrame")
+                        raise DataError(
+                            "CSV loader should return DataFrame",
+                            {"file_path": str(path), "actual_type": type(data).__name__}
+                        )
                 elif file_suffix == ".txt":
                     # data is a string for text-based files
                     if isinstance(data, str):
@@ -60,16 +67,28 @@ class DataProcessor:
                             self.TARGET_COLUMN_NAME: [data]
                         })
                     else:
-                        raise ValueError("Text loader should return string")
+                        raise DataError(
+                            "Text loader should return string",
+                            {"file_path": str(path), "actual_type": type(data).__name__}
+                        )
                 else:
-                    raise ValueError(f"Unsupported file type: {path.suffix}")
+                    raise DataError(
+                        f"Unsupported file type: {path.suffix}",
+                        {"file_path": str(path), "file_extension": path.suffix, "suggestion": "Use supported file types"}
+                    )
                         
             except ValueError:
-                raise ValueError(f"Unsupported file type: {path.suffix}")
+                raise DataError(
+                    f"Unsupported file type: {path.suffix}",
+                    {"file_path": str(path), "file_extension": path.suffix, "suggestion": "Use supported file types"}
+                )
         else:
             # Handle DataFrame input
             if self.target_column == "":
-                raise ValueError("Target column is required for DataFrame input")
+                raise ValidationError(
+                    "Target column is required for DataFrame input",
+                    {"data_type": "DataFrame", "suggestion": "Specify target_column in config"}
+                )
             df = data_source.copy()
         
         return df

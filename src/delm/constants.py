@@ -37,7 +37,6 @@ Please extract the requested information accurately and return it in the specifi
 
 # Experiment Defaults
 DEFAULT_EXPERIMENT_DIR = Path("delm_experiments") # Default experiment directory
-DEFAULT_SAVE_INTERMEDIATES = True   # Whether to save intermediates by default
 DEFAULT_OVERWRITE_EXPERIMENT = False # Whether to overwrite existing experiments by default
 DEFAULT_VERBOSE = False             # Whether to enable verbose logging by default
 

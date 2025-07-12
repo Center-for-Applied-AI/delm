@@ -8,6 +8,8 @@ import asyncio
 from typing import Any, Callable, List
 from tqdm.auto import tqdm
 
+from ..exceptions import ProcessingError
+
 
 class BatchProcessor:
     """
@@ -42,6 +44,7 @@ class BatchProcessor:
                 result = process_func(item, **kwargs)
                 results.append(result)
             except Exception as e:
+                # Log error but continue processing other items
                 print(f"Error processing item: {e}")
                 results.append(None)
         return results
@@ -62,6 +65,7 @@ class BatchProcessor:
                         loop = asyncio.get_event_loop()
                         return await loop.run_in_executor(None, process_func, item, **kwargs)
                 except Exception as e:
+                    # Log error but continue processing other items
                     print(f"Error processing item: {e}")
                     return None
         

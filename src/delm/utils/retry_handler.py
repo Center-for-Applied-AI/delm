@@ -7,6 +7,8 @@ Retry handling with exponential backoff for robust API calls.
 import time
 from typing import Any, Callable
 
+from ..exceptions import APIError
+
 
 class RetryHandler:
     """Handle retries with exponential backoff."""
@@ -33,6 +35,13 @@ class RetryHandler:
                     print(f"All {self.max_retries + 1} attempts failed. Last error: {e}")
         
         if last_exception:
-            raise last_exception
+            raise APIError(
+                f"All {self.max_retries + 1} attempts failed. Last error: {last_exception}",
+                {
+                    "max_retries": self.max_retries,
+                    "base_delay": self.base_delay,
+                    "last_exception": str(last_exception)
+                }
+            ) from last_exception
         else:
-            raise RuntimeError("Unknown error occurred during retry") 
+            raise APIError("Unknown error occurred during retry", {"max_retries": self.max_retries}) 

@@ -60,6 +60,5 @@ schema:
 experiment:
   name: "my_experiment"         # Experiment name (required)
   directory: "delm_experiments" # Experiment directory
-  save_intermediates: true      # Whether to save intermediate files
   overwrite_experiment: false   # Whether to overwrite existing experiments
   verbose: false                # Whether to enable verbose logging 

@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Union, Dict, Any, Callable
 import pandas as pd
 
+from ..exceptions import DataError, FileError, DependencyError
+
 # Optional dependencies
 try:
     from bs4 import BeautifulSoup  # type: ignore
@@ -47,9 +49,17 @@ class HtmlLoader(DataLoader):
     
     def load(self, path: Path) -> str:
         if BeautifulSoup is None:
-            raise ImportError("BeautifulSoup4 not installed but required for .html/.md loading")
-        soup = BeautifulSoup(path.read_text(encoding="utf-8", errors="replace"), "html.parser")
-        return soup.get_text("\n")
+            raise DependencyError(
+                "BeautifulSoup4 not installed but required for .html/.md loading",
+                {"file_path": str(path), "file_type": "html/markdown"}
+            )
+        try:
+            soup = BeautifulSoup(path.read_text(encoding="utf-8", errors="replace"), "html.parser")
+            return soup.get_text("\n")
+        except FileNotFoundError as e:
+            raise FileError(f"HTML/Markdown file not found: {path}", {"file_path": str(path)}) from e
+        except Exception as e:
+            raise DataError(f"Failed to load HTML/Markdown file: {path}", {"file_path": str(path)}) from e
 
 
 class DocxLoader(DataLoader):
@@ -57,9 +67,17 @@ class DocxLoader(DataLoader):
     
     def load(self, path: Path) -> str:
         if docx is None:
-            raise ImportError("python-docx not installed but required for .docx loading")
-        doc = docx.Document(str(path))
-        return "\n".join(p.text for p in doc.paragraphs)
+            raise DependencyError(
+                "python-docx not installed but required for .docx loading",
+                {"file_path": str(path), "file_type": "docx"}
+            )
+        try:
+            doc = docx.Document(str(path))
+            return "\n".join(p.text for p in doc.paragraphs)
+        except FileNotFoundError as e:
+            raise FileError(f"Word document not found: {path}", {"file_path": str(path)}) from e
+        except Exception as e:
+            raise DataError(f"Failed to load Word document: {path}", {"file_path": str(path)}) from e
 
 
 class PdfLoader(DataLoader):
@@ -67,22 +85,35 @@ class PdfLoader(DataLoader):
     
     def load(self, path: Path) -> str:
         if marker is None:
-            raise ImportError("marker (OCR) not installed – PDF loading unavailable")
-        # Handle different marker API versions with type ignore
+            raise DependencyError(
+                "marker (OCR) not installed – PDF loading unavailable",
+                {"file_path": str(path), "file_type": "pdf", "suggestion": "Install marker: pip install marker"}
+            )
         try:
-            # Try newer API
-            doc = marker.Marker(str(path))  # type: ignore
-            return "\n".join([p.text for p in doc.paragraphs])  # type: ignore
-        except AttributeError:
-            # Fallback to older API
-            return "\n".join(marker.parse(str(path)).paragraphs)  # type: ignore
+            # Handle different marker API versions with type ignore
+            try:
+                # Try newer API
+                doc = marker.Marker(str(path))  # type: ignore
+                return "\n".join([p.text for p in doc.paragraphs])  # type: ignore
+            except AttributeError:
+                # Fallback to older API
+                return "\n".join(marker.parse(str(path)).paragraphs)  # type: ignore
+        except FileNotFoundError as e:
+            raise FileError(f"PDF file not found: {path}", {"file_path": str(path)}) from e
+        except Exception as e:
+            raise DataError(f"Failed to load PDF file: {path}", {"file_path": str(path)}) from e
 
 
 class CsvLoader(DataLoader):
     """Load CSV files."""
     
     def load(self, path: Path) -> pd.DataFrame:
-        return pd.read_csv(path)
+        try:
+            return pd.read_csv(path)
+        except FileNotFoundError as e:
+            raise FileError(f"CSV file not found: {path}", {"file_path": str(path)}) from e
+        except Exception as e:
+            raise DataError(f"Failed to load CSV file: {path}", {"file_path": str(path)}) from e
 
 
 class DataLoaderFactory:
@@ -103,7 +134,15 @@ class DataLoaderFactory:
         """Get the appropriate loader for a file extension."""
         loader = self._loaders.get(extension.lower())
         if loader is None:
-            raise ValueError(f"Unsupported file type: {extension}")
+            supported = ", ".join(self.get_supported_extensions())
+            raise DataError(
+                f"Unsupported file type: {extension}",
+                {
+                    "file_extension": extension,
+                    "supported_extensions": self.get_supported_extensions(),
+                    "suggestion": f"Supported formats: {supported}"
+                }
+            )
         return loader
 
     def get_supported_extensions(self) -> list[str]:
@@ -117,6 +156,9 @@ class DataLoaderFactory:
     def load_file(self, file_path: Union[str, Path]) -> Union[str, pd.DataFrame]:
         """Load a file using the appropriate loader."""
         path = Path(file_path)
+        if not path.exists():
+            raise FileError(f"File does not exist: {path}", {"file_path": str(path)})
+        
         loader = self._get_loader(path.suffix)
         return loader.load(path)
 

@@ -7,10 +7,12 @@ Handles experiment directories and file I/O.
 import datetime
 import shutil
 from pathlib import Path
+from typing import Any, Dict, List
 import pandas as pd
 
 from ..config import ExperimentConfig
 from ..constants import PREPROCESSED_DIR_NAME
+from ..exceptions import ExperimentError, FileError
 
 
 class ExperimentManager:
@@ -29,7 +31,14 @@ class ExperimentManager:
 
         # Check if experiment name is already in use
         if (experiments_dir / self.config.name).exists() and not self.config.overwrite_experiment:
-            raise ValueError(f"Experiment name '{self.config.name}' already exists in {experiments_dir}")
+            raise ExperimentError(
+                f"Experiment name '{self.config.name}' already exists in {experiments_dir}",
+                {
+                    "experiment_name": self.config.name,
+                    "experiment_dir": str(experiments_dir),
+                    "suggestion": "Use overwrite_experiment=True or choose a different name"
+                }
+            )
         elif (experiments_dir / self.config.name).exists() and self.config.overwrite_experiment:
             shutil.rmtree(experiments_dir / self.config.name)
 
@@ -61,6 +70,15 @@ class ExperimentManager:
     def load_preprocessed_data(self, file_path: Path) -> pd.DataFrame:
         """Load preprocessed data from feather file."""
         if not file_path.exists():
-            raise ValueError(f"Preprocessed data file does not exist: {file_path}")
+            raise FileError(
+                f"Preprocessed data file does not exist: {file_path}",
+                {"file_path": str(file_path), "suggestion": "Run preprocessing first"}
+            )
         
-        return pd.read_feather(file_path) 
+        try:
+            return pd.read_feather(file_path)
+        except Exception as e:
+            raise FileError(
+                f"Failed to load preprocessed data from {file_path}",
+                {"file_path": str(file_path)}
+            ) from e 

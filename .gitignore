@@ -11,3 +11,4 @@ test-experiments/
 experiments/
 REFACTORING_PROMPTS.md
 DELM_ARCHITECTURE_REVIEW.md
+.pytest_cache/

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from .schemas import SchemaRegistry, BaseSchema
+from ..exceptions import SchemaError, FileError
 
 
 class SchemaManager:
@@ -43,9 +44,25 @@ class SchemaManager:
         import json
         
         if not path.exists():
-            raise FileNotFoundError(path)
-        if path.suffix.lower() in {".yml", ".yaml"}:
-            return yaml.safe_load(path.read_text()) or {}
-        if path.suffix.lower() == ".json":
-            return json.loads(path.read_text())
-        raise ValueError("Schema spec must be YAML or JSON") 
+            raise FileError(f"Schema specification file not found: {path}", {"file_path": str(path)})
+        
+        try:
+            if path.suffix.lower() in {".yml", ".yaml"}:
+                return yaml.safe_load(path.read_text()) or {}
+            if path.suffix.lower() == ".json":
+                return json.loads(path.read_text())
+            raise SchemaError(
+                f"Unsupported schema file format: {path.suffix}",
+                {
+                    "file_path": str(path),
+                    "supported_formats": [".yml", ".yaml", ".json"],
+                    "suggestion": "Use YAML (.yml/.yaml) or JSON (.json) format"
+                }
+            )
+        except (yaml.YAMLError, json.JSONDecodeError) as e:
+            raise SchemaError(
+                f"Failed to parse schema specification file: {path}",
+                {"file_path": str(path), "parse_error": str(e)}
+            ) from e
+        except Exception as e:
+            raise SchemaError(f"Failed to load schema specification: {path}", {"file_path": str(path)}) from e 
