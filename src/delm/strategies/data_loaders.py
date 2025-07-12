@@ -22,14 +22,20 @@ try:
 except ImportError:  # pragma: no cover
     docx = None  # type: ignore
 
-try:
-    import marker  # OCR & PDF
-except ImportError:  # pragma: no cover
-    marker = None  # type: ignore
+# try:
+#     import marker  # OCR & PDF
+# except ImportError:  # pragma: no cover
+#     marker = None  # type: ignore
 
 
 class DataLoader(ABC):
     """Abstract base class for data loaders."""
+    
+    @property
+    @abstractmethod
+    def requires_target_column(self) -> bool:
+        """Whether this loader requires a target column specification."""
+        raise NotImplementedError
     
     @abstractmethod
     def load(self, path: Path) -> Union[str, pd.DataFrame]:
@@ -40,12 +46,20 @@ class DataLoader(ABC):
 class TextLoader(DataLoader):
     """Load plain text files."""
     
+    @property
+    def requires_target_column(self) -> bool:
+        return False
+    
     def load(self, path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="replace")
 
 
 class HtmlLoader(DataLoader):
     """Load HTML/Markdown files."""
+    
+    @property
+    def requires_target_column(self) -> bool:
+        return False
     
     def load(self, path: Path) -> str:
         if BeautifulSoup is None:
@@ -65,6 +79,10 @@ class HtmlLoader(DataLoader):
 class DocxLoader(DataLoader):
     """Load Word documents."""
     
+    @property
+    def requires_target_column(self) -> bool:
+        return False
+    
     def load(self, path: Path) -> str:
         if docx is None:
             raise DependencyError(
@@ -80,32 +98,12 @@ class DocxLoader(DataLoader):
             raise DataError(f"Failed to load Word document: {path}", {"file_path": str(path)}) from e
 
 
-class PdfLoader(DataLoader):
-    """Load PDF files using OCR."""
-    
-    def load(self, path: Path) -> str:
-        if marker is None:
-            raise DependencyError(
-                "marker (OCR) not installed – PDF loading unavailable",
-                {"file_path": str(path), "file_type": "pdf", "suggestion": "Install marker: pip install marker"}
-            )
-        try:
-            # Handle different marker API versions with type ignore
-            try:
-                # Try newer API
-                doc = marker.Marker(str(path))  # type: ignore
-                return "\n".join([p.text for p in doc.paragraphs])  # type: ignore
-            except AttributeError:
-                # Fallback to older API
-                return "\n".join(marker.parse(str(path)).paragraphs)  # type: ignore
-        except FileNotFoundError as e:
-            raise FileError(f"PDF file not found: {path}", {"file_path": str(path)}) from e
-        except Exception as e:
-            raise DataError(f"Failed to load PDF file: {path}", {"file_path": str(path)}) from e
-
-
 class CsvLoader(DataLoader):
     """Load CSV files."""
+    
+    @property
+    def requires_target_column(self) -> bool:
+        return True
     
     def load(self, path: Path) -> pd.DataFrame:
         try:
@@ -114,6 +112,13 @@ class CsvLoader(DataLoader):
             raise FileError(f"CSV file not found: {path}", {"file_path": str(path)}) from e
         except Exception as e:
             raise DataError(f"Failed to load CSV file: {path}", {"file_path": str(path)}) from e
+
+
+# class PdfLoader(DataLoader):
+#     """Load PDF files using OCR."""
+    
+#     def load(self, path: Path) -> str:
+#         pass
 
 
 class DataLoaderFactory:
@@ -126,7 +131,8 @@ class DataLoaderFactory:
             ".html": HtmlLoader(),
             ".htm": HtmlLoader(),
             ".docx": DocxLoader(),
-            ".pdf": PdfLoader(),
+            # TODO: add pdf loader
+            # ".pdf": PdfLoader(),
             ".csv": CsvLoader(),
         }
     
@@ -148,6 +154,21 @@ class DataLoaderFactory:
     def get_supported_extensions(self) -> list[str]:
         """Get list of supported file extensions."""
         return list(self._loaders.keys())
+
+    def requires_target_column(self, extension: str) -> bool:
+        """Check if a file extension requires a target column specification."""
+        loader = self._loaders.get(extension.lower())
+        if loader is None:
+            supported = ", ".join(self.get_supported_extensions())
+            raise DataError(
+                f"Unsupported file type: {extension}",
+                {
+                    "file_extension": extension,
+                    "supported_extensions": self.get_supported_extensions(),
+                    "suggestion": f"Supported formats: {supported}"
+                }
+            )
+        return loader.requires_target_column
 
     def _register_loader(self, extension: str, loader: DataLoader) -> None:
         """Register a new loader for a file extension."""
