@@ -21,9 +21,6 @@ DEFAULT_DROP_TARGET_COLUMN = True    # Whether to drop target column after proce
 DEFAULT_CHUNK_COLUMN = "text_chunk"  # Default column name for text chunks
 DEFAULT_SCORE_COLUMN = "score"       # Default column name for relevance scores
 
-# Scoring Defaults
-DEFAULT_KEYWORDS = ("price", "forecast", "guidance", "estimate", "expectation")  # Default keywords for scoring
-
 # Schema Defaults
 DEFAULT_SCHEMA_CONTAINER = "data"    # Default container name for schema
 DEFAULT_PROMPT_TEMPLATE = """Extract the following information from the text:

@@ -16,20 +16,6 @@ import json
 from delm import DELM, DELMConfig
 from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN
 
-# Test configuration
-TEST_KEYWORDS = (
-    "price",
-    "prices", 
-    "oil",
-    "gas",
-    "expect",
-    "barrel",
-    "ton",
-    "used",
-    "expectations",
-    "using"
-)
-
 # Paths
 EXPERIMENT_DIR = Path("test-experiments")
 CONFIG_PATH = Path("tests/mock_test/config.yaml")

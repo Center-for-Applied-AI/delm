@@ -18,24 +18,17 @@ data:
   
   # Splitting strategy configuration
   splitting:
-    strategy:
-      type: "ParagraphSplit"
+    type: "ParagraphSplit"
   
   # Scoring strategy configuration  
   scoring:
-    scorer:
-      type: "KeywordScorer"
-      keywords:
-        - "price"
-        - "prices" 
-        - "oil"
-        - "gas"
-        - "expect"
-        - "barrel"
-        - "ton"
-        - "used"
-        - "expectations"
-        - "using"
+    type: "KeywordScorer"
+    keywords:
+      - "price"
+      - "forecast"
+      - "guidance"
+      - "estimate"
+      - "expectation"
 
 # Schema configuration
 schema:

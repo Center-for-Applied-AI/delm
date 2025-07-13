@@ -19,26 +19,24 @@ data:
   
   # Splitting strategy configuration
   splitting:
-    strategy:
-      type: "ParagraphSplit"    # Available: ParagraphSplit, FixedWindowSplit, RegexSplit
-      # For FixedWindowSplit, you can also specify:
-      # window: 5               # Number of sentences per chunk
-      # stride: 5               # Number of sentences to overlap
-      # For RegexSplit, you can also specify:
-      # pattern: "\n\n"         # Regex pattern to split on
+    type: "ParagraphSplit"      # Available: ParagraphSplit, FixedWindowSplit, RegexSplit, None
+    # For FixedWindowSplit, you can also specify:
+    # window: 5                 # Number of sentences per chunk
+    # stride: 5                 # Number of sentences to overlap
+    # For RegexSplit, you can also specify:
+    # pattern: "\n\n"           # Regex pattern to split on
   
   # Scoring strategy configuration  
   scoring:
-    scorer:
-      type: "KeywordScorer"     # Available: KeywordScorer, FuzzyScorer
-      keywords:                 # List of keywords for relevance scoring
-        - "price"
-        - "forecast"
-        - "guidance"
-        - "estimate"
-        - "expectation"
-        - "revenue"
-        - "earnings"
+    type: "KeywordScorer"       # Available: KeywordScorer, FuzzyScorer, None
+    keywords:                   # List of keywords for relevance scoring
+      - "price"
+      - "forecast"
+      - "guidance"
+      - "estimate"
+      - "expectation"
+      - "revenue"
+      - "earnings"
 
 # Schema configuration
 schema:
