@@ -11,7 +11,7 @@ from .constants import (
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
-    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_KEYWORDS, DEFAULT_EXTRACT_TO_DATAFRAME
+    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME
 )
 from .exceptions import ConfigurationError
 
@@ -19,57 +19,53 @@ def _scorer_from_config(cfg):
     if isinstance(cfg, RelevanceScorer):
         return cfg
     if isinstance(cfg, dict):
-        scorer_type = cfg.get("type", "KeywordScorer")
+        scorer_type = cfg.get("type", "None") 
         if scorer_type == "KeywordScorer":
-            return KeywordScorer(cfg.get("keywords", []))
+            keywords = cfg.get("keywords", [])
+            if not keywords:
+                raise ConfigurationError(
+                    "KeywordScorer requires a non-empty keywords list",
+                    {"scorer_type": scorer_type, "suggestion": "Provide keywords list or use 'None' for no scoring"}
+                )
+            return KeywordScorer(keywords)
         elif scorer_type == "FuzzyScorer":
-            return FuzzyScorer(cfg.get("keywords", []))
+            keywords = cfg.get("keywords", [])
+            if not keywords:
+                raise ConfigurationError(
+                    "FuzzyScorer requires a non-empty keywords list",
+                    {"scorer_type": scorer_type, "suggestion": "Provide keywords list or use 'None' for no scoring"}
+                )
+            return FuzzyScorer(keywords)
+        elif scorer_type == "None" or scorer_type is None:
+            return None
         else:
             raise ConfigurationError(
                 f"Unknown scorer type: {scorer_type}",
-                {"scorer_type": scorer_type, "suggestion": "Use 'KeywordScorer' or 'FuzzyScorer'"}
+                {"scorer_type": scorer_type, "suggestion": "Use 'KeywordScorer', 'FuzzyScorer', or 'None'"}
             )
-    if isinstance(cfg, str):
-        if cfg == "KeywordScorer":
-            return KeywordScorer([])
-        elif cfg == "FuzzyScorer":
-            return FuzzyScorer([])
-        else:
-            raise ConfigurationError(
-                f"Unknown scorer type: {cfg}",
-                {"scorer_type": cfg, "suggestion": "Use 'KeywordScorer' or 'FuzzyScorer'"}
-            )
-    return KeywordScorer([])
+    # Default to no scoring for any other input
+    return None
 
 def _splitter_from_config(cfg):
     if isinstance(cfg, SplitStrategy):
         return cfg
     if isinstance(cfg, dict):
-        split_type = cfg.get("type", "ParagraphSplit")
+        split_type = cfg.get("type", "None")  # Default to None instead of ParagraphSplit
         if split_type == "ParagraphSplit":
             return ParagraphSplit()
         elif split_type == "FixedWindowSplit":
             return FixedWindowSplit(cfg.get("window", 5), cfg.get("stride", 5))
         elif split_type == "RegexSplit":
             return RegexSplit(cfg.get("pattern", "\n\n"))
+        elif split_type == "None" or split_type is None:
+            return None
         else:
             raise ConfigurationError(
                 f"Unknown split strategy: {split_type}",
-                {"split_type": split_type, "suggestion": "Use 'ParagraphSplit', 'FixedWindowSplit', or 'RegexSplit'"}
+                {"split_type": split_type, "suggestion": "Use 'ParagraphSplit', 'FixedWindowSplit', 'RegexSplit', or 'None'"}
             )
-    if isinstance(cfg, str):
-        if cfg == "ParagraphSplit":
-            return ParagraphSplit()
-        elif cfg == "FixedWindowSplit":
-            return FixedWindowSplit()
-        elif cfg == "RegexSplit":
-            return RegexSplit("\n\n")
-        else:
-            raise ConfigurationError(
-                f"Unknown split strategy: {cfg}",
-                {"split_type": cfg, "suggestion": "Use 'ParagraphSplit', 'FixedWindowSplit', or 'RegexSplit'"}
-            )
-    return ParagraphSplit()
+    # Default to no splitting for any other input
+    return None
 
 @dataclass
 class ModelConfig:
@@ -134,34 +130,48 @@ class ModelConfig:
 @dataclass
 class SplittingConfig:
     """Configuration for text splitting strategy."""
-    strategy: SplitStrategy = field(default_factory=ParagraphSplit)
+    strategy: Optional[SplitStrategy] = field(default=None)
 
     def validate(self):
-        if not isinstance(self.strategy, SplitStrategy):
+        if self.strategy is not None and not isinstance(self.strategy, SplitStrategy):
             raise ConfigurationError(
-                "strategy must be a SplitStrategy instance.",
-                {"strategy_type": type(self.strategy).__name__, "suggestion": "Use a valid SplitStrategy subclass"}
+                "strategy must be a SplitStrategy instance or None.",
+                {"strategy_type": type(self.strategy).__name__, "suggestion": "Use a valid SplitStrategy subclass or None for no splitting"}
             )
 
     @classmethod
     def from_config(cls, cfg):
-        return cls(strategy=_splitter_from_config(cfg.get("strategy", {})))
+        if cfg is None:
+            cfg = {}
+        elif not isinstance(cfg, dict):
+            raise ConfigurationError(
+                f"Splitting config must be a dictionary, got {type(cfg).__name__}",
+                {"config_type": type(cfg).__name__, "suggestion": "Use dict format or omit splitting section entirely"}
+            )
+        return cls(strategy=_splitter_from_config(cfg))
 
 @dataclass
 class ScoringConfig:
     """Configuration for relevance scoring strategy."""
-    scorer: RelevanceScorer = field(default_factory=lambda: KeywordScorer(DEFAULT_KEYWORDS))
+    scorer: Optional[RelevanceScorer] = field(default=None)
 
     def validate(self):
-        if not isinstance(self.scorer, RelevanceScorer):
+        if self.scorer is not None and not isinstance(self.scorer, RelevanceScorer):
             raise ConfigurationError(
-                "scorer must be a RelevanceScorer instance.",
-                {"scorer_type": type(self.scorer).__name__, "suggestion": "Use a valid RelevanceScorer subclass"}
+                "scorer must be a RelevanceScorer instance or None.",
+                {"scorer_type": type(self.scorer).__name__, "suggestion": "Use a valid RelevanceScorer subclass or None for no scoring"}
             )
 
     @classmethod
     def from_config(cls, cfg):
-        return cls(scorer=_scorer_from_config(cfg.get("scorer", {})))
+        if cfg is None:
+            cfg = {}
+        elif not isinstance(cfg, dict):
+            raise ConfigurationError(
+                f"Scoring config must be a dictionary, got {type(cfg).__name__}",
+                {"config_type": type(cfg).__name__, "suggestion": "Use dict format or omit scoring section entirely"}
+            )
+        return cls(scorer=_scorer_from_config(cfg))
 
 @dataclass
 class DataConfig:

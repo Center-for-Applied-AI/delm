@@ -89,20 +89,40 @@ class DataProcessor:
     
     def _process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply chunking and scoring to DataFrame."""
-        # Process the DataFrame (chunking and scoring)
-        target_column = self.TARGET_COLUMN_NAME
-            
-        # 1. Chunk the data
-        df[self.CHUNK_COLUMN_NAME] = df[target_column].apply(self.splitter.split)
-        df = df.explode(self.CHUNK_COLUMN_NAME).reset_index(drop=True)
-        df[SYSTEM_CHUNK_ID_COLUMN] = range(len(df))
-        # Drop target column if requested or if it's a text file
-        if self.drop_target_column or not self.extension_requires_target_column:
-            df = df.drop(columns=[target_column])
-
-        # 2. Score the chunks
-        df[SYSTEM_SCORE_COLUMN] = df[self.CHUNK_COLUMN_NAME].apply(self.scorer.score)
-
-        # 3. TODO: Implement filtering by score
         
+        # Check for invalid configuration: dropping target column without splitting
+        if self.drop_target_column and self.splitter is None:
+            raise DataError(
+                "Cannot drop target column when no splitting strategy is specified",
+                {
+                    "target_column": self.TARGET_COLUMN_NAME,
+                    "drop_target_column": self.drop_target_column,
+                    "suggestion": "Either specify a splitting strategy or set drop_target_column=False"
+                }
+            )
+            
+        # 1. Chunk the data (or use target column if no splitting)
+        if self.splitter is not None:
+            # Apply splitting strategy - use system chunk column name
+            df[SYSTEM_CHUNK_COLUMN] = df[self.TARGET_COLUMN_NAME].apply(self.splitter.split)
+            df = df.explode(SYSTEM_CHUNK_COLUMN).reset_index(drop=True)
+            chunk_column = SYSTEM_CHUNK_COLUMN
+        else:
+            # No splitting - use target column name as chunk column (no duplication)
+            chunk_column = self.TARGET_COLUMN_NAME
+        
+        df[SYSTEM_CHUNK_ID_COLUMN] = range(len(df))
+        
+        # Drop target column if requested (only when splitting was done)
+        if self.drop_target_column and self.splitter is not None:
+            df = df.drop(columns=[self.TARGET_COLUMN_NAME])
+        elif self.drop_target_column and self.splitter is None:
+            # This case is handled by the error above, but just in case
+            pass
+
+        # 2. Score and filter the chunks (only if scorer is provided)
+        if self.scorer is not None:
+            df[SYSTEM_SCORE_COLUMN] = df[self.CHUNK_COLUMN_NAME].apply(self.scorer.score)
+            # TODO: Implement filtering by score
+
         return df 
