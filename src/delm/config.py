@@ -11,7 +11,7 @@ from .constants import (
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
-    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME
+    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST
 )
 from .exceptions import ConfigurationError
 
@@ -80,6 +80,7 @@ class ModelConfig:
     dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
     regex_fallback_pattern: Optional[str] = DEFAULT_REGEX_FALLBACK_PATTERN
     extract_to_dataframe: bool = DEFAULT_EXTRACT_TO_DATAFRAME
+    track_cost: bool = DEFAULT_TRACK_COST
 
     def get_provider_string(self) -> str:
         """Get the combined provider string for Instructor (e.g., 'openai/gpt-4o-mini')."""
@@ -135,6 +136,11 @@ class ModelConfig:
             raise ConfigurationError(
                 "extract_to_dataframe must be a boolean.",
                 {"extract_to_dataframe": self.extract_to_dataframe, "suggestion": "Use True or False"}
+            )
+        if not isinstance(self.track_cost, bool):
+            raise ConfigurationError(
+                "track_cost must be a boolean.",
+                {"track_cost": self.track_cost, "suggestion": "Use True or False"}
             )
 
 @dataclass

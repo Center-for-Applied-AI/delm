@@ -11,6 +11,7 @@ model:
   max_workers: 1
   dotenv_path: ".env"
   regex_fallback_pattern: null
+  track_cost: true
 
 # Data configuration
 data:

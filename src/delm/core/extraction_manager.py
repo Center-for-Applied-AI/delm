@@ -14,6 +14,7 @@ from ..utils import RetryHandler, BatchProcessor
 from ..config import ModelConfig
 from ..constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN
 from ..exceptions import ProcessingError, APIError, ValidationError
+from ..utils.cost_tracker import CostTracker
 
 
 class ExtractionManager:
@@ -23,7 +24,7 @@ class ExtractionManager:
         self, 
         model_config: ModelConfig, 
         schema_manager: 'SchemaManager', 
-        api_key: Optional[str] = None
+        cost_tracker: 'CostTracker',
     ):
         self.model_config = model_config
         self.temperature = model_config.temperature
@@ -41,6 +42,9 @@ class ExtractionManager:
             max_workers=model_config.max_workers
         )
         self.retry_handler = RetryHandler(max_retries=model_config.max_retries)
+
+        self.track_cost = model_config.track_cost
+        self.cost_tracker = cost_tracker
     
 
     def process_and_parse(
@@ -120,6 +124,12 @@ class ExtractionManager:
                     "No extraction schema provided. You must specify a schema for extraction.",
                     {"text_chunk": text_chunk[:100]}
                 )
+
+            # TODO: Let user specify system prompt
+            system_prompt = "You are a precise data‑extraction assistant."
+            if self.track_cost:
+                self.cost_tracker.track_input_text(system_prompt + "\n" + prompt)
+            
             
             # Use the model name directly
             response = self.client.chat.completions.create(
@@ -127,10 +137,23 @@ class ExtractionManager:
                 temperature=self.temperature,
                 response_model=schema,
                 messages=[
-                    {"role": "system", "content": "You are a precise data‑extraction assistant."},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": prompt},
                 ],
             )
+            if self.track_cost:
+                ### Convert response to JSON string for token counting
+                # Note: Instructor's response model is not Pydantic, so we need to convert it to a JSON string
+                # Could not find a better way to do this
+                if hasattr(response, "model_dump"):
+                    output_json = response.model_dump(mode="json") # type: ignore
+                elif hasattr(response, "dict"):
+                    output_json = response.dict() # type: ignore
+                else:
+                    output_json = response
+                import json
+                output_text = json.dumps(output_json)
+                self.cost_tracker.track_output_text(output_text)
             return response
         try:
             return self.retry_handler.execute_with_retry(_extract_with_schema)
@@ -195,8 +218,11 @@ class ExtractionManager:
             return self.extraction_schema.parse_response(result, str(text_chunk), row_metadata)
         elif isinstance(result, dict):
             return self._parse_dict_response(result, text_chunk, row_metadata)
-        
-        return pd.DataFrame()
+        else:
+            raise ProcessingError(
+                f"Unsupported response type: {type(result)}",
+                {"response_type": type(result), "text_chunk": text_chunk[:100]}
+            )
     
     def _parse_dict_response(self, response: Dict[str, Any], text_chunk: str, row_metadata: Dict[str, Any]) -> pd.DataFrame:
         """Parse dictionary response with error handling."""
