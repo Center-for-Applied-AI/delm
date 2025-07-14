@@ -11,6 +11,7 @@ A comprehensive toolkit for extracting structured data from unstructured text an
 - **Unified Schema System**: Progressive complexity from simple to nested to multiple schemas
 - **Structured Extraction**: Instructor + Pydantic schemas with fallback mechanisms
 - **Batch Processing**: Parallel execution for efficient large-scale processing
+- **Multi-Provider Support**: OpenAI, Anthropic, Google, Groq, Together AI, Fireworks AI
 
 ### Advanced Extraction
 - **Progressive Complexity**: Start simple, scale to complex nested structures
@@ -125,16 +126,47 @@ prompt_template: |
 Model and processing parameters are passed to the constructor:
 
 ```python
-delm = DELM(
-    schema_spec_path="example.schema_spec.yaml",
-    model_name="gpt-4o-mini",
-    temperature=0.0,
-    max_retries=3,
-    batch_size=10,
-    max_workers=4,
-    regex_fallback_pattern=r'\d+'  # Optional: custom regex for fallback extraction
-)
+# Using YAML configuration (recommended)
+delm = DELM.from_yaml("config.yaml")
+
+# Or using dictionary configuration
+config = {
+    "model": {
+        "provider": "openai",  # Default: "openai"
+        "name": "gpt-4o-mini",  # Default: "gpt-4o-mini"
+        "temperature": 0.0,
+        "max_retries": 3,
+        "batch_size": 10,
+        "max_workers": 4
+    },
+    "data": {"target_column": "text"},
+    "schema": {"spec_path": "schema.yaml"},
+    "experiment": {"name": "test"}
+}
+delm = DELM.from_dict(config)
 ```
+
+#### Provider and Model Configuration
+
+DELM separates provider and model name for better user experience:
+
+```yaml
+# Easy to switch models with the same provider
+model:
+  provider: "openai"
+  name: "gpt-4o-mini"      # Easy to change to "gpt-4" or "gpt-3.5-turbo"
+
+# Easy to switch providers
+model:
+  provider: "anthropic"    # Easy to change to "google" or "groq"
+  name: "claude-3-sonnet"
+```
+
+This approach makes it intuitive to:
+- **Switch models**: Just change the `name` field
+- **Switch providers**: Just change the `provider` field  
+- **Compare models**: Easy to test different models with the same provider
+- **Understand configuration**: Clear separation of provider vs model concepts
 
 #### Regex Fallback Configuration
 

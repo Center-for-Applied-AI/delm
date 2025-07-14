@@ -7,7 +7,7 @@ import os
 from .strategies import RelevanceScorer, KeywordScorer, FuzzyScorer
 from .strategies import SplitStrategy, ParagraphSplit, FixedWindowSplit, RegexSplit
 from .constants import (
-    DEFAULT_MODEL_NAME, DEFAULT_TEMPERATURE, DEFAULT_MAX_RETRIES, DEFAULT_BATCH_SIZE,
+    DEFAULT_MODEL_NAME, DEFAULT_PROVIDER, DEFAULT_TEMPERATURE, DEFAULT_MAX_RETRIES, DEFAULT_BATCH_SIZE,
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
@@ -70,7 +70,8 @@ def _splitter_from_config(cfg):
 @dataclass
 class ModelConfig:
     """Configuration for the LLM model and API usage."""
-    name: str = DEFAULT_MODEL_NAME
+    provider: str = DEFAULT_PROVIDER  # e.g., 'openai', 'anthropic', 'google', etc.
+    name: str = DEFAULT_MODEL_NAME    # e.g., 'gpt-4o-mini', 'claude-3-sonnet', etc.
     temperature: float = DEFAULT_TEMPERATURE
     max_retries: int = DEFAULT_MAX_RETRIES
     batch_size: int = DEFAULT_BATCH_SIZE
@@ -80,11 +81,20 @@ class ModelConfig:
     regex_fallback_pattern: Optional[str] = DEFAULT_REGEX_FALLBACK_PATTERN
     extract_to_dataframe: bool = DEFAULT_EXTRACT_TO_DATAFRAME
 
+    def get_provider_string(self) -> str:
+        """Get the combined provider string for Instructor (e.g., 'openai/gpt-4o-mini')."""
+        return f"{self.provider}/{self.name}"
+
     def validate(self):
+        if not isinstance(self.provider, str) or not self.provider:
+            raise ConfigurationError(
+                "Provider must be a non-empty string.",
+                {"provider": self.provider, "suggestion": "Use e.g. 'openai', 'anthropic', 'google', etc."}
+            )
         if not isinstance(self.name, str) or not self.name:
             raise ConfigurationError(
                 "Model name must be a non-empty string.",
-                {"model_name": self.name, "suggestion": "Provide a valid model name like 'gpt-4o-mini'"}
+                {"name": self.name, "suggestion": "Use e.g. 'gpt-4o-mini', 'claude-3-sonnet', etc."}
             )
         if not (0.0 <= self.temperature <= 2.0):
             raise ConfigurationError(
@@ -243,7 +253,6 @@ class ExperimentConfig:
                 "directory must be a Path object.",
                 {"directory": str(self.directory), "suggestion": "Provide a valid Path object"}
             )
-
         if not isinstance(self.overwrite_experiment, bool):
             raise ConfigurationError(
                 "overwrite_experiment must be a boolean.",
@@ -262,6 +271,9 @@ class DELMConfig:
     data: DataConfig
     schema: SchemaConfig
     experiment: ExperimentConfig
+
+    def __post_init__(self):
+        self.validate()
 
     def validate(self):
         self.model.validate()
@@ -345,21 +357,4 @@ class DELMConfig:
             
             return config
         except Exception as e:
-            raise ConfigurationError(f"Failed to load DELMConfig from dict: {e}", {"error": str(e)})
-
-    @classmethod
-    def from_env(cls) -> "DELMConfig":
-        # Example: minimal env loader, expects all fields as env vars (not recommended for complex configs)
-        try:
-            model = ModelConfig(
-                name=os.getenv("DELM_MODEL_NAME", DEFAULT_MODEL_NAME),
-                temperature=float(os.getenv("DELM_TEMPERATURE", str(DEFAULT_TEMPERATURE))),
-                max_retries=int(os.getenv("DELM_MAX_RETRIES", str(DEFAULT_MAX_RETRIES))),
-                batch_size=int(os.getenv("DELM_BATCH_SIZE", str(DEFAULT_BATCH_SIZE))),
-                max_workers=int(os.getenv("DELM_MAX_WORKERS", str(DEFAULT_MAX_WORKERS))),
-                base_delay=float(os.getenv("DELM_BASE_DELAY", str(DEFAULT_BASE_DELAY))),
-            )
-            # DataConfig and SchemaConfig from env is not robust, so recommend using from_yaml or from_dict
-            raise NotImplementedError("from_env is not fully implemented. Use from_yaml or from_dict instead.")
-        except Exception as e:
-            raise ConfigurationError(f"Failed to load DELMConfig from environment: {e}", {"error": str(e)}) 
+            raise ConfigurationError(f"Failed to load DELMConfig from dict: {e}", {"error": str(e)}) 

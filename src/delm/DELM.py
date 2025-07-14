@@ -47,15 +47,11 @@ class DELM:
         self,
         config: DELMConfig,
     ) -> None:
-        # Validate and store config
-        config.validate()
+        # Config
         self.config = config
         
         # Initialize components using composition
         self._initialize_components()
-        
-        # Runtime artefacts
-        self.raw_df: pd.DataFrame | None = None
 
     @classmethod
     def from_yaml(cls, config_path: Union[str, Path]) -> "DELM":
@@ -105,13 +101,9 @@ class DELM:
     def _initialize_components(self) -> None:
         """Initialize all components using composition."""
         # Environment & secrets -------------------------------------------- #
-        # TODO: likely abstract to a api_key_manager class once we add more models
         if self.config.model.dotenv_path:
             dotenv.load_dotenv(self.config.model.dotenv_path)
-        self.api_key: str | None = os.getenv("OPENAI_API_KEY")
-        if self.api_key and openai is not None:
-            openai.api_key = self.api_key
-
+        
         # Initialize components
         self.data_processor = DataProcessor(self.config.data)
         self.schema_manager = SchemaManager(self.config.schema)
@@ -119,7 +111,6 @@ class DELM:
         self.extraction_manager = ExtractionManager(
             self.config.model,
             schema_manager=self.schema_manager,  # Pass the instance
-            api_key=self.api_key
         )
 
 
