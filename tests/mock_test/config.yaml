@@ -11,13 +11,13 @@ model:
   max_workers: 1
   dotenv_path: ".env"
   regex_fallback_pattern: null
-  track_cost: true
 
 # Data configuration
 data:
   target_column: "text"
   drop_target_column: true
-  
+  pandas_score_filter: "score > 0.5"
+
   # Splitting strategy configuration
   splitting:
     type: "ParagraphSplit"

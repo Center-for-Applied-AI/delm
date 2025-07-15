@@ -17,6 +17,7 @@ model:
 data:
   target_column: "text"
   drop_target_column: true
+  pandas_score_filter: "score > 0.5"
   
   # Splitting strategy configuration
   splitting:
