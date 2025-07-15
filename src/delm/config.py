@@ -11,7 +11,7 @@ from .constants import (
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
-    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST
+    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER
 )
 from .exceptions import ConfigurationError
 
@@ -196,6 +196,7 @@ class DataConfig:
     drop_target_column: bool = DEFAULT_DROP_TARGET_COLUMN
     splitting: SplittingConfig = field(default_factory=SplittingConfig)
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
+    pandas_score_filter: Optional[str] = DEFAULT_PANDAS_SCORE_FILTER
 
     def validate(self):
         if not isinstance(self.target_column, str) or not self.target_column:
@@ -208,6 +209,21 @@ class DataConfig:
                 "drop_target_column must be a boolean.",
                 {"drop_target_column": self.drop_target_column, "suggestion": "Use True or False"}
             )
+        if self.pandas_score_filter is not None:
+            if self.pandas_score_filter is not isinstance(self.pandas_score_filter, str):
+                raise ConfigurationError(
+                    "pandas_score_filter must be a string or None.",
+                    {"pandas_score_filter": self.pandas_score_filter, "suggestion": "Provide a valid pandas query string or None"}
+                )
+            # Create a dummy dataframe to check if the pandas_score_filter is valid
+            import pandas as pd
+            try:
+                pd.DataFrame([1]).query(self.pandas_score_filter)
+            except Exception as e:
+                raise ConfigurationError(
+                    f"pandas_score_filter is not a valid pandas query: {e}",
+                    {"pandas_score_filter": self.pandas_score_filter, "suggestion": "Provide a valid pandas query string"}
+                )
         self.splitting.validate()
         self.scoring.validate()
 

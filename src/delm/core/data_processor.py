@@ -24,13 +24,15 @@ class DataProcessor:
         self.config = config
         self.splitter = config.splitting.strategy
         self.scorer = config.scoring.scorer
+
         self.target_column = config.target_column
+        if not self.target_column:
+            self.target_column = DEFAULT_TARGET_COLUMN
+
         self.drop_target_column = config.drop_target_column
-        
-        # Constants
-        self.TARGET_COLUMN_NAME = self.target_column if self.target_column else DEFAULT_TARGET_COLUMN
-        self.CHUNK_COLUMN_NAME = SYSTEM_CHUNK_COLUMN  # This is internal, not configurable
+        self.pandas_score_filter = config.pandas_score_filter
     
+
     def load_and_process(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
         """Load data and apply preprocessing pipeline."""
         df = self._load_data(data_source)
@@ -63,7 +65,7 @@ class DataProcessor:
                     # data is a string for text-based files
                     if isinstance(data, str):
                         df = pd.DataFrame({
-                            self.TARGET_COLUMN_NAME: [data]
+                            self.target_column: [data]
                         })
                     else:
                         raise DataError(
@@ -95,7 +97,7 @@ class DataProcessor:
             raise DataError(
                 "Cannot drop target column when no splitting strategy is specified",
                 {
-                    "target_column": self.TARGET_COLUMN_NAME,
+                    "target_column": self.target_column,
                     "drop_target_column": self.drop_target_column,
                     "suggestion": "Either specify a splitting strategy or set drop_target_column=False"
                 }
@@ -104,25 +106,27 @@ class DataProcessor:
         # 1. Chunk the data (or use target column if no splitting)
         if self.splitter is not None:
             # Apply splitting strategy - use system chunk column name
-            df[SYSTEM_CHUNK_COLUMN] = df[self.TARGET_COLUMN_NAME].apply(self.splitter.split)
+            df[SYSTEM_CHUNK_COLUMN] = df[self.target_column].apply(self.splitter.split)
             df = df.explode(SYSTEM_CHUNK_COLUMN).reset_index(drop=True)
-            chunk_column = SYSTEM_CHUNK_COLUMN
+            self.chunk_column = SYSTEM_CHUNK_COLUMN
         else:
             # No splitting - use target column name as chunk column (no duplication)
-            chunk_column = self.TARGET_COLUMN_NAME
+            self.chunk_column = self.target_column
         
         df[SYSTEM_CHUNK_ID_COLUMN] = range(len(df))
         
         # Drop target column if requested (only when splitting was done)
         if self.drop_target_column and self.splitter is not None:
-            df = df.drop(columns=[self.TARGET_COLUMN_NAME])
+            df = df.drop(columns=[self.target_column])
         elif self.drop_target_column and self.splitter is None:
             # This case is handled by the error above, but just in case
             pass
 
         # 2. Score and filter the chunks (only if scorer is provided)
         if self.scorer is not None:
-            df[SYSTEM_SCORE_COLUMN] = df[self.CHUNK_COLUMN_NAME].apply(self.scorer.score)
-            # TODO: Implement filtering by score
+            df[SYSTEM_SCORE_COLUMN] = df[self.chunk_column].apply(self.scorer.score)
+            # TODO: Give warning if scorer is used but filter is none.
+            if self.pandas_score_filter is not None:
+                df = df.query(self.pandas_score_filter)
 
         return df 

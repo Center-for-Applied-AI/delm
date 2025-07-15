@@ -18,6 +18,7 @@ model:
 data:
   target_column: "text"         # Column containing text to process
   drop_target_column: true      # Whether to drop target column after processing
+  pandas_score_filter: "score >= 0.7 and score < 0.95" # Filter via scores in preprocessing step. Uses pandas query syntax.
   
   # Splitting strategy configuration
   splitting:

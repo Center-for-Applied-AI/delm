@@ -22,6 +22,7 @@ DEFAULT_TARGET_COLUMN = "text"       # Default target column in data
 DEFAULT_DROP_TARGET_COLUMN = True    # Whether to drop target column after processing
 DEFAULT_CHUNK_COLUMN = "text_chunk"  # Default column name for text chunks
 DEFAULT_SCORE_COLUMN = "score"       # Default column name for relevance scores
+DEFAULT_PANDAS_SCORE_FILTER = None  # Default pandas score filter (None = no filter)
 
 # Schema Defaults
 DEFAULT_SCHEMA_CONTAINER = "data"    # Default container name for schema
