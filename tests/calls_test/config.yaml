@@ -3,6 +3,7 @@
 
 # Model configuration
 model:
+  provider: "openai"
   name: "gpt-4o-mini"
   temperature: 0.0
   max_retries: 3
@@ -32,7 +33,7 @@ data:
 
 # Schema configuration
 schema:
-  spec_path: "tests/experiments/calls_test/schema_spec.yaml"
+  spec_path: "tests/calls_test/schema_spec.yaml"
   container_name: "commodities"
   prompt_template: null  # Use default prompt template
 

@@ -25,8 +25,8 @@ TEST_KEYWORDS = (
     "using"
 )
 
-TEST_FILE_PATH = Path("tests/experiments/calls_test/data/input/input2_sample_1000.parquet")
-CONFIG_PATH = Path("tests/experiments/calls_test/config.yaml")
+TEST_FILE_PATH = Path("tests/calls_test/data/input/input2_sample_1000.parquet")
+CONFIG_PATH = Path("tests/calls_test/config.yaml")
 
 def load_test_data(file_path: Path, num_rows: int = 2) -> pd.DataFrame:
     """

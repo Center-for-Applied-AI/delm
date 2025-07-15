@@ -49,6 +49,26 @@ dev = [
     "mypy>=1.0.0",
 ]
 
+# Optional LLM providers
+anthropic = [
+    "anthropic>=0.7.0",
+]
+
+google = [
+    "google-generativeai>=0.3.0",
+]
+
+groq = [
+    "groq>=0.4.0",
+]
+
+# All providers
+all-providers = [
+    "anthropic>=0.7.0",
+    "google-generativeai>=0.3.0",
+    "groq>=0.4.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/your-org/delm"
 Repository = "https://github.com/your-org/delm"

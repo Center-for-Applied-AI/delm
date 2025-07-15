@@ -6,8 +6,9 @@ Default values for configuration, grouped by category.
 from pathlib import Path
 
 # API/Model Defaults
-DEFAULT_MODEL_NAME = "gpt-4o-mini"  # Default LLM model name
-DEFAULT_TEMPERATURE = 0.0            # Default temperature for LLM
+DEFAULT_PROVIDER = "openai"           # Default LLM provider (openai, anthropic, google, etc.)
+DEFAULT_MODEL_NAME = "gpt-4o-mini"    # Default LLM model name
+DEFAULT_TEMPERATURE = 0.0             # Default temperature for LLM
 DEFAULT_MAX_RETRIES = 3              # Default max retries for API calls
 DEFAULT_BATCH_SIZE = 10              # Default batch size for processing
 DEFAULT_MAX_WORKERS = 1              # Default number of concurrent workers

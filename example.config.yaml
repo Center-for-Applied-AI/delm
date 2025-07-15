@@ -3,14 +3,15 @@
 
 # Model configuration
 model:
-  name: "gpt-4o-mini"           # LLM model to use
-  temperature: 0.0              # Temperature for generation (0.0-2.0)
-  max_retries: 3                # Maximum API retries
-  batch_size: 10                # Batch size for processing
-  max_workers: 1                # Number of concurrent workers
-  base_delay: 1.0               # Base delay for retry handler (seconds)
-  dotenv_path: ".env"           # Path to .env file (optional, can be null)
-  regex_fallback_pattern: null  # Regex pattern for fallback (optional, can be null)
+  provider: "openai"                  # LLM provider (openai, anthropic, google, groq, together, fireworks)
+  name: "gpt-4o-mini"                 # LLM model name
+  temperature: 0.0                    # Temperature for generation (0.0-2.0)
+  max_retries: 3                      # Maximum API retries
+  batch_size: 10                      # Batch size for processing
+  max_workers: 1                      # Number of concurrent workers
+  base_delay: 1.0                     # Base delay for retry handler (seconds)
+  dotenv_path: ".env"                 # Path to .env file (optional, can be null)
+  regex_fallback_pattern: null        # Regex pattern for fallback (optional, can be null)
 
 # Data configuration
 data:
@@ -40,10 +41,32 @@ data:
 
 # Schema configuration
 schema:
-  spec_path: "tests/experiments/calls_test/schema_spec.yaml" # Path to schema specification file
+  spec_path: "tests/calls_test/schema_spec.yaml" # Path to schema specification file
   container_name: "data"        # Container name for nested schemas
-  prompt_template: null         # Custom prompt template (optional, null = use default)
-  # Example custom prompt:
+  prompt_template: |
+    You are assisting a finance professor who expects meticulous and reliable results.
+
+    Extract the following information from the text:
+
+    {variables}
+
+    Text to analyze:
+    {text}
+
+    CRITICAL INSTRUCTIONS:
+    - ONLY extract information that is EXPLICITLY mentioned in the text
+    - If NO relevant information is mentioned, return empty lists or null values
+    - Do NOT infer or guess based on context or company names
+    - Do NOT extract information just because it might be related
+    - For each item mentioned, create a separate entry with all relevant details
+    - If a field is not mentioned in the text, leave it as null/None rather than guessing
+    - Focus on extracting accurate, factual data as stated in the text
+
+    Examples of what NOT to extract:
+    - "1-800 CONTACTS" → NOT oil (even though contacts might use oil-based solutions)
+    - "Apple Inc." → NOT aluminum (even though phones contain aluminum)
+    - "Bank of America" → NOT gold (even though banks might trade gold)
+  # Example of a simpler prompt template:
   # prompt_template: |
   #   You are a financial data extraction expert. Extract the following information:
   #   

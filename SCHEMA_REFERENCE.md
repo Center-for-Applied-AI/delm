@@ -238,38 +238,6 @@ Each variable in your schema can be configured with these options:
   required: false
 ```
 
-## Prompt Customization
-
-### Custom Prompt Templates
-
-You can customize the extraction prompt for better results:
-
-```yaml
-prompt_template: |
-  You are assisting a finance professor who expects meticulous and reliable results.
-
-  Extract commodity price information from the following text:
-
-  {variables}
-
-  Text to analyze:
-  {text}
-
-  CRITICAL INSTRUCTIONS:
-  - ONLY extract commodities that are EXPLICITLY mentioned in the text
-  - If NO commodities are mentioned, return an empty list []
-  - Do NOT infer or guess commodity types based on company names or context
-  - Do NOT extract commodities just because a company might be in the energy sector
-  - Focus on EXPLICIT mentions of: oil, gas, copper, gold, silver, steel, aluminum
-  - For each commodity mentioned, create a separate entry with all relevant details
-  - If a field is not mentioned in the text, leave it as null/None rather than guessing
-
-  Examples of what NOT to extract:
-  - "1-800 CONTACTS" → NOT oil (even though contacts might use oil-based solutions)
-  - "Apple Inc." → NOT aluminum (even though phones contain aluminum)
-  - "Bank of America" → NOT gold (even though banks might trade gold)
-```
-
 ### Validation Features
 
 #### Text Validation
@@ -373,15 +341,6 @@ suggestions:
       allowed_values: ["feature", "bug", "ui", "performance"]
       required: false
 ```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Empty Results**: Check field descriptions and ensure they're clear and specific
-2. **Inconsistent Extraction**: Use `allowed_values` to constrain outputs
-3. **Missing Fields**: Set `required: true` for critical fields
-4. **False Positives**: Enable `validate_in_text: true` for fields that should only be extracted when explicitly mentioned
 
 ---
 

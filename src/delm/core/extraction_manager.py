@@ -5,9 +5,8 @@ ExtractionManager - Handles LLM extraction and result parsing.
 import re
 from typing import Any, Dict, List, Optional
 
-import openai
-import instructor
 import pandas as pd
+import instructor
 from pydantic import BaseModel, Field
 
 from ..schemas import SchemaManager
@@ -26,22 +25,17 @@ class ExtractionManager:
         schema_manager: 'SchemaManager', 
         api_key: Optional[str] = None
     ):
-        # API configuration
-        self.api_key = api_key
-        if self.api_key and openai is not None:
-            openai.api_key = self.api_key
-            
-        # Model configuration
-        self.model_name = model_config.name
+        self.model_config = model_config
         self.temperature = model_config.temperature
         self.regex_fallback_pattern = model_config.regex_fallback_pattern
         self.extract_to_dataframe = model_config.extract_to_dataframe
         
-        # Schema system - use injected SchemaManager
+        # Use Instructor's universal provider interface
+        self.client = instructor.from_provider(self.model_config.get_provider_string())
+        
         self.schema_manager = schema_manager
         self.extraction_schema = self.schema_manager.get_extraction_schema()
         
-        # Processing components
         self.batch_processor = BatchProcessor(
             batch_size=model_config.batch_size,
             max_workers=model_config.max_workers
@@ -84,14 +78,7 @@ class ExtractionManager:
         use_regex_fallback: bool = False
     ) -> Dict[str, Any]:
         """Extract data from a single text chunk with optional fallback."""
-        if not self.api_key:
-            if verbose:
-                print("No API key found, falling back to regex extraction")
-            if self.regex_fallback_pattern:
-                return self._regex_extract(text_chunk)
-            else:
-                return {}
-        
+        # We assume API key is set in environment for instructor
         try:
             return self._instructor_extract(text_chunk)
         except Exception as e:
@@ -124,45 +111,33 @@ class ExtractionManager:
     def _instructor_extract(self, text_chunk: str) -> Dict[str, Any]:
         """Use Instructor + Pydantic schema for structured output."""
         def _extract_with_schema():
-            client = instructor.patch(openai.OpenAI(api_key=self.api_key))
-            
-            # Use configurable schema if available, otherwise create a simple default schema
+            # Use configurable schema if available, otherwise raise an error
             if self.extraction_schema:
                 schema = self.extraction_schema.create_pydantic_schema()
                 prompt = self.extraction_schema.create_prompt(text_chunk)
             else:
-                # Create a simple default schema for numeric extraction
-                class DefaultExtractSchema(BaseModel):
-                    numbers: List[str] = Field(
-                        default_factory=list,
-                        description="Numeric strings (keep punctuation), in order of appearance",
-                    )
-                schema = DefaultExtractSchema
-                prompt = f"Extract all numeric strings from the following text chunk:\n\n{text_chunk}"
+                raise ProcessingError(
+                    "No extraction schema provided. You must specify a schema for extraction.",
+                    {"text_chunk": text_chunk[:100]}
+                )
             
-            response = client.chat.completions.create(  # type: ignore
-                model=self.model_name,
+            # Use the model name directly
+            response = self.client.chat.completions.create(
+                model=self.model_config.name,
                 temperature=self.temperature,
                 response_model=schema,
                 messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a precise data‑extraction assistant.",
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
+                    {"role": "system", "content": "You are a precise data‑extraction assistant."},
+                    {"role": "user", "content": prompt},
                 ],
             )
             return response
-        
         try:
             return self.retry_handler.execute_with_retry(_extract_with_schema)
         except Exception as e:
             raise ProcessingError(
                 f"Failed to extract data from text chunk: {e}",
-                {"text_length": len(text_chunk), "model_name": self.model_name}
+                {"text_length": len(text_chunk), "model_name": self.model_config.name}
             ) from e
     
     def _parse_results_to_dataframe(
