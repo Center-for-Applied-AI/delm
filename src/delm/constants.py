@@ -15,6 +15,7 @@ DEFAULT_MAX_WORKERS = 1              # Default number of concurrent workers
 DEFAULT_BASE_DELAY = 1.0             # Default base delay for retry handler
 DEFAULT_DOTENV_PATH = None           # Default dotenv path (None = no .env file)
 DEFAULT_REGEX_FALLBACK_PATTERN = None # Default regex fallback pattern (None = no fallback)
+DEFAULT_TRACK_COST = True            # Default bool to track cost of API calls
 
 # Data Processing Defaults
 DEFAULT_TARGET_COLUMN = "text"       # Default target column in data

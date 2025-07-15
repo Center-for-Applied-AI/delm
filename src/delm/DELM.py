@@ -33,7 +33,8 @@ from .constants import (
     SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, 
     SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN
 )
-from .exceptions import DataError, ProcessingError
+from .exceptions import DataError
+from .utils.cost_tracker import CostTracker
 
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
@@ -108,11 +109,15 @@ class DELM:
         self.data_processor = DataProcessor(self.config.data)
         self.schema_manager = SchemaManager(self.config.schema)
         self.experiment_manager = ExperimentManager(self.config.experiment)
+        self.cost_tracker = CostTracker(
+            provider=self.config.model.provider,
+            model=self.config.model.name,
+        )
         self.extraction_manager = ExtractionManager(
             self.config.model,
             schema_manager=self.schema_manager,  # Pass the instance
+            cost_tracker=self.cost_tracker,
         )
-
 
 
     # ------------------------------ Public API --------------------------- #
@@ -165,6 +170,9 @@ class DELM:
                 print(f"Processed {len(data)} chunks. Extracted to DataFrame with {len(output_df)} structured rows.")
             else:
                 print(f"Processed {len(data)} chunks. JSON output saved to `extracted_data` column.")
+        
+        if self.config.model.track_cost:
+            self.cost_tracker.print_cost_summary()
         
         return output_df
     

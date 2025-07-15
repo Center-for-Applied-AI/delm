@@ -12,6 +12,7 @@ model:
   base_delay: 1.0                     # Base delay for retry handler (seconds)
   dotenv_path: ".env"                 # Path to .env file (optional, can be null)
   regex_fallback_pattern: null        # Regex pattern for fallback (optional, can be null)
+  track_cost: true                    # Whether to track cost of API calls
 
 # Data configuration
 data:
