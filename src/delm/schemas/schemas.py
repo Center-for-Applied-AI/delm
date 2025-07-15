@@ -77,17 +77,19 @@ class SimpleSchema(BaseSchema):
                 field_type = List[str]
             else:
                 field_type = List[str]
-            
-            # Add validation for allowed values if specified
-            field_kwargs = {
-                'default_factory': list,
-                'description': var.description
-            }
-            
+
+            # Build description, including allowed values if present
+            description = var.description
             if var.allowed_values:
-                field_kwargs['description'] += f" (must be one of: {', '.join(var.allowed_values)})"
-            
-            fields[var.name] = Field(**field_kwargs)
+                description += f" (must be one of: {', '.join(var.allowed_values)})"
+
+            if var.required:
+                # Required field: must be present in input
+                fields[var.name] = Field(..., description=description)  # required
+            else:
+                # Optional field: defaults to empty list if missing
+                fields[var.name] = Field(default_factory=list, description=description)  # optional
+
             annotations[var.name] = field_type
         
         # Create the schema class
@@ -353,15 +355,27 @@ class MultipleSchema(BaseSchema):
         return all_variables
     
     def create_pydantic_schema(self) -> Type[BaseModel]:
-        """Create combined Pydantic schema for multiple schemas."""
-        # This is complex - for now, we'll use the first schema
-        # In a full implementation, we'd combine multiple schemas
-        if self.schemas:
-            first_schema = list(self.schemas.values())[0]
-            return first_schema.create_pydantic_schema()
-        
-        # Fallback to simple schema
-        return SimpleSchema({}).create_pydantic_schema()
+        """Create a combined Pydantic schema for all sub-schemas."""
+        from pydantic import BaseModel, Field
+
+        fields = {}
+        annotations = {}
+
+        for name, schema in self.schemas.items():
+            sub_schema_model = schema.create_pydantic_schema()
+            annotations[name] = sub_schema_model
+            fields[name] = Field(..., description=f"{name} extraction results")
+
+        # Dynamically create the combined schema class
+        CombinedSchema = type(
+            "MultipleExtractSchema",
+            (BaseModel,),
+            {
+                "__annotations__": annotations,
+                **fields
+            }
+        )
+        return CombinedSchema
     
     def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
         """Create combined prompt for multiple schemas."""
@@ -404,6 +418,7 @@ class SchemaRegistry:
     
     def create(self, config: Dict[str, Any]) -> BaseSchema:
         """Create schema instance from config."""
+        # default to simple schema
         schema_type = config.get("schema_type", "simple")
         
         if schema_type not in self._schemas:

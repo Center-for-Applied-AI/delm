@@ -11,6 +11,11 @@ from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_S
 from delm.strategies.splitting_strategies import SplitStrategy
 from delm.strategies.scoring_strategies import RelevanceScorer
 
+import pytest
+from pydantic import ValidationError
+from delm.schemas.schemas import SchemaRegistry
+
+
 # --- Mock strategies ---
 class MockSplitter(SplitStrategy):
     def split(self, text):
@@ -100,4 +105,83 @@ try:
     df5 = processor5.load_and_process(data)
     print(df5)
 except Exception as e:
-    print(f"Expected error: {e}") 
+    print(f"Expected error: {e}")
+
+
+def test_multiple_schema_pydantic_model():
+    # Define a MultipleSchema config with two sub-schemas
+    config = {
+        "schema_type": "multiple",
+        "company_info": {
+            "schema_type": "simple",
+            "variables": [
+                {"name": "name", "description": "Company name", "data_type": "string", "required": True},
+                {"name": "founded", "description": "Year founded", "data_type": "integer", "required": False},
+            ],
+        },
+        "financials": {
+            "schema_type": "simple",
+            "variables": [
+                {"name": "revenue", "description": "Annual revenue", "data_type": "number", "required": False},
+                {"name": "profit", "description": "Annual profit", "data_type": "number", "required": False},
+            ],
+        },
+    }
+
+    registry = SchemaRegistry()
+    schema = registry.create(config)
+    Model = schema.create_pydantic_schema()
+
+    # Valid data
+    valid_data = {
+        "company_info": {
+            "name": ["Acme Corp"],
+            "founded": [1999],
+        },
+        "financials": {
+            "revenue": [1_000_000.0],
+            "profit": [100_000.0],
+        },
+    }
+    model_instance = Model(**valid_data)
+    assert model_instance.company_info.name == ["Acme Corp"]
+    assert model_instance.financials.revenue == [1_000_000.0]
+
+    # Missing required field in company_info
+    invalid_data_missing = {
+        "company_info": {
+            # "name" is missing
+            "founded": [1999],
+        },
+        "financials": {
+            "revenue": [1_000_000.0],
+            "profit": [100_000.0],
+        },
+    }
+    with pytest.raises(ValidationError):
+        Model(**invalid_data_missing)
+
+    # Wrong type in financials
+    invalid_data_type = {
+        "company_info": {
+            "name": ["Acme Corp"],
+            "founded": [1999],
+        },
+        "financials": {
+            "revenue": ["not a number"],  # should be float
+            "profit": [100_000.0],
+        },
+    }
+    with pytest.raises(ValidationError):
+        Model(**invalid_data_type)
+
+    # Missing sub-schema
+    invalid_data_missing_subschema = {
+        "company_info": {
+            "name": ["Acme Corp"],
+            "founded": [1999],
+        },
+        # "financials" is missing
+    }
+    with pytest.raises(ValidationError):
+        Model(**invalid_data_missing_subschema) 

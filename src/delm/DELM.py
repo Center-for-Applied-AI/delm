@@ -154,8 +154,6 @@ class DELM:
             )
         
         data = self.experiment_manager.load_preprocessed_data(self.preprocessed_data_path)
-        
-        # TODO: add filtering for score
 
         text_chunks = data[SYSTEM_CHUNK_COLUMN].tolist()
         
