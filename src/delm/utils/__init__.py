@@ -1,13 +1,13 @@
 """
 DELM Utilities
 =============
-Utility components for batch processing and retry handling.
+Utility components for concurrent processing and retry handling.
 """
 
-from .batch_processing import BatchProcessor
+from .concurrent_processing import ConcurrentProcessor
 from .retry_handler import RetryHandler
 
 __all__ = [
-    "BatchProcessor",
+    "ConcurrentProcessor",
     "RetryHandler",
 ] 

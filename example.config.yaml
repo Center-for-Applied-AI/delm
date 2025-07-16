@@ -1,8 +1,8 @@
 # DELM Configuration Example
 # This file shows all available configuration options for DELM
 
-# Model configuration
-model:
+# LLM extraction configuration
+llm_extraction:
   provider: "openai"                  # LLM provider (openai, anthropic, google, groq, together, fireworks)
   name: "gpt-4o-mini"                 # LLM model name
   temperature: 0.0                    # Temperature for generation (0.0-2.0)
@@ -14,11 +14,11 @@ model:
   regex_fallback_pattern: null        # Regex pattern for fallback (optional, can be null)
   track_cost: true                    # Whether to track cost of API calls
 
-# Data configuration
-data:
+# Data preprocessing configuration
+data_preprocessing:
   target_column: "text"         # Column containing text to process
   drop_target_column: true      # Whether to drop target column after processing
-  pandas_score_filter: "score >= 0.7 and score < 0.95" # Filter via scores in preprocessing step. Uses pandas query syntax.
+  pandas_score_filter: "delm_score >= 0.7 and delm_score < 0.95" # Filter via scores in preprocessing step. Uses pandas query syntax. Must use delm_score column name.
   
   # Splitting strategy configuration
   splitting:
@@ -78,10 +78,3 @@ schema:
   #   {text}
   #   
   #   Focus on extracting accurate financial data and return results in the specified format.
-
-# Experiment configuration
-experiment:
-  name: "my_experiment"         # Experiment name (required)
-  directory: "delm_experiments" # Experiment directory
-  overwrite_experiment: false   # Whether to overwrite existing experiments
-  verbose: false                # Whether to enable verbose logging 

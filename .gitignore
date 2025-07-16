@@ -7,8 +7,6 @@ __pycache__/
 .python-version
 src/delm.egg-info/
 delm_experiments/
-test-experiments/
+test_experiments/
 experiments/
-REFACTORING_PROMPTS.md
-DELM_ARCHITECTURE_REVIEW.md
 .pytest_cache/

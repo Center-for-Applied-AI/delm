@@ -1,23 +1,22 @@
-# Calls Test Configuration
-# This config file replaces the programmatic config creation in earning_report_delm_testing.py
+# Test DELM config for calls_test
+# Only include experiment-defining parameters here (model, data, schema, etc.)
+# Do NOT include experiment name, directory, or operational/runtime flags.
 
-# Model configuration
-model:
-  provider: "openai"
-  name: "gpt-4o-mini"
+llm_extraction:
+  name: gpt-4o-mini
+  provider: openai
   temperature: 0.0
-  max_retries: 3
-  batch_size: 1
+  batch_size: 2
   max_workers: 1
   dotenv_path: ".env"
   regex_fallback_pattern: null
   track_cost: true
 
-# Data configuration
-data:
+# Data preprocessing configuration
+data_preprocessing:
   target_column: "text"
   drop_target_column: true
-  pandas_score_filter: "score > 0.5"
+  pandas_score_filter: "delm_score > 0.5"
   
   # Splitting strategy configuration
   splitting:
@@ -38,10 +37,3 @@ schema:
   spec_path: "tests/calls_test/schema_spec.yaml"
   container_name: "commodities"
   prompt_template: null  # Use default prompt template
-
-# Experiment configuration
-experiment:
-  name: "calls_test"
-  directory: "test-experiments"
-  overwrite_experiment: true
-  verbose: true 

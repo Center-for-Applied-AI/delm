@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import json
 
 from delm import DELM, DELMConfig
-from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN
+from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN, PREPROCESSED_DATA_PREFIX, PREPROCESSED_DATA_SUFFIX, CONSOLIDATED_RESULT_PREFIX, CONSOLIDATED_RESULT_SUFFIX, DATA_DIR_NAME
 
 # Paths
 EXPERIMENT_DIR = Path("test-experiments")
@@ -113,100 +113,47 @@ print("\nLoading DELM configuration from YAML...")
 config = DELMConfig.from_yaml(CONFIG_PATH)
 
 # Initialize DELM with config
-delm = DELM(config=config)
+delm = DELM(config=config, experiment_name="mock_test_experiment", experiment_directory=Path("./test_experiments"), overwrite_experiment=False, verbose=True, auto_checkpoint_and_resume_experiment=True)
 
 print("DELM initialized successfully!")
 
 # Process data with DELM (run this cell)
-output_df = delm.prep_data(report_text_df.iloc[:3])
+delm.prep_data(report_text_df.iloc[:3])
 
-print(f"Data preprocessed successfully!")
-print(f"Prepped Data columns: {list(output_df.columns)}")
+print(f"Data preprocessed successfully! It was saved to {delm.experiment_manager.experiment_dir}")
+prepped_df = pd.read_feather(delm.experiment_manager.experiment_dir / DATA_DIR_NAME / f"{PREPROCESSED_DATA_PREFIX}{delm.experiment_name}{PREPROCESSED_DATA_SUFFIX}")
+print(f"Prepped Data columns: {list(prepped_df.columns)}")
 
 # Process with LLM (no parameters needed - uses constructor config)
-llm_output_df = delm.process_via_llm()
+delm.process_via_llm()
 
 print(f"LLM processing completed!")
-print(f"LLM output columns: {list(llm_output_df.columns)}")
+result_df = pd.read_feather(delm.experiment_manager.experiment_dir / DATA_DIR_NAME / f"{CONSOLIDATED_RESULT_PREFIX}{delm.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}")
 
-if not llm_output_df.empty:
+if not result_df.empty:
     print("\nLLM Output sample:")
-    print(llm_output_df.head())
+    print(result_df.head())
 
-# The output is now JSON by default - let's show how to work with it
+# The output is JSON by default - let's show how to work with it
 print("\n" + "="*60)
 print("WORKING WITH JSON OUTPUT")
 print("="*60)
 
-if not llm_output_df.empty:
-    print(f"\nJSON output format: {list(llm_output_df.columns)}")
-    
-    # Show how to access JSON data
-    print("\nExample: Accessing JSON data from first chunk:")
-    first_row = llm_output_df.iloc[0]
-    if SYSTEM_EXTRACTED_DATA_COLUMN in first_row and first_row[SYSTEM_EXTRACTED_DATA_COLUMN] is not None:
-        import json
-        try:
-            extracted_data = json.loads(str(first_row[SYSTEM_EXTRACTED_DATA_COLUMN]))
-            print(f"Raw JSON: {json.dumps(extracted_data, indent=2)}")
-            
-            # Extract specific data
-            if 'commodities' in extracted_data:
-                commodities = extracted_data['commodities']
-                print(f"\nFound {len(commodities)} commodities:")
-                for i, commodity in enumerate(commodities):
-                    print(f"  {i+1}. {commodity.get('commodity_type', 'N/A')} - ${commodity.get('price_value', 'N/A')}")
-        except (json.JSONDecodeError, TypeError) as e:
-            print(f"Error parsing JSON: {e}")
+import json
 
-print("\nMock testing complete! You can now experiment with the data.")
-
-# DEMONSTRATION: How nested schemas handle multiple objects per text chunk
-print("\n" + "="*60)
-print("DEMONSTRATION: JSON Output Structure")
-print("="*60)
-
-print("\nWhen you have a nested schema (like 'commodities'), the system:")
-print("1. Extracts multiple objects from each text chunk")
-print(f"2. Stores them as JSON in the '{SYSTEM_EXTRACTED_DATA_COLUMN}' column")
-print("3. Maintains the original text_chunk and metadata for each row")
-
-print(f"\nExample: Your current schema extracts 'commodities' objects")
-print(f"Input text chunks: {len(report_text_df.iloc[:3])}")
-print(f"Output DataFrame rows: {len(llm_output_df)}")
-print(f"Each row contains JSON with extracted objects")
-
-if not llm_output_df.empty:
-    print(f"\nDataFrame columns: {list(llm_output_df.columns)}")
-    print(f"\nSample of how JSON data is structured:")
-    
-    # Show JSON structure for first few chunks
-    for idx, row in llm_output_df.head(3).iterrows():
-        print(f"\nChunk {row.get(SYSTEM_CHUNK_ID_COLUMN, idx)}:")
-        text_chunk = row.get(SYSTEM_CHUNK_COLUMN, '')
-        if text_chunk:
-            print(f"Text: {text_chunk[:100]}...")
-        else:
-            print(f"Text: (no text chunk)")
-        
-        if SYSTEM_EXTRACTED_DATA_COLUMN in row and row[SYSTEM_EXTRACTED_DATA_COLUMN] is not None:
-            import json
-            try:
-                data = json.loads(str(row[SYSTEM_EXTRACTED_DATA_COLUMN]))
-                if 'commodities' in data:
-                    commodities = data['commodities']
-                    print(f"  Found {len(commodities)} commodities in JSON:")
-                    for i, commodity in enumerate(commodities):
-                        commodity_info = f"    {i+1}. {commodity.get('commodity_type', 'N/A')}"
-                        if commodity.get('price_value'):
-                            commodity_info += f" @ ${commodity.get('price_value')} {commodity.get('price_unit', '')}"
-                        if commodity.get('company_mention'):
-                            commodity_info += f" (companies: {commodity.get('company_mention')})"
-                        print(commodity_info)
-                else:
-                    print(f"  JSON data: {json.dumps(data, indent=4)}")
-            except json.JSONDecodeError:
-                print(f"  Invalid JSON: {row[SYSTEM_EXTRACTED_DATA_COLUMN]}")
+for idx, row in result_df.head(3).iterrows():
+    # Print all columns except delm_extracted_data
+    for col in result_df.columns:
+        if col != "delm_extracted_data":
+            print(f"{col}: {row[col]}")
+    print("delm_extracted_data:")
+    try:
+        parsed = json.loads(row["delm_extracted_data"])
+        print(json.dumps(parsed, indent=2))
+    except Exception as e:
+        print(f"(Could not parse as JSON: {e})")
+        print(row["delm_extracted_data"])
+    print("-" * 40)
 
 print(f"\nThis JSON structure allows you to:")
 print("- Access all extracted data in its original structure")
