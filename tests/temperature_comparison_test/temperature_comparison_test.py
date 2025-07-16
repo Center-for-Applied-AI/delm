@@ -14,7 +14,7 @@ from dataclasses import replace
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
 from delm import DELM, DELMConfig
-from delm.config import ModelConfig, DataConfig, SchemaConfig, ExperimentConfig, SplittingConfig, ScoringConfig
+from delm.config import LLMExtractionConfig, DataPreprocessingConfig, SchemaConfig, ExperimentConfig, SplittingConfig, ScoringConfig
 from delm.strategies import KeywordScorer, ParagraphSplit
 
 def create_mock_data():
@@ -48,7 +48,7 @@ def create_mock_data():
 
 def create_base_config():
     """Create base configuration."""
-    model_config = ModelConfig(
+    model_config = LLMExtractionConfig(
         name="gpt-4o-mini",
         temperature=0.0,  # Will be varied
         max_retries=3,
@@ -67,7 +67,7 @@ def create_base_config():
         ])
     )
     
-    data_config = DataConfig(
+    data_config = DataPreprocessingConfig(
         target_column="text",
         drop_target_column=True,
         splitting=splitting_config,
@@ -80,16 +80,11 @@ def create_base_config():
         prompt_template=None
     )
     
-    experiment_config = ExperimentConfig(
-        name="temp_comparison",  # Will be varied
-        directory=Path("test-experiments"),
-        overwrite_experiment=True,
-        verbose=False
-    )
+    experiment_config = ExperimentConfig()
     
     return DELMConfig(
-        model=model_config,
-        data=data_config,
+        llm_extraction=model_config,
+        data_preprocessing=data_config,
         schema=schema_config,
         experiment=experiment_config
     )
@@ -113,12 +108,18 @@ def run_temperature_comparison():
         # Create config variation using dataclasses.replace
         config = replace(
             base_config,
-            model=replace(base_config.model, temperature=temp),
+            llm_extraction=replace(base_config.llm_extraction, temperature=temp),
             experiment=replace(base_config.experiment, name=f"temp_{temp}")
         )
         
         # Initialize DELM
-        delm = DELM(config=config)
+        delm = DELM(
+            config=config,
+            experiment_name=f"temp_{temp}",
+            experiment_directory=Path("test-experiments"),
+            overwrite_experiment=True,
+            verbose=False
+        )
         
         # Process data
         output_df = delm.prep_data(test_data)

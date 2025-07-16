@@ -11,7 +11,8 @@ from .constants import (
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
-    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER
+    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER,
+    DEFAULT_AUTO_CHECKPOINT_AND_RESUME
 )
 from .exceptions import ConfigurationError
 
@@ -68,8 +69,8 @@ def _splitter_from_config(cfg):
     return None
 
 @dataclass
-class ModelConfig:
-    """Configuration for the LLM model and API usage."""
+class LLMExtractionConfig:
+    """Configuration for the LLM extraction process."""
     provider: str = DEFAULT_PROVIDER  # e.g., 'openai', 'anthropic', 'google', etc.
     name: str = DEFAULT_MODEL_NAME    # e.g., 'gpt-4o-mini', 'claude-3-sonnet', etc.
     temperature: float = DEFAULT_TEMPERATURE
@@ -166,6 +167,9 @@ class SplittingConfig:
             )
         return cls(strategy=_splitter_from_config(cfg))
 
+    def to_dict(self) -> dict:
+        return self.strategy.to_dict() if self.strategy else {"type": "None"}
+
 @dataclass
 class ScoringConfig:
     """Configuration for relevance scoring strategy."""
@@ -189,16 +193,61 @@ class ScoringConfig:
             )
         return cls(scorer=_scorer_from_config(cfg))
 
+    def to_dict(self) -> dict:
+        return self.scorer.to_dict() if self.scorer else {"type": "None"}
+
 @dataclass
-class DataConfig:
-    """Configuration for data processing."""
+class DataPreprocessingConfig:
+    """Configuration for data preprocessing pipeline."""
     target_column: str = DEFAULT_TARGET_COLUMN
     drop_target_column: bool = DEFAULT_DROP_TARGET_COLUMN
     splitting: SplittingConfig = field(default_factory=SplittingConfig)
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
     pandas_score_filter: Optional[str] = DEFAULT_PANDAS_SCORE_FILTER
+    preprocessed_data_path: Optional[str] = None  # If set, use this preprocessed data file and skip other data config validation
+    _explicitly_set_fields: set = field(default_factory=set, init=False)  # Track which fields were explicitly set
+
+    def __post_init__(self):
+        # Case when no scoring is specified, we don't want to drop the target column as the target column is the text_chunk? TODO: This needs to be looked into more to verify what exactly happens
+        if self.scoring.scorer is None:
+            self.drop_target_column = False
 
     def validate(self):
+        if self.preprocessed_data_path:
+            # If using external preprocessed data, skip other validation
+            # Verify that the file is a feather file and has the correct columns
+            if not self.preprocessed_data_path.endswith(".feather"):
+                raise ConfigurationError(
+                    "preprocessed_data_path must be a feather file.",
+                    {"preprocessed_data_path": self.preprocessed_data_path, "suggestion": "Provide a valid feather file path"}
+                )
+            # Check for conflicting fields - only consider explicitly set fields
+            conflicting = []
+            if "target_column" in self._explicitly_set_fields:
+                conflicting.append("target_column")
+            if "drop_target_column" in self._explicitly_set_fields:
+                conflicting.append("drop_target_column")
+            if "pandas_score_filter" in self._explicitly_set_fields:
+                conflicting.append("pandas_score_filter")
+            if self.splitting.strategy is not None:
+                conflicting.append("splitting")
+            if self.scoring.scorer is not None:
+                conflicting.append("scoring")
+            if conflicting:
+                raise ConfigurationError(
+                    f"Cannot specify {', '.join(conflicting)} when preprocessed_data_path is set.",
+                    {"preprocessed_data_path": self.preprocessed_data_path, "conflicting_fields": conflicting, "suggestion": "Remove other data fields when using preprocessed_data_path. Or do not specify preprocessed_data_path if you want to specify the other data fields."}
+                )
+            # Verify that the file has the correct columns
+            import pandas as pd
+            df = pd.read_feather(self.preprocessed_data_path)
+            from .constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN
+            if not all(col in df.columns for col in [SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN]):
+                raise ConfigurationError(
+                    "preprocessed_data_path must have the correct columns.",
+                    {"preprocessed_data_path": self.preprocessed_data_path, "suggestion": "Provide a valid feather file path with the correct columns"}
+                )
+            return
         if not isinstance(self.target_column, str) or not self.target_column:
             raise ConfigurationError(
                 "target_column must be a non-empty string.",
@@ -210,15 +259,16 @@ class DataConfig:
                 {"drop_target_column": self.drop_target_column, "suggestion": "Use True or False"}
             )
         if self.pandas_score_filter is not None:
-            if self.pandas_score_filter is not isinstance(self.pandas_score_filter, str):
+            if not isinstance(self.pandas_score_filter, str):
                 raise ConfigurationError(
                     "pandas_score_filter must be a string or None.",
                     {"pandas_score_filter": self.pandas_score_filter, "suggestion": "Provide a valid pandas query string or None"}
                 )
-            # Create a dummy dataframe to check if the pandas_score_filter is valid
+            # Create a dummy dataframe with the system default score column to check if the pandas_score_filter is valid
             import pandas as pd
+            from .constants import SYSTEM_SCORE_COLUMN
             try:
-                pd.DataFrame([1]).query(self.pandas_score_filter)
+                pd.DataFrame({SYSTEM_SCORE_COLUMN: [1]}).query(self.pandas_score_filter)
             except Exception as e:
                 raise ConfigurationError(
                     f"pandas_score_filter is not a valid pandas query: {e}",
@@ -226,6 +276,52 @@ class DataConfig:
                 )
         self.splitting.validate()
         self.scoring.validate()
+
+    def to_dict(self) -> dict:
+        d = {}
+        if self.preprocessed_data_path:
+            d["preprocessed_data_path"] = self.preprocessed_data_path
+        else:
+            d["target_column"] = self.target_column
+            d["drop_target_column"] = self.drop_target_column
+            d["pandas_score_filter"] = self.pandas_score_filter
+            d["splitting"] = self.splitting.to_dict()
+            d["scoring"] = self.scoring.to_dict()
+        return d
+
+    @classmethod
+    def from_config(cls, cfg):
+        if cfg is None:
+            cfg = {}
+        elif not isinstance(cfg, dict):
+            raise ConfigurationError(
+                f"Data preprocessing config must be a dictionary, got {type(cfg).__name__}",
+                {"config_type": type(cfg).__name__, "suggestion": "Use dict format or omit data_preprocessing section entirely"}
+            )
+        splitting = SplittingConfig.from_config(cfg.get("splitting", {}))
+        scoring = ScoringConfig.from_config(cfg.get("scoring", {}))
+        
+        # Track which fields were explicitly set
+        explicitly_set_fields = set()
+        if "target_column" in cfg:
+            explicitly_set_fields.add("target_column")
+        if "drop_target_column" in cfg:
+            explicitly_set_fields.add("drop_target_column")
+        if "pandas_score_filter" in cfg:
+            explicitly_set_fields.add("pandas_score_filter")
+        if "preprocessed_data_path" in cfg:
+            explicitly_set_fields.add("preprocessed_data_path")
+        
+        instance = cls(
+            target_column=cfg.get("target_column", DEFAULT_TARGET_COLUMN),
+            drop_target_column=cfg.get("drop_target_column", DEFAULT_DROP_TARGET_COLUMN),
+            splitting=splitting,
+            scoring=scoring,
+            pandas_score_filter=cfg.get("pandas_score_filter", DEFAULT_PANDAS_SCORE_FILTER),
+            preprocessed_data_path=cfg.get("preprocessed_data_path", None),
+        )
+        instance._explicitly_set_fields = explicitly_set_fields
+        return instance
 
 @dataclass
 class SchemaConfig:
@@ -259,38 +355,18 @@ class SchemaConfig:
 @dataclass
 class ExperimentConfig:
     """Configuration for experiment management."""
-    name: str = ""
-    directory: Path = DEFAULT_EXPERIMENT_DIR
-    overwrite_experiment: bool = DEFAULT_OVERWRITE_EXPERIMENT
-    verbose: bool = DEFAULT_VERBOSE
+    # Removed: name, directory, overwrite_experiment, verbose, auto_checkpoint_and_resume_experiment
+    # This dataclass is now empty, but kept for future experiment-defining parameters if needed.
+    pass
 
     def validate(self):
-        if not isinstance(self.name, str) or not self.name:
-            raise ConfigurationError(
-                "Experiment name must be a non-empty string.",
-                {"experiment_name": self.name, "suggestion": "Provide a valid experiment name"}
-            )
-        if not isinstance(self.directory, Path):
-            raise ConfigurationError(
-                "directory must be a Path object.",
-                {"directory": str(self.directory), "suggestion": "Provide a valid Path object"}
-            )
-        if not isinstance(self.overwrite_experiment, bool):
-            raise ConfigurationError(
-                "overwrite_experiment must be a boolean.",
-                {"overwrite_experiment": self.overwrite_experiment, "suggestion": "Use True or False"}
-            )
-        if not isinstance(self.verbose, bool):
-            raise ConfigurationError(
-                "verbose must be a boolean.",
-                {"verbose": self.verbose, "suggestion": "Use True or False"}
-            )
+        pass
 
 @dataclass
 class DELMConfig:
     """Top-level configuration for DELM pipeline."""
-    model: ModelConfig
-    data: DataConfig
+    llm_extraction: LLMExtractionConfig
+    data_preprocessing: DataPreprocessingConfig
     schema: SchemaConfig
     experiment: ExperimentConfig
 
@@ -298,11 +374,56 @@ class DELMConfig:
         self.validate()
 
     def validate(self):
-        self.model.validate()
-        self.data.validate()
+        self.llm_extraction.validate()
+        self.data_preprocessing.validate()
         self.schema.validate()
         self.experiment.validate()
 
+    def to_config_dict(self) -> dict:
+        """Return a dictionary suitable for saving as the experiment config YAML (excluding runtime/operational fields)."""
+        # Only include experiment-defining fields
+        return {
+            "llm_extraction": {
+                "provider": self.llm_extraction.provider,
+                "name": self.llm_extraction.name,
+                "temperature": self.llm_extraction.temperature,
+                "max_retries": self.llm_extraction.max_retries,
+                "batch_size": self.llm_extraction.batch_size,
+                "max_workers": self.llm_extraction.max_workers,
+                "base_delay": self.llm_extraction.base_delay,
+                "dotenv_path": str(self.llm_extraction.dotenv_path) if self.llm_extraction.dotenv_path else None,
+                "regex_fallback_pattern": self.llm_extraction.regex_fallback_pattern,
+                "extract_to_dataframe": self.llm_extraction.extract_to_dataframe,
+                "track_cost": self.llm_extraction.track_cost,
+            },
+            "data_preprocessing": {
+                "target_column": self.data_preprocessing.target_column,
+                "drop_target_column": self.data_preprocessing.drop_target_column,
+                "pandas_score_filter": self.data_preprocessing.pandas_score_filter,
+                "splitting": self.data_preprocessing.splitting.to_dict(),
+                "scoring": self.data_preprocessing.scoring.to_dict(),
+                "preprocessed_data_path": self.data_preprocessing.preprocessed_data_path,
+            },
+            "schema": {
+                "spec_path": str(self.schema.spec_path),
+                "container_name": self.schema.container_name,
+                "prompt_template": self.schema.prompt_template,
+            }
+        }
+
+    def to_schema_dict(self) -> dict:
+        """Load and return the schema spec as a dictionary (from the path in self.schema.spec_path)."""
+        import yaml
+        import json
+        path = self.schema.spec_path
+        if not path.exists():
+            raise FileNotFoundError(f"Schema spec file does not exist: {path}")
+        if path.suffix.lower() in {".yml", ".yaml"}:
+            return yaml.safe_load(path.read_text()) or {}
+        elif path.suffix.lower() == ".json":
+            return json.loads(path.read_text())
+        else:
+            raise ValueError(f"Unsupported schema file format: {path.suffix}")
 
 
     @classmethod
@@ -327,27 +448,14 @@ class DELMConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DELMConfig":
         try:
-            # Handle model config
-            model_data = data.get("model", {})
-            model = ModelConfig(**model_data)
+            # Handle LLM extraction config
+            llm_extraction_data = data.get("llm_extraction", {})
+            llm_extraction = LLMExtractionConfig(**llm_extraction_data)
             
-            # Handle splitting config
-            splitting_data = data.get("data", {}).get("splitting", {})
-            splitting = SplittingConfig.from_config(splitting_data)
+            # Handle data preprocessing config
+            data_preprocessing_data = data.get("data_preprocessing", {})
             
-            # Handle scoring config
-            scoring_data = data.get("data", {}).get("scoring", {})
-            scoring = ScoringConfig.from_config(scoring_data)
-            
-            # Handle data config
-            data_config_data = data.get("data", {})
-            
-            data_cfg = DataConfig(
-                target_column=data_config_data.get("target_column", DEFAULT_TARGET_COLUMN),
-                drop_target_column=data_config_data.get("drop_target_column", DEFAULT_DROP_TARGET_COLUMN),
-                splitting=splitting,
-                scoring=scoring,
-            )
+            data_preprocessing_cfg = DataPreprocessingConfig.from_config(data_preprocessing_data)
             
             # Handle schema config
             schema_data = data.get("schema", {})
@@ -362,20 +470,10 @@ class DELMConfig:
             )
             
             # Handle experiment config
-            experiment_data = data.get("experiment", {})
-            directory = experiment_data.get("directory", DEFAULT_EXPERIMENT_DIR)
-            if isinstance(directory, str):
-                directory = Path(directory)
+            # Experiment config has been extracted to run-time params the user passes into DELM during instantiation
+            experiment = ExperimentConfig()
             
-            experiment = ExperimentConfig(
-                name=experiment_data.get("name", ""),
-                directory=directory,
-
-                overwrite_experiment=experiment_data.get("overwrite_experiment", DEFAULT_OVERWRITE_EXPERIMENT),
-                verbose=experiment_data.get("verbose", DEFAULT_VERBOSE)
-            )
-            
-            config = cls(model=model, data=data_cfg, schema=schema, experiment=experiment)
+            config = cls(llm_extraction=llm_extraction, data_preprocessing=data_preprocessing_cfg, schema=schema, experiment=experiment)
             
             return config
         except Exception as e:

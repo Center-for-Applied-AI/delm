@@ -9,7 +9,7 @@ from typing import Union
 import pandas as pd
 
 from ..strategies import loader_factory
-from ..config import DataConfig
+from ..config import DataPreprocessingConfig
 from ..constants import (
     SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN,
     DEFAULT_TARGET_COLUMN
@@ -20,7 +20,7 @@ from ..exceptions import DataError, ValidationError
 class DataProcessor:
     """Handles data loading, preprocessing, chunking, and scoring."""
     
-    def __init__(self, config: DataConfig):
+    def __init__(self, config: DataPreprocessingConfig):
         self.config = config
         self.splitter = config.splitting.strategy
         self.scorer = config.scoring.scorer
@@ -108,10 +108,9 @@ class DataProcessor:
             # Apply splitting strategy - use system chunk column name
             df[SYSTEM_CHUNK_COLUMN] = df[self.target_column].apply(self.splitter.split)
             df = df.explode(SYSTEM_CHUNK_COLUMN).reset_index(drop=True)
-            self.chunk_column = SYSTEM_CHUNK_COLUMN
         else:
             # No splitting - use target column name as chunk column (no duplication)
-            self.chunk_column = self.target_column
+            df = df.rename(columns={self.target_column: SYSTEM_CHUNK_COLUMN})
         
         df[SYSTEM_CHUNK_ID_COLUMN] = range(len(df))
         
@@ -124,7 +123,7 @@ class DataProcessor:
 
         # 2. Score and filter the chunks (only if scorer is provided)
         if self.scorer is not None:
-            df[SYSTEM_SCORE_COLUMN] = df[self.chunk_column].apply(self.scorer.score)
+            df[SYSTEM_SCORE_COLUMN] = df[SYSTEM_CHUNK_COLUMN].apply(self.scorer.score)
             # TODO: Give warning if scorer is used but filter is none.
             if self.pandas_score_filter is not None:
                 df = df.query(self.pandas_score_filter)

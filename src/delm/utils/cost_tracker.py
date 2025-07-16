@@ -44,3 +44,22 @@ class CostTracker:
         print(f"Input price per 1M tokens: ${self.model_input_cost_per_1M_tokens:.3f}")
         print(f"Output price per 1M tokens: ${self.model_output_cost_per_1M_tokens:.3f}")
         print(f"Total cost of extraction: ${self.get_current_cost():.3f}")
+
+    def to_dict(self) -> dict:
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,
+            "model_output_cost_per_1M_tokens": self.model_output_cost_per_1M_tokens,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "CostTracker":
+        obj = cls(d["provider"], d["model"])
+        obj.input_tokens = d.get("input_tokens", 0)
+        obj.output_tokens = d.get("output_tokens", 0)
+        obj.model_input_cost_per_1M_tokens = d.get("model_input_cost_per_1M_tokens", 0.0)
+        obj.model_output_cost_per_1M_tokens = d.get("model_output_cost_per_1M_tokens", 0.0)
+        return obj
