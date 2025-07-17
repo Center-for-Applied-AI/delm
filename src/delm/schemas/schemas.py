@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 
 from ..models import ExtractionVariable
 from ..exceptions import SchemaError
+from ..constants import DEFAULT_PROMPT_TEMPLATE
 
 
 class BaseSchema(ABC):
@@ -47,6 +48,23 @@ class BaseSchema(ABC):
     def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
         """Parse LLM response into DataFrame."""
         pass
+    
+    def get_variables_text(self) -> str:
+        """Get the formatted variables text without the full prompt."""
+        variable_descriptions = []
+        for var in self.variables:
+            desc = f"- {var.name}: {var.description} ({var.data_type})"
+            if var.required:
+                desc += " [REQUIRED]"
+            
+            # Add allowed values to description
+            if var.allowed_values:
+                allowed_list = ", ".join([f'"{v}"' for v in var.allowed_values])
+                desc += f" (allowed values: {allowed_list})"
+            
+            variable_descriptions.append(desc)
+        
+        return "\n".join(variable_descriptions)
 
 
 class SimpleSchema(BaseSchema):
@@ -54,7 +72,7 @@ class SimpleSchema(BaseSchema):
     
     def __init__(self, config: Dict[str, Any]):
         self._variables = [ExtractionVariable.from_dict(v) for v in config.get("variables", [])]
-        self.prompt_template = config.get("prompt_template", "Extract the following information from the text:\n\n{variables}\n\nText to analyze:\n{text}")
+        self.prompt_template = config.get("prompt_template", DEFAULT_PROMPT_TEMPLATE)
     
     @property
     def variables(self) -> List[ExtractionVariable]:
@@ -106,20 +124,7 @@ class SimpleSchema(BaseSchema):
     
     def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
         """Create extraction prompt from template and variables."""
-        variable_descriptions = []
-        for var in self.variables:
-            desc = f"- {var.name}: {var.description} ({var.data_type})"
-            if var.required:
-                desc += " [REQUIRED]"
-            
-            # Add allowed values to description so the model knows what to extract
-            if var.allowed_values:
-                allowed_list = ", ".join([f'"{v}"' for v in var.allowed_values])
-                desc += f" (allowed values: {allowed_list})"
-            
-            variable_descriptions.append(desc)
-        
-        variables_text = "\n".join(variable_descriptions)
+        variables_text = self.get_variables_text()
         return self.prompt_template.format(
             text=text,
             variables=variables_text
@@ -148,7 +153,7 @@ class NestedSchema(BaseSchema):
     def __init__(self, config: Dict[str, Any]):
         self._container_name = config.get("container_name", "instances")
         self._variables = [ExtractionVariable.from_dict(v) for v in config.get("variables", [])]
-        self.prompt_template = config.get("prompt_template", "")
+        self.prompt_template = config.get("prompt_template", DEFAULT_PROMPT_TEMPLATE)
     
     @property
     def container_name(self) -> str:
@@ -243,20 +248,7 @@ class NestedSchema(BaseSchema):
     
     def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
         """Create extraction prompt with context."""
-        # Build variable descriptions
-        variable_descriptions = []
-        for var in self.variables:
-            desc = f"- {var.name}: {var.description} ({var.data_type})"
-            if var.required:
-                desc += " [REQUIRED]"
-            
-            if var.allowed_values:
-                allowed_list = ", ".join([f'"{v}"' for v in var.allowed_values])
-                desc += f" (allowed values: {allowed_list})"
-            
-            variable_descriptions.append(desc)
-        
-        variables_text = "\n".join(variable_descriptions)
+        variables_text = self.get_variables_text()
         
         # Format the prompt template
         if self.prompt_template:

@@ -41,6 +41,9 @@ DEFAULT_VERBOSE = False             # Whether to enable verbose logging by defau
 # Extraction Defaults
 DEFAULT_EXTRACT_TO_DATAFRAME = False  # Whether to extract JSON to DataFrame by default
 
+# System Prompt Default
+DEFAULT_SYSTEM_PROMPT = "You are a precise data‑extraction assistant."
+
 # System Constants (Internal - Not User Configurable)
 # TODO: Throw error if these are used in the data.
 SYSTEM_CHUNK_COLUMN = "delm_text_chunk"   # Internal column name for text chunks

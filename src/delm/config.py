@@ -12,7 +12,7 @@ from .constants import (
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
     DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER,
-    DEFAULT_AUTO_CHECKPOINT_AND_RESUME
+    DEFAULT_AUTO_CHECKPOINT_AND_RESUME, DEFAULT_SYSTEM_PROMPT
 )
 from .exceptions import ConfigurationError
 
@@ -329,6 +329,7 @@ class SchemaConfig:
     spec_path: Path = Path("")
     container_name: str = DEFAULT_SCHEMA_CONTAINER
     prompt_template: Optional[str] = DEFAULT_PROMPT_TEMPLATE
+    system_prompt: Optional[str] = DEFAULT_SYSTEM_PROMPT
 
     def validate(self):
         if not isinstance(self.spec_path, Path) or not str(self.spec_path):
@@ -350,6 +351,11 @@ class SchemaConfig:
             raise ConfigurationError(
                 "prompt_template must be a string or None.",
                 {"prompt_template": self.prompt_template, "suggestion": "Provide a valid string or None"}
+            )
+        if self.system_prompt is not None and not isinstance(self.system_prompt, str):
+            raise ConfigurationError(
+                "system_prompt must be a string or None.",
+                {"system_prompt": self.system_prompt, "suggestion": "Provide a valid string or None for the system prompt."}
             )
 
 @dataclass
@@ -408,6 +414,7 @@ class DELMConfig:
                 "spec_path": str(self.schema.spec_path),
                 "container_name": self.schema.container_name,
                 "prompt_template": self.schema.prompt_template,
+                "system_prompt": self.schema.system_prompt,
             }
         }
 
@@ -451,30 +458,34 @@ class DELMConfig:
             # Handle LLM extraction config
             llm_extraction_data = data.get("llm_extraction", {})
             llm_extraction = LLMExtractionConfig(**llm_extraction_data)
-            
             # Handle data preprocessing config
             data_preprocessing_data = data.get("data_preprocessing", {})
-            
             data_preprocessing_cfg = DataPreprocessingConfig.from_config(data_preprocessing_data)
-            
             # Handle schema config
             schema_data = data.get("schema", {})
             spec_path = schema_data.get("spec_path", "")
             if isinstance(spec_path, str):
                 spec_path = Path(spec_path)
-            
             schema = SchemaConfig(
                 spec_path=spec_path,
                 container_name=schema_data.get("container_name", DEFAULT_SCHEMA_CONTAINER),
-                prompt_template=schema_data.get("prompt_template", DEFAULT_PROMPT_TEMPLATE)
+                prompt_template=schema_data.get("prompt_template", DEFAULT_PROMPT_TEMPLATE),
+                system_prompt=schema_data.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
             )
-            
             # Handle experiment config
-            # Experiment config has been extracted to run-time params the user passes into DELM during instantiation
             experiment = ExperimentConfig()
-            
             config = cls(llm_extraction=llm_extraction, data_preprocessing=data_preprocessing_cfg, schema=schema, experiment=experiment)
-            
             return config
         except Exception as e:
             raise ConfigurationError(f"Failed to load DELMConfig from dict: {e}", {"error": str(e)}) 
+
+    @staticmethod
+    def from_any(config_like) -> "DELMConfig":
+        if isinstance(config_like, DELMConfig):
+            return config_like
+        elif isinstance(config_like, str):
+            return DELMConfig.from_yaml(Path(config_like))
+        elif isinstance(config_like, dict):
+            return DELMConfig.from_dict(config_like)
+        else:
+            raise ValueError("config must be a DELMConfig, dict, or path to YAML.") 

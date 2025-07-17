@@ -1,5 +1,6 @@
 import tiktoken
 from .model_price_database import get_model_token_price
+from typing import List
 
 class CostTracker:
     def __init__(
@@ -20,20 +21,23 @@ class CostTracker:
         self.output_tokens = 0
     
     def track_input_text(self, text: str):
-        self.input_tokens += self._count_tokens(text)
+        self.input_tokens += self.count_tokens(text)
 
     def track_output_text(self, text: str):
-        self.output_tokens += self._count_tokens(text)
+        self.output_tokens += self.count_tokens(text)
 
-    def _count_tokens(self, text: str) -> int:
+    def count_tokens(self, text: str) -> int:
         return len(self.tokenizer.encode(text))
 
-    def get_current_cost(self) -> float:
+    def count_tokens_batch(self, texts: List[str]) -> int:
+        return sum(self.count_tokens(t) for t in texts)
+
+    def estimate_cost(self, input_tokens: int, output_tokens: int) -> float:
         return (
-            self.input_tokens * self.model_input_cost_per_1M_tokens / 1_000_000
-            + self.output_tokens * self.model_output_cost_per_1M_tokens / 1_000_000
+            input_tokens * self.model_input_cost_per_1M_tokens / 1_000_000
+            + output_tokens * self.model_output_cost_per_1M_tokens / 1_000_000
         )
-        
+    
     def print_cost_summary(self) -> None:
         print("=" * 50)
         print("Cost Summary (ESTIMATED)")
@@ -44,6 +48,9 @@ class CostTracker:
         print(f"Input price per 1M tokens: ${self.model_input_cost_per_1M_tokens:.3f}")
         print(f"Output price per 1M tokens: ${self.model_output_cost_per_1M_tokens:.3f}")
         print(f"Total cost of extraction: ${self.get_current_cost():.3f}")
+
+    def get_current_cost(self) -> float:
+        return self.estimate_cost(self.input_tokens, self.output_tokens)
 
     def to_dict(self) -> dict:
         return {
