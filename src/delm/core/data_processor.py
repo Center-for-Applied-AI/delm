@@ -103,6 +103,9 @@ class DataProcessor:
                 }
             )
             
+        # Save count of original records
+        self.total_records = len(df)
+
         # 1. Chunk the data (or use target column if no splitting)
         if self.splitter is not None:
             # Apply splitting strategy - use system chunk column name

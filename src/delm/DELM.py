@@ -18,7 +18,7 @@ classes or loader helpers – no breaking changes.
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Sequence
 
 import dotenv
 import pandas as pd
@@ -32,8 +32,8 @@ from .schemas import SchemaManager
 from .constants import (
     SYSTEM_CHUNK_COLUMN 
 )
-from .exceptions import DataError
 from .utils.cost_tracker import CostTracker
+from .utils.cost_estimator import CostEstimator
 
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
@@ -103,6 +103,81 @@ class DELM:
         config = DELMConfig.from_dict(config_dict)
         return cls(config=config, experiment_name=experiment_name, experiment_directory=experiment_directory, **kwargs)
 
+    @staticmethod
+    def _prep_data_stateless(config: 'DELMConfig', data: str | Path | pd.DataFrame, save_path: str | Path | None = None) -> tuple[pd.DataFrame, int]:
+        """
+        Preprocess data using the config. Optionally save to disk if save_path is provided.
+        Returns a DataFrame of prepped (chunked) data and the total number of records in the original data.
+        """
+        processor = DataProcessor(config.data_preprocessing)
+        df = processor.load_and_process(data)
+        if save_path is not None:
+            df.to_feather(str(save_path))
+        return df, processor.total_records
+
+    def prep_data(self, data: str | Path | pd.DataFrame) -> pd.DataFrame:
+        """
+        Preprocess data using the instance config and always save to the experiment directory.
+        Returns a DataFrame of prepped (chunked) data.
+        """
+        save_path = self.experiment_manager.preprocessed_data_path
+        df, _ = DELM._prep_data_stateless(self.config, data, save_path=save_path)
+        return df
+
+    @classmethod
+    def estimate_cost(
+        cls,
+        config: Union[str, Dict[str, Any], 'DELMConfig'],
+        data_source: str | Path | pd.DataFrame,
+        use_api_calls: bool = False,
+        sample_size: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Estimate the extraction cost for the given data and config.
+        """
+        config_obj = DELMConfig.from_any(config)
+        prepped_data, total_records = cls._prep_data_stateless(config_obj, data_source)
+        # Sample data if needed
+        if len(prepped_data) > sample_size:
+            sample_df = prepped_data.sample(n=sample_size, random_state=42)
+        else:
+            sample_df = prepped_data
+        # --- Delegate to CostEstimator ---
+        estimator = CostEstimator(config_obj, sample_df, total_chunks=len(prepped_data), total_records=total_records)
+        return estimator.estimate_cost(use_api_calls=use_api_calls)
+
+    @classmethod
+    def estimate_cost_batch(
+        cls,
+        configs: Sequence[Union[str, Dict[str, Any], 'DELMConfig']],
+        data_source: str | Path | pd.DataFrame,
+        use_api_calls: bool = False,
+        sample_size: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Estimate extraction costs for multiple configs on the same dataset.
+        """
+        results = []
+        for i, config in enumerate(configs):
+            try:
+                result = cls.estimate_cost(config, data_source, use_api_calls, sample_size)
+                result["config_index"] = i
+                results.append(result)
+            except Exception as e:
+                results.append({
+                    "config_index": i,
+                    "error": str(e),
+                    "estimated_total_cost": None,
+                    "input_tokens": None,
+                    "output_tokens": None,
+                    "price_per_1k_input": None,
+                    "price_per_1k_output": None,
+                    "method": "error",
+                    "sample_size": None,
+                    "total_chunks": None
+                })
+        return results
+
     def _initialize_components(self) -> None:
         """Initialize all components using composition."""
         # Environment & secrets -------------------------------------------- #
@@ -146,24 +221,6 @@ class DELM:
 
 
     # ------------------------------ Public API --------------------------- #
-    def prep_data(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
-        """
-        Prepare data for processing using configuration from constructor.
-        Saves preprocessed data as .feather file in experiment directory.
-        
-        Args:
-            data_source: Data to process (file path, Path, or DataFrame)
-        Returns:
-            DataFrame with chunked and scored data ready for LLM processing
-        """
-        # Use DataProcessor to load and process data
-        df = self.data_processor.load_and_process(data_source)
-        # Save preprocessed data using ExperimentManager
-        self.experiment_manager.save_preprocessed_data(df)
-        return df
-    
-
-
     def process_via_llm(self, preprocessed_file_path: Path | None = None) -> pd.DataFrame:
         """Process data through LLM extraction using configuration from constructor, with batch checkpointing and resuming."""
         # Load preprocessed data from feather file

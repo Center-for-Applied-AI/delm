@@ -41,14 +41,18 @@ DEFAULT_VERBOSE = False             # Whether to enable verbose logging by defau
 # Extraction Defaults
 DEFAULT_EXTRACT_TO_DATAFRAME = False  # Whether to extract JSON to DataFrame by default
 
+# System Prompt Default
+DEFAULT_SYSTEM_PROMPT = "You are a precise data‑extraction assistant."
+
 # System Constants (Internal - Not User Configurable)
 # TODO: Throw error if these are used in the data.
 SYSTEM_CHUNK_COLUMN = "delm_text_chunk"   # Internal column name for text chunks
 SYSTEM_SCORE_COLUMN = "delm_score"        # Internal column name for relevance scores
 SYSTEM_CHUNK_ID_COLUMN = "delm_chunk_id"  # Internal column name for chunk IDs
-SYSTEM_EXTRACTED_DATA_COLUMN = "delm_extracted_data"  # Internal column name for extracted JSON output
+SYSTEM_EXTRACTED_JSON_DATA_COLUMN = "delm_extracted_json_data"  # Internal column name for extracted JSON output
 SYSTEM_BATCH_ID_COLUMN = "delm_batch_id"  # Internal column name for batch IDs
-SYSTEM_ERRORS_COLUMN = "delm_errors"      # Internal column name for extraction errors
+SYSTEM_ERRORS_COLUMN = "delm_errors"
+SYSTEM_REGEX_EXTRACTED_KEY = "delm_regex_extracted_data"
 
 DATA_DIR_NAME = "delm_data"
 
