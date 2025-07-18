@@ -254,7 +254,7 @@ class ExperimentManager:
         """Save experiment state (cost tracker only) to state file as JSON."""
         state_path = self.cache_dir / STATE_FILE_NAME
         state = {
-            "cost_tracker": cost_tracker.to_dict() if hasattr(cost_tracker, 'to_dict') else {},
+            "cost_tracker": cost_tracker.to_dict(),
         }
         with open(state_path, "w") as f:
             json.dump(state, f)

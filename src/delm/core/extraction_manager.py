@@ -3,6 +3,7 @@ ExtractionManager - Handles LLM extraction and result parsing.
 """
 
 import re
+import json
 from typing import Any, Dict, List, Optional
 
 import pandas as pd
@@ -12,10 +13,11 @@ from pydantic import BaseModel, Field
 from ..schemas import SchemaManager
 from ..utils import RetryHandler, ConcurrentProcessor
 from ..config import LLMExtractionConfig
-from ..constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN
-from ..exceptions import ProcessingError, ValidationError
+from ..constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_JSON_DATA_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN, SYSTEM_REGEX_EXTRACTED_KEY
+from ..exceptions import ProcessingError, ValidationError, APIError
 from ..utils.cost_tracker import CostTracker
 from .experiment_manager import ExperimentManager
+from ..utils.type_checks import is_pydantic_model, is_regex_fallback_response
 
 
 class ExtractionManager:
@@ -56,15 +58,15 @@ class ExtractionManager:
     ) -> pd.DataFrame:
         """Process text chunks and return structured DataFrame or Dataframe with JSON output."""
         # Process chunks
-        results = self.process_text_chunks(text_chunks, verbose)
+        results = self.extract_from_text_chunks(text_chunks, verbose)
         
         # Return JSON output by default, or parse to DataFrame if configured
         if self.extract_to_dataframe:
-            return self._parse_results_to_dataframe(results, text_chunks, chunk_id_offset, batch_id)
+            return self._parse_results_dataframe(results, text_chunks, chunk_id_offset, batch_id, "exploded")
         else:
-            return self._create_json_output_dataframe(results, text_chunks, chunk_id_offset, batch_id)
+            return self._parse_results_dataframe(results, text_chunks, chunk_id_offset, batch_id, "json_column")
     
-    def process_text_chunks(
+    def extract_from_text_chunks(
         self, 
         text_chunks: List[str], 
         verbose: bool = False
@@ -170,29 +172,22 @@ class ExtractionManager:
         text_chunk: str, 
         verbose: bool = False
     ) -> Dict[str, Any]:
-        """Extract data from a single text chunk with optional fallback."""
-        # We assume API key is set in environment for instructor
+        """Extract data from a single text chunk with optional regex fallback."""
         try:
             result = self._instructor_extract(text_chunk)
-            return {"result": result, "errors": []}
+            return {"extracted_data": result, "errors": []}
         except Exception as llm_error:
-            if verbose:
-                print(f"Error processing text chunk: {llm_error}")
-            if self.regex_fallback_pattern:
-                if verbose:
-                    print("Falling back to regex extraction")
-                try:
-                    regex_result = self._regex_extract(text_chunk)
-                    # Even if regex succeeds, log the original LLM error
-                    return {"result": regex_result, "errors": [str(llm_error)]}
-                except Exception as regex_error:
-                    if verbose:
-                        print(f"Regex fallback also failed: {regex_error}")
-                    return {"result": None, "errors": [str(llm_error), str(regex_error)]}
-            else:
-                if verbose:
-                    print("No regex fallback enabled, returning null result with error")
-                return {"result": None, "errors": [str(llm_error)]}
+            if verbose: print(f"Error processing text chunk: {llm_error}")
+            if not self.regex_fallback_pattern:
+                if verbose: print("No regex fallback enabled, returning null extracted_data with error")
+                return {"extracted_data": None, "errors": [str(llm_error)]}
+            try:
+                if verbose: print("Falling back to regex extraction")
+                regex_result = self._regex_extract(text_chunk)
+                return {"extracted_data": regex_result, "errors": [str(llm_error)]}
+            except Exception as regex_error:
+                if verbose: print(f"Regex fallback also failed: {regex_error}")
+                return {"extracted_data": None, "errors": [str(llm_error), str(regex_error)]}
     
     def _regex_extract(self, text_chunk: str) -> Dict[str, List[str]]:
         """Extract data using the user-provided regex pattern."""
@@ -202,7 +197,7 @@ class ExtractionManager:
         try:
             pattern = re.compile(self.regex_fallback_pattern)
             matches = pattern.findall(text_chunk)
-            return {"extracted": matches}
+            return {SYSTEM_REGEX_EXTRACTED_KEY: matches}
         except re.error as e:
             raise ValidationError(
                 f"Invalid regex pattern '{self.regex_fallback_pattern}': {e}",
@@ -222,35 +217,37 @@ class ExtractionManager:
                     {"text_chunk": text_chunk[:100]}
                 )
 
-            # TODO: Let user specify system prompt
-            system_prompt = "You are a precise data‑extraction assistant."
+            system_prompt = self.schema_manager.config.system_prompt
             if self.track_cost:
                 self.cost_tracker.track_input_text(system_prompt + "\n" + prompt)
             
             
             # Use the model name directly
-            response = self.client.chat.completions.create(
-                model=self.model_config.name,
-                temperature=self.temperature,
-                response_model=schema,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
-                ],
-            )
+            try:
+                response = self.client.chat.completions.create(
+                    model=self.model_config.name,
+                    temperature=self.temperature,
+                    response_model=schema,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt},
+                    ],
+                )
+            except Exception as e:
+                raise APIError(
+                    f"Failed to extract data from text chunk with Instructor: {e}",
+                    {"text_length": len(text_chunk), "model_name": self.model_config.name}
+                ) from e
             if self.track_cost:
-                ### Convert response to JSON string for token counting
-                # Note: Instructor's response model is not Pydantic, so we need to convert it to a JSON string
-                # Could not find a better way to do this
-                if hasattr(response, "model_dump"):
-                    output_json = response.model_dump(mode="json") # type: ignore
-                elif hasattr(response, "dict"):
-                    output_json = response.dict() # type: ignore
+                if is_pydantic_model(response):
+                    self.cost_tracker.track_output_pydantic(response)
+                elif is_regex_fallback_response(response):
+                    self.cost_tracker.track_output_text(response.dict()) # type: ignore
                 else:
-                    output_json = response
-                import json
-                output_text = json.dumps(output_json)
-                self.cost_tracker.track_output_text(output_text)
+                    raise ProcessingError(
+                        f"Unsupported response type: {type(response)}",
+                        {"response_type": type(response), "text_chunk": text_chunk[:100]}
+                    )
             return response
         try:
             return self.retry_handler.execute_with_retry(_extract_with_schema)
@@ -260,106 +257,92 @@ class ExtractionManager:
                 {"text_length": len(text_chunk), "model_name": self.model_config.name}
             ) from e
     
-    def _parse_results_to_dataframe(
-        self, 
-        results: List[Dict[str, Any]], 
+    def _parse_results_dataframe(
+        self,
+        results: List[Dict[str, Any]],
         text_chunks: List[str],
         chunk_id_offset: int = 0,
-        batch_id: int = 0
+        batch_id: int = 0,
+        output: str = "exploded"  # or "json_column"
     ) -> pd.DataFrame:
-        """Parse LLM responses into structured DataFrame."""
-        all_results = []
-        for idx, (result, text_chunk) in enumerate(zip(results, text_chunks)):
-            # Handle None results by creating a row with null extracted data
-            if result["result"] is None:
-                import json
-                row_df = pd.DataFrame([{
-                    SYSTEM_CHUNK_COLUMN: text_chunk,
-                    SYSTEM_CHUNK_ID_COLUMN: chunk_id_offset + idx,
-                    SYSTEM_BATCH_ID_COLUMN: batch_id,
-                    SYSTEM_EXTRACTED_DATA_COLUMN: None,
-                    SYSTEM_ERRORS_COLUMN: json.dumps(result["errors"]) if result["errors"] else None
-                }])
-                all_results.append(row_df)
-            else:
-                parsed_df = self._parse_single_result(result["result"], text_chunk, chunk_id_offset + idx)
-                if not parsed_df.empty:
-                    parsed_df['batch_id'] = batch_id
-                    # Always add errors column - None if no errors, JSON string if errors exist
-                    import json
-                    parsed_df[SYSTEM_ERRORS_COLUMN] = json.dumps(result["errors"]) if result["errors"] else None
-                    all_results.append(parsed_df)
-        return pd.concat(all_results, ignore_index=True) if all_results else pd.DataFrame()
-    
-    def _create_json_output_dataframe(
-        self, 
-        results: List[Any], 
-        text_chunks: List[str],
-        chunk_id_offset: int = 0,
-        batch_id: int = 0
-    ) -> pd.DataFrame:
-        """Create DataFrame with JSON output in a column."""
-        import json
+        """
+        Parse extraction results into a DataFrame.
+
+        output="exploded": Each extracted item becomes its own row (exploded/structured).
+        output="json_column": All extracted data for a chunk is serialized into a single JSON column.
+        """
         data = []
         for idx, (result, text_chunk) in enumerate(zip(results, text_chunks)):
-            # Extract result and errors from the standardized structure
-            actual_result = result["result"]
-            errors = result["errors"]
-            
-            # Convert Pydantic model to dict if needed
-            if actual_result is None:
-                result_dict = None
-            elif hasattr(actual_result, 'model_dump'):
-                result_dict = actual_result.model_dump(mode='json')  # type: ignore
-            elif hasattr(actual_result, 'dict'):
-                result_dict = actual_result.dict()  # type: ignore
-            elif isinstance(actual_result, dict):
-                result_dict = actual_result
+            chunk_id = chunk_id_offset + idx
+            errors_json = json.dumps(result["errors"]) if result["errors"] else None
+            extracted_data = result["extracted_data"]
+            if output == "exploded":
+                if extracted_data is None:
+                    row_df = pd.DataFrame([{ 
+                        SYSTEM_CHUNK_COLUMN: text_chunk,
+                        SYSTEM_CHUNK_ID_COLUMN: chunk_id,
+                        SYSTEM_BATCH_ID_COLUMN: batch_id,
+                        SYSTEM_ERRORS_COLUMN: errors_json
+                        # Other extracted variable columns will be added by outer join method
+                    }])
+                    data.append(row_df)
+                else:
+                    parsed_df = self._parse_single_result_to_exploded_dataframe(extracted_data, text_chunk)
+                    if not parsed_df.empty:
+                        parsed_df[SYSTEM_CHUNK_COLUMN] = text_chunk
+                        parsed_df[SYSTEM_CHUNK_ID_COLUMN] = chunk_id
+                        parsed_df[SYSTEM_BATCH_ID_COLUMN] = batch_id
+                        parsed_df[SYSTEM_ERRORS_COLUMN] = errors_json
+                        data.append(parsed_df)
+            elif output == "json_column":
+                if extracted_data is None:
+                    row_df = pd.DataFrame([{ 
+                        SYSTEM_CHUNK_COLUMN: text_chunk,
+                        SYSTEM_CHUNK_ID_COLUMN: chunk_id,
+                        SYSTEM_BATCH_ID_COLUMN: batch_id,
+                        SYSTEM_EXTRACTED_JSON_DATA_COLUMN: None,
+                        SYSTEM_ERRORS_COLUMN: errors_json
+                    }])
+                    data.append(row_df)
+                else:
+                    extracted_data_json = self._parse_single_result_to_json(extracted_data, text_chunk)
+                    # Ensure serialization to JSON string
+                    if extracted_data_json is not None:
+                        extracted_data_json_str = json.dumps(extracted_data_json, default=str)
+                    else:
+                        extracted_data_json_str = None
+                    row = {
+                        SYSTEM_CHUNK_COLUMN: text_chunk,
+                        SYSTEM_CHUNK_ID_COLUMN: chunk_id,
+                        SYSTEM_BATCH_ID_COLUMN: batch_id,
+                        SYSTEM_EXTRACTED_JSON_DATA_COLUMN: extracted_data_json_str,
+                        SYSTEM_ERRORS_COLUMN: errors_json
+                    }
+                    data.append(pd.DataFrame([row]))
             else:
-                result_dict = None
-            
-            row = {
-                SYSTEM_CHUNK_COLUMN: text_chunk,
-                SYSTEM_CHUNK_ID_COLUMN: chunk_id_offset + idx,
-                SYSTEM_BATCH_ID_COLUMN: batch_id,
-                SYSTEM_EXTRACTED_DATA_COLUMN: json.dumps(result_dict) if result_dict else None,
-                SYSTEM_ERRORS_COLUMN: json.dumps(errors) if errors else None
-            }
-            data.append(row)
-        return pd.DataFrame(data)
+                raise ValueError(f"Unknown output type: {output}")
+        # Outer join to preserve all columns
+        return pd.concat(data, ignore_index=True, join="outer") if data else pd.DataFrame()
     
-    def _parse_single_result(self, result: Any, text_chunk: str, chunk_id: int) -> pd.DataFrame:
-        """Parse a single LLM response."""
-        if not self.extraction_schema or result is None:
-            return pd.DataFrame()
-        
-        row_metadata = {'chunk_id': chunk_id, 'text_chunk': text_chunk}
-        
-        if hasattr(result, 'dict'):
-            return self.extraction_schema.parse_response(result, str(text_chunk), row_metadata)
-        elif isinstance(result, dict):
-            return self._parse_dict_response(result, text_chunk, row_metadata)
-        else:
-            raise ProcessingError(
-                f"Unsupported response type: {type(result)}",
-                {"response_type": type(result), "text_chunk": text_chunk[:100]}
-            )
-    
-    def _parse_dict_response(self, response: Dict[str, Any], text_chunk: str, row_metadata: Dict[str, Any]) -> pd.DataFrame:
-        """Parse dictionary response with error handling."""
-        if not self.extraction_schema:
-            return pd.DataFrame()
-            
-        try:
-            schema_class = self.extraction_schema.create_pydantic_schema()
-            
-            if hasattr(response, 'get') and self.extraction_schema.container_name in response:
-                return self.extraction_schema.parse_response(response, str(text_chunk), row_metadata)
-            else:
-                model_instance = schema_class(**response)
-                return self.extraction_schema.parse_response(model_instance, str(text_chunk), row_metadata)
-        except Exception as e:
-            print(f"Failed to parse response as Pydantic model: {e}")
-            return pd.DataFrame()
-    
+    def _parse_single_result_to_exploded_dataframe(self, result: Any, text_chunk: str) -> pd.DataFrame:
+        """Parse a single LLM or regex response using schema's validate_and_parse_response_to_dataframe."""
+        if is_regex_fallback_response(result):
+            return pd.DataFrame([result])
+        if is_pydantic_model(result):
+            return self.extraction_schema.validate_and_parse_response_to_exploded_dataframe(result, str(text_chunk))
+        raise ProcessingError(
+            f"Unsupported result type in _parse_single_result: {type(result)}",
+            {"response_type": type(result), "text_chunk": text_chunk[:100]}
+        )
+
+    def _parse_single_result_to_json(self, result: Any, text_chunk: str) -> dict:
+        """Parse a single LLM or regex response using schema's validate_and_parse_response_to_json."""
+        if is_regex_fallback_response(result):
+            return result
+        if is_pydantic_model(result):
+            return self.extraction_schema.validate_and_parse_response_to_json(result, str(text_chunk))
+        raise ProcessingError(
+            f"Unsupported result type in _parse_single_result: {type(result)}",
+            {"response_type": type(result), "text_chunk": text_chunk[:100]}
+        )
  

@@ -6,6 +6,7 @@ Retry handling with exponential backoff for robust API calls.
 
 import time
 from typing import Any, Callable
+import traceback
 
 from ..exceptions import APIError
 
@@ -26,7 +27,8 @@ class RetryHandler:
                 return func(*args, **kwargs)
             except Exception as e:
                 last_exception = e
-                
+                print(f"[RETRY HANDLER] Exception on attempt {attempt + 1}:")
+                traceback.print_exc()
                 if attempt < self.max_retries:
                     delay = self.base_delay * (2 ** attempt)
                     print(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s...")

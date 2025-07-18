@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import json
 
 from delm import DELM, DELMConfig
-from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_COLUMN, PREPROCESSED_DATA_PREFIX, PREPROCESSED_DATA_SUFFIX, CONSOLIDATED_RESULT_PREFIX, CONSOLIDATED_RESULT_SUFFIX, DATA_DIR_NAME
+from delm.constants import PREPROCESSED_DATA_PREFIX, PREPROCESSED_DATA_SUFFIX, CONSOLIDATED_RESULT_PREFIX, CONSOLIDATED_RESULT_SUFFIX, DATA_DIR_NAME
 
 # Paths
 EXPERIMENT_DIR = Path("test-experiments")
@@ -144,15 +144,19 @@ import json
 for idx, row in result_df.head(3).iterrows():
     # Print all columns except delm_extracted_data
     for col in result_df.columns:
-        if col != "delm_extracted_data":
+        if col != "delm_extracted_json_data":
             print(f"{col}: {row[col]}")
-    print("delm_extracted_data:")
+    print("delm_extracted_json_data:")
     try:
-        parsed = json.loads(row["delm_extracted_data"])
-        print(json.dumps(parsed, indent=2))
+        if row["delm_extracted_json_data"] is not None:
+            parsed = json.loads(row["delm_extracted_json_data"])
+            print(json.dumps(parsed, indent=2))
+        else:
+            parsed = None
+            print(parsed)
     except Exception as e:
         print(f"(Could not parse as JSON: {e})")
-        print(row["delm_extracted_data"])
+        print(row["delm_extracted_json_data"])
     print("-" * 40)
 
 print(f"\nThis JSON structure allows you to:")

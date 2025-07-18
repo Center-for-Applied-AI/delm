@@ -5,7 +5,7 @@ Manages schema loading and validation.
 """
 
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from .schemas import SchemaRegistry, BaseSchema
 from ..exceptions import SchemaError, FileError
@@ -19,11 +19,8 @@ class SchemaManager:
         self.schema_registry = SchemaRegistry()
         self.extraction_schema = self._load_schema()
     
-    def _load_schema(self) -> Optional[BaseSchema]:
+    def _load_schema(self) -> BaseSchema:
         """Load and validate schema from spec file."""
-        if not self.config.spec_path or not self.config.spec_path.exists():
-            return None
-        
         schema_config = self._load_schema_spec(self.config.spec_path)
         
         # Handle both direct extraction config and nested extraction config
@@ -33,7 +30,7 @@ class SchemaManager:
             # Assume the entire config is the extraction schema
             return self.schema_registry.create(schema_config)
     
-    def get_extraction_schema(self) -> Optional[BaseSchema]:
+    def get_extraction_schema(self) -> BaseSchema:
         """Get the loaded extraction schema."""
         return self.extraction_schema
     
@@ -42,9 +39,6 @@ class SchemaManager:
         """Load schema specification from YAML or JSON file."""
         import yaml
         import json
-        
-        if not path.exists():
-            raise FileError(f"Schema specification file not found: {path}", {"file_path": str(path)})
         
         try:
             if path.suffix.lower() in {".yml", ".yaml"}:

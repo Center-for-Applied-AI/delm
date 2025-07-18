@@ -1,6 +1,7 @@
 import tiktoken
+import json
 from .model_price_database import get_model_token_price
-from typing import List
+from typing import List, Any
 
 class CostTracker:
     def __init__(
@@ -25,6 +26,10 @@ class CostTracker:
 
     def track_output_text(self, text: str):
         self.output_tokens += self.count_tokens(text)
+    
+    def track_output_pydantic(self, response: Any) -> None:
+
+        self.output_tokens += self.count_tokens(json.dumps(response.model_dump(mode="json")))
 
     def count_tokens(self, text: str) -> int:
         return len(self.tokenizer.encode(text))

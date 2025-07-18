@@ -8,11 +8,17 @@ Supports simple, nested, and multiple schema types with progressive complexity.
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Type
 import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from enum import Enum
 
 from ..models import ExtractionVariable
 from ..exceptions import SchemaError
 from ..constants import DEFAULT_PROMPT_TEMPLATE
+
+
+def make_enum(name, allowed_values):
+    # Enum names must be valid identifiers, so replace spaces and special chars
+    return Enum(name, {str(v).replace(' ', '_').replace('-', '_'): v for v in allowed_values})
 
 
 class BaseSchema(ABC):
@@ -45,8 +51,13 @@ class BaseSchema(ABC):
         pass
     
     @abstractmethod
-    def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
-        """Parse LLM response into DataFrame."""
+    def validate_and_parse_response_to_exploded_dataframe(self, response: Any, text_chunk: str) -> pd.DataFrame:
+        """Validate the response (removing invalid elements) and parse it into a DataFrame of valid rows."""
+        pass
+    
+    @abstractmethod
+    def validate_and_parse_response_to_json(self, response: Any, text_chunk: str) -> dict:
+        """Validate the response and return a JSON-serializable dict of valid data, or None if nothing is valid."""
         pass
     
     def get_variables_text(self) -> str:
@@ -66,6 +77,21 @@ class BaseSchema(ABC):
         
         return "\n".join(variable_descriptions)
 
+    def _is_row_valid(self, instance_dict, text_chunk: str) -> bool:
+        text_chunk_lower = text_chunk.lower()
+        for var in self.variables:
+            value = instance_dict.get(var.name)
+            if value is None and var.required:
+                return False
+            if value is not None and var.validate_in_text and isinstance(value, str) and value.lower() not in text_chunk_lower:
+                if var.required:
+                    return False
+        return True
+
+    def _validate_pydantic_output_schema(self, response, text_chunk: str):
+        """Return a cleaned/validated version of the response, with invalid elements removed. Return None if nothing is valid."""
+        raise NotImplementedError
+
 
 class SimpleSchema(BaseSchema):
     """Simple key-value extraction (current DELM behavior)."""
@@ -82,35 +108,28 @@ class SimpleSchema(BaseSchema):
         """Create simple Pydantic schema from variables."""
         fields = {}
         annotations = {}
-        
-        # Add fields dynamically with proper annotations
         for var in self.variables:
-            if var.data_type == 'string':
-                field_type = List[str]
+            if var.data_type == 'string' or var.allowed_values:
+                base_type = str
             elif var.data_type == 'number':
-                field_type = List[float]
+                base_type = float
             elif var.data_type == 'integer':
-                field_type = List[int]
+                base_type = int
+            elif var.data_type == 'boolean':
+                base_type = bool
             elif var.data_type == 'date':
-                field_type = List[str]
+                base_type = str
             else:
-                field_type = List[str]
+                base_type = str
 
-            # Build description, including allowed values if present
-            description = var.description
-            if var.allowed_values:
-                description += f" (must be one of: {', '.join(var.allowed_values)})"
-
+            field_type = List[base_type]
             if var.required:
-                # Required field: must be present in input
-                fields[var.name] = Field(..., description=description)  # required
+                fields[var.name] = Field(..., description=var.description)
             else:
-                # Optional field: defaults to empty list if missing
-                fields[var.name] = Field(default_factory=list, description=description)  # optional
+                fields[var.name] = Field(default_factory=list, description=var.description)
 
             annotations[var.name] = field_type
-        
-        # Create the schema class
+
         DynamicExtractSchema = type(
             'DynamicExtractSchema',
             (BaseModel,),
@@ -119,7 +138,6 @@ class SimpleSchema(BaseSchema):
                 **fields
             }
         )
-        
         return DynamicExtractSchema
     
     def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
@@ -130,21 +148,47 @@ class SimpleSchema(BaseSchema):
             variables=variables_text
         )
     
-    def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
-        """Parse simple response into DataFrame."""
+    def validate_and_parse_response_to_exploded_dataframe(self, response: Any, text_chunk: str) -> pd.DataFrame:
+        """Validate the response and parse it into a DataFrame of valid rows. Only valid rows are included."""
         if response is None:
             return pd.DataFrame()
-        
-        if isinstance(response, dict):
-            row = {'text_chunk': text_chunk}
-            row.update(response)
-            
-            if metadata:
-                row.update(metadata)
-            
-            return pd.DataFrame([row])
-        
-        return pd.DataFrame()
+        validated_data = self._validate_pydantic_output_schema(response, text_chunk)
+        if validated_data is None:
+            return pd.DataFrame()
+        instance_dict = validated_data.model_dump()
+        row = {}
+        for var in self.variables:
+            value = instance_dict.get(var.name)
+            if value is not None:
+                row[var.name] = value
+        return pd.DataFrame([row])
+
+    def validate_and_parse_response_to_json(self, response: Any, text_chunk: str) -> dict:
+        validated_data = self._validate_pydantic_output_schema(response, text_chunk)
+        if validated_data is None:
+            return {}
+        return validated_data.model_dump(mode='json')
+
+    def _validate_pydantic_output_schema(self, response, text_chunk: str):
+        instance_dict = response.model_dump()
+        filtered = {}
+        for var in self.variables:
+            values = instance_dict.get(var.name, [])
+            if not isinstance(values, list):
+                values = [values]
+            valid = []
+            for v in values:
+                if v is None and var.required:
+                    continue
+                if var.allowed_values and v is not None and v not in var.allowed_values:
+                    continue
+                valid.append(v)
+            if var.required and not valid:
+                return None
+            filtered[var.name] = valid
+        from pydantic import create_model
+        DynamicExtractSchema = self.create_pydantic_schema()
+        return DynamicExtractSchema(**filtered)
 
 
 class NestedSchema(BaseSchema):
@@ -165,27 +209,32 @@ class NestedSchema(BaseSchema):
     
     def create_pydantic_schema(self) -> Type[BaseModel]:
         """Create nested Pydantic schema with container and item classes."""
-        # Create item schema class with proper field definitions
         item_fields = {}
         item_annotations = {}
-        
         for var in self.variables:
-            field_type = self._get_field_type(var.data_type, var.required)
-            
-            # Create field with proper defaults
-            description = var.description
-            if var.allowed_values:
-                description += f" (allowed values: {', '.join(var.allowed_values)})"
-            
-            if var.required:
-                field = Field(description=description)
+            if var.data_type == 'string' or var.allowed_values:
+                base_type = str
+            elif var.data_type == 'number':
+                base_type = float
+            elif var.data_type == 'integer':
+                base_type = int
+            elif var.data_type == 'boolean':
+                base_type = bool
+            elif var.data_type == 'date':
+                base_type = str
             else:
-                field = Field(default=None, description=description)
-            
+                base_type = str
+
+            if var.required:
+                field_type = base_type
+                field = Field(description=var.description)
+            else:
+                field_type = Optional[base_type]
+                field = Field(default=None, description=var.description)
+
             item_fields[var.name] = field
             item_annotations[var.name] = field_type
-        
-        # Create the item schema class
+
         DynamicItemSchema = type(
             'DynamicItemSchema',
             (BaseModel,),
@@ -194,15 +243,12 @@ class NestedSchema(BaseSchema):
                 **item_fields
             }
         )
-        
-        # Create container schema class
         container_fields = {
             self.container_name: Field(default_factory=list, description=f"List of {self.container_name}")
         }
         container_annotations = {
             self.container_name: List[DynamicItemSchema]
         }
-        
         DynamicContainerSchema = type(
             'DynamicContainerSchema',
             (BaseModel,),
@@ -211,7 +257,6 @@ class NestedSchema(BaseSchema):
                 **container_fields
             }
         )
-        
         return DynamicContainerSchema
     
     def _get_field_type(self, data_type: str, required: bool = True):
@@ -260,67 +305,60 @@ class NestedSchema(BaseSchema):
             # Default prompt if no template provided
             return f"Extract the following information from the text:\n\n{variables_text}\n\nText to analyze:\n{text}"
     
-    def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
-        """Parse nested response into DataFrame with validation."""
+    def validate_and_parse_response_to_exploded_dataframe(self, response: Any, text_chunk: str) -> pd.DataFrame:
+        """Validate the response (removing invalid elements) and parse it into a DataFrame of valid rows."""
         if response is None:
             return pd.DataFrame()
-        
-        instances = []
-        
-        # Handle both Pydantic models and dictionaries
-        if hasattr(response, self.container_name):
-            # It's a Pydantic model
-            instances = getattr(response, self.container_name)
-        elif isinstance(response, dict) and self.container_name in response:
-            # It's a dictionary with the container key
-            instances = response[self.container_name]
-        else:
+        validated_data = self._validate_pydantic_output_schema(response, text_chunk)
+        if validated_data is None:
             return pd.DataFrame()
-        
+        if not hasattr(validated_data, self.container_name):
+            raise SchemaError(
+                f"Validated response is not a Pydantic model with container name '{self.container_name}'",
+                {"response_type": type(validated_data), "text_chunk": text_chunk[:100]}
+            )
+        instances = getattr(validated_data, self.container_name)
         if not instances:
             return pd.DataFrame()
-        
         data = []
-        text_chunk_lower = text_chunk.lower()
-        
         for instance in instances:
-            row: Dict[str, Any] = {'text_chunk': text_chunk}
-            
-            # Extract all fields from the instance
-            # Handle both Pydantic models and dictionaries
-            if hasattr(instance, 'model_dump'):
-                # It's a Pydantic model
-                instance_dict = instance.model_dump()
-            elif hasattr(instance, 'dict'):
-                # It's a Pydantic model (older version)
-                instance_dict = instance.dict()
-            elif isinstance(instance, dict):
-                # It's already a dictionary
-                instance_dict = instance
-            else:
-                # Unknown type, skip this instance
-                continue
-                
-            for field_name, field_value in instance_dict.items():
-                if field_value is not None:
-                    # Find the corresponding variable definition for validation
-                    var_def = next((v for v in self.variables if v.name == field_name), None)
-                    
-                    if var_def and var_def.validate_in_text and isinstance(field_value, str):
-                        # Validate that the extracted value appears in the original text
-                        if field_value.lower() not in text_chunk_lower:
-                            print(f"Warning: Extracted value '{field_value}' for field '{field_name}' not found in text chunk")
-                            continue  # Skip this field if validation fails
-                    
-                    row[field_name] = field_value
-            
-            # Add metadata if provided
-            if metadata:
-                row.update(metadata)
-            
+            instance_dict = instance.model_dump()
+            row = {}
+            for var in self.variables:
+                value = instance_dict.get(var.name)
+                if value is not None:
+                    row[var.name] = value
             data.append(row)
-        
         return pd.DataFrame(data)
+
+    def validate_and_parse_response_to_json(self, response: Any, text_chunk: str) -> dict:
+        validated_data = self._validate_pydantic_output_schema(response, text_chunk)
+        if validated_data is None:
+            return {}
+        return validated_data.model_dump(mode='json')
+
+    def _validate_pydantic_output_schema(self, response, text_chunk: str):
+        items = getattr(response, self.container_name, [])
+        valid_items = []
+        for item in items:
+            instance_dict = item.model_dump()
+            valid = True
+            for var in self.variables:
+                value = instance_dict.get(var.name)
+                if var.required and (value is None or value == ""):
+                    valid = False
+                    break
+                if var.allowed_values and value is not None and value not in var.allowed_values:
+                    valid = False
+                    break
+            if valid:
+                valid_items.append(item)
+        if not valid_items:
+            return None
+        response_dict = response.model_dump()
+        response_dict[self.container_name] = [item.model_dump() for item in valid_items]
+        DynamicContainerSchema = self.create_pydantic_schema()
+        return DynamicContainerSchema(**response_dict)
 
 
 class MultipleSchema(BaseSchema):
@@ -378,15 +416,14 @@ class MultipleSchema(BaseSchema):
         
         return "\n\n".join(prompts)
     
-    def parse_response(self, response: Any, text_chunk: str, metadata: Dict[str, Any] | None = None) -> pd.DataFrame:
-        """Parse multiple schema responses into DataFrame."""
+    def validate_and_parse_response_to_exploded_dataframe(self, response: Any, text_chunk: str) -> pd.DataFrame:
+        """Validate and parse multiple schema responses into DataFrame."""
         all_data = []
         
         for name, schema in self.schemas.items():
-            # Try to extract response for this schema
             schema_response = getattr(response, name, None) if hasattr(response, name) else response
             
-            schema_df = schema.parse_response(schema_response, text_chunk, metadata)
+            schema_df = schema.validate_and_parse_response_to_exploded_dataframe(schema_response, text_chunk)
             if not schema_df.empty:
                 # Add schema identifier
                 schema_df['schema_type'] = name
