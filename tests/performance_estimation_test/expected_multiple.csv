@@ -1,0 +1,4 @@
+record_id,expected_dict
+1,"{'book': {'author': 'Alice', 'title': 'The Great Adventure'}, 'sales_event': {'event_name': 'Spring Sale', 'season': 'Spring'}}"
+2,"{'book': {'author': 'Bob', 'title': 'Deep Learning 101'}, 'sales_event': {}}"
+3,"{'book': {'author': 'Carol', 'title': 'Python for Kids'}, 'sales_event': {'event_name': 'Summer Sale', 'season': 'Summer'}}" 

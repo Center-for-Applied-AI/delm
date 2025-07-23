@@ -11,8 +11,8 @@ from .constants import (
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
-    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_VERBOSE, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER,
-    DEFAULT_AUTO_CHECKPOINT_AND_RESUME, DEFAULT_SYSTEM_PROMPT
+    DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER,
+    DEFAULT_AUTO_CHECKPOINT_AND_RESUME, DEFAULT_SYSTEM_PROMPT, DEFAULT_RECORD_ID_COLUMN
 )
 from .exceptions import ConfigurationError
 
@@ -199,6 +199,7 @@ class ScoringConfig:
 @dataclass
 class DataPreprocessingConfig:
     """Configuration for data preprocessing pipeline."""
+    record_id_column: Optional[str] = None
     target_column: str = DEFAULT_TARGET_COLUMN
     drop_target_column: bool = DEFAULT_DROP_TARGET_COLUMN
     splitting: SplittingConfig = field(default_factory=SplittingConfig)
@@ -248,6 +249,13 @@ class DataPreprocessingConfig:
                     {"preprocessed_data_path": self.preprocessed_data_path, "suggestion": "Provide a valid feather file path with the correct columns"}
                 )
             return
+        # Only validate record_id_column if not None
+        if self.record_id_column is not None:
+            if not isinstance(self.record_id_column, str) or not self.record_id_column:
+                raise ConfigurationError(
+                    "record_id_column must be a non-empty string if provided.",
+                    {"record_id_column": self.record_id_column, "suggestion": "Provide a valid column name or None for auto-generation"}
+                )
         if not isinstance(self.target_column, str) or not self.target_column:
             raise ConfigurationError(
                 "target_column must be a non-empty string.",
@@ -311,8 +319,9 @@ class DataPreprocessingConfig:
             explicitly_set_fields.add("pandas_score_filter")
         if "preprocessed_data_path" in cfg:
             explicitly_set_fields.add("preprocessed_data_path")
-        
+
         instance = cls(
+            record_id_column=cfg.get("record_id_column", None),
             target_column=cfg.get("target_column", DEFAULT_TARGET_COLUMN),
             drop_target_column=cfg.get("drop_target_column", DEFAULT_DROP_TARGET_COLUMN),
             splitting=splitting,
@@ -361,7 +370,6 @@ class SchemaConfig:
 @dataclass
 class ExperimentConfig:
     """Configuration for experiment management."""
-    # Removed: name, directory, overwrite_experiment, verbose, auto_checkpoint_and_resume_experiment
     # This dataclass is now empty, but kept for future experiment-defining parameters if needed.
     pass
 
@@ -403,6 +411,7 @@ class DELMConfig:
                 "track_cost": self.llm_extraction.track_cost,
             },
             "data_preprocessing": {
+                "record_id_column": self.data_preprocessing.record_id_column,
                 "target_column": self.data_preprocessing.target_column,
                 "drop_target_column": self.data_preprocessing.drop_target_column,
                 "pandas_score_filter": self.data_preprocessing.pandas_score_filter,

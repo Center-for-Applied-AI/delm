@@ -16,6 +16,7 @@ llm_extraction:
 
 # Data preprocessing configuration
 data_preprocessing:
+  record_id_column: "record_id" # Column containing unique record IDs, if not provided, will create a new one and return it in the output
   target_column: "text"         # Column containing text to process
   drop_target_column: true      # Whether to drop target column after processing
   pandas_score_filter: "delm_score >= 0.7 and delm_score < 0.95" # Filter via scores in preprocessing step. Uses pandas query syntax. Must use delm_score column name.

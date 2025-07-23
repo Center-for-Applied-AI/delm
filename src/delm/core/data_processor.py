@@ -24,7 +24,7 @@ class DataProcessor:
         self.config = config
         self.splitter = config.splitting.strategy
         self.scorer = config.scoring.scorer
-
+        self.total_records = 0
         self.target_column = config.target_column
         if not self.target_column:
             self.target_column = DEFAULT_TARGET_COLUMN
@@ -33,12 +33,13 @@ class DataProcessor:
         self.pandas_score_filter = config.pandas_score_filter
     
 
-    def load_and_process(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
-        """Load data and apply preprocessing pipeline."""
-        df = self._load_data(data_source)
-        return self._process_dataframe(df)
+    # Did two things so violated single responsibility principle
+    # def load_and_process(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
+    #     """Load data and apply preprocessing pipeline."""
+    #     df = self.load_data(data_source)
+    #     return self.process_dataframe(df)
     
-    def _load_data(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
+    def load_data(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
         """Load data from various sources."""
         if isinstance(data_source, (str, Path)):
             # Handle file loading
@@ -89,7 +90,7 @@ class DataProcessor:
         
         return df
     
-    def _process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+    def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply chunking and scoring to DataFrame."""
         
         # Check for invalid configuration: dropping target column without splitting

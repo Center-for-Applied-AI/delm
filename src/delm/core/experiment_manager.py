@@ -13,17 +13,16 @@ import json
 import hashlib
 
 from ..config import ExperimentConfig
-from ..constants import DATA_DIR_NAME, CACHE_DIR_NAME, PROCESSING_CACHE_DIR_NAME, BATCH_FILE_PREFIX, BATCH_FILE_SUFFIX, BATCH_FILE_DIGITS, STATE_FILE_NAME, CONSOLIDATED_RESULT_PREFIX, CONSOLIDATED_RESULT_SUFFIX, PREPROCESSED_DATA_PREFIX, PREPROCESSED_DATA_SUFFIX
+from ..constants import DATA_DIR_NAME, CACHE_DIR_NAME, PROCESSING_CACHE_DIR_NAME, BATCH_FILE_PREFIX, BATCH_FILE_SUFFIX, BATCH_FILE_DIGITS, STATE_FILE_NAME, CONSOLIDATED_RESULT_PREFIX, CONSOLIDATED_RESULT_SUFFIX, PREPROCESSED_DATA_PREFIX, PREPROCESSED_DATA_SUFFIX, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
 from ..exceptions import ExperimentError, FileError
 
 class ExperimentManager:
     """Handles experiment directories, config/schema validation, batch checkpointing, and state management."""
 
-    def __init__(self, experiment_name: str, experiment_directory: Path, overwrite_experiment: bool = False, verbose: bool = False, auto_checkpoint_and_resume_experiment: bool = True):
+    def __init__(self, experiment_name: str, experiment_directory: Path, overwrite_experiment: bool = False, auto_checkpoint_and_resume_experiment: bool = True):
         self.experiment_name = experiment_name
         self.experiment_directory = experiment_directory
         self.overwrite_experiment = overwrite_experiment
-        self.verbose = verbose
         self.auto_checkpoint_and_resume_experiment = auto_checkpoint_and_resume_experiment
         self.experiment_dir = self._get_experiment_dir()
 
@@ -45,6 +44,12 @@ class ExperimentManager:
         d = self.experiment_dir / CACHE_DIR_NAME / PROCESSING_CACHE_DIR_NAME
         d.mkdir(parents=True, exist_ok=True)
         return d
+
+    def get_results(self) -> pd.DataFrame:
+        """
+        Get the results from the experiment directory.
+        """
+        return pd.read_feather(self.data_dir / f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}")
 
     def initialize_experiment(self, config_dict: dict, schema_dict: dict):
         """Validate and create experiment directory structure, write config and schema files."""
@@ -78,11 +83,6 @@ class ExperimentManager:
         config_yaml.write_text(yaml.safe_dump(config_dict))
         schema_yaml.write_text(yaml.safe_dump(schema_dict))
         self.preprocessed_data_path = self.data_dir / f"{PREPROCESSED_DATA_PREFIX}{self.experiment_name}{PREPROCESSED_DATA_SUFFIX}"
-        if self.verbose:
-            print(f"Initialized experiment at: {experiment_dir_path}")
-            print(f"Config written to: {config_yaml}")
-            print(f"Schema written to: {schema_yaml}")
-            print(f"Preprocessed data will be saved to: {self.preprocessed_data_path}")
 
     def _find_config_differences(self, config1: dict, config2: dict, path: str = "") -> list:
         """Recursively find differences between two config dictionaries for error messages."""
@@ -136,8 +136,6 @@ class ExperimentManager:
     def save_preprocessed_data(self, df: pd.DataFrame) -> Path:
         """Save preprocessed data as feather file."""
         df.to_feather(self.preprocessed_data_path)
-        if self.verbose:
-            print(f"Saved preprocessed data to: {self.preprocessed_data_path}")
         return self.preprocessed_data_path
 
     def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
@@ -150,8 +148,8 @@ class ExperimentManager:
                 {"file_path": str(file_path), "suggestion": "Run preprocessing first, or specify preprocessed_file_path to the preprocessed data path"}
             )
         try:
-            # Verify that the file is compatible with the current config
-            return pd.read_feather(file_path)
+            df = pd.read_feather(file_path)
+            return df
         except Exception as e:
             raise FileError(
                 f"Failed to load preprocessed data from {file_path}",
@@ -164,8 +162,6 @@ class ExperimentManager:
         batch_filename = f"{BATCH_FILE_PREFIX}{batch_id:0{BATCH_FILE_DIGITS}d}{BATCH_FILE_SUFFIX}"
         batch_path = self.cache_dir / batch_filename
         batch_df.to_feather(batch_path)
-        if self.verbose:
-            print(f"Saved batch checkpoint: {batch_path}")
         return batch_path
 
     def list_batch_checkpoints(self) -> List[Path]:
@@ -180,7 +176,8 @@ class ExperimentManager:
                 {"file_path": str(batch_path), "suggestion": "Check batch processing or rerun experiment."}
             )
         try:
-            return pd.read_feather(batch_path)
+            df = pd.read_feather(batch_path)
+            return df
         except Exception as e:
             raise FileError(
                 f"Failed to load batch checkpoint: {batch_path}",
@@ -193,7 +190,7 @@ class ExperimentManager:
         batch_path = self.cache_dir / batch_filename
         return self.load_batch_checkpoint(batch_path)
 
-    def consolidate_batches(self, output_name: str) -> Path:
+    def consolidate_batches(self) -> pd.DataFrame:
         """Consolidate all batch files into a single DataFrame and save as final result."""
         batch_files = self.list_batch_checkpoints()
         if not batch_files:
@@ -203,12 +200,7 @@ class ExperimentManager:
             )
         dfs = [self.load_batch_checkpoint(p) for p in batch_files]
         consolidated_df = pd.concat(dfs, ignore_index=True)
-        result_filename = f"{CONSOLIDATED_RESULT_PREFIX}{output_name}{CONSOLIDATED_RESULT_SUFFIX}"
-        result_path = self.data_dir / result_filename
-        consolidated_df.to_feather(result_path)
-        if self.verbose:
-            print(f"Consolidated {len(batch_files)} batches into: {result_path}")
-        return result_path
+        return consolidated_df
 
     def cleanup_batch_checkpoints(self):
         """Remove all batch checkpoint files after consolidation."""
@@ -216,8 +208,6 @@ class ExperimentManager:
         for p in batch_files:
             try:
                 p.unlink()
-                if self.verbose:
-                    print(f"Deleted batch file: {p}")
             except Exception as e:
                 print(f"Warning: Failed to delete batch file {p}: {e}")
 
@@ -244,8 +234,6 @@ class ExperimentManager:
         path = self.get_batch_checkpoint_path(batch_id)
         if path.exists():
             path.unlink()
-            if self.verbose:
-                print(f"Deleted batch checkpoint: {path}")
             return True
         return False
 
@@ -258,8 +246,6 @@ class ExperimentManager:
         }
         with open(state_path, "w") as f:
             json.dump(state, f)
-        if self.verbose:
-            print(f"Saved experiment state to: {state_path}")
         return state_path
 
     def load_state(self):
@@ -269,10 +255,14 @@ class ExperimentManager:
             return None
         with open(state_path, "r") as f:
             state = json.load(f)
-        if self.verbose:
-            print(f"Loaded experiment state from: {state_path}")
         return state
 
+
+    def save_extracted_data(self, df: pd.DataFrame) -> Path:
+        result_filename = f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
+        result_path = self.data_dir / result_filename
+        df.to_feather(result_path)
+        return result_path
 
 
     # --- Private helpers ---

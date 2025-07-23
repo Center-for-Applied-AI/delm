@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field
 from ..schemas import SchemaManager
 from ..utils import RetryHandler, ConcurrentProcessor
 from ..config import LLMExtractionConfig
-from ..constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_JSON_DATA_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN, SYSTEM_REGEX_EXTRACTED_KEY
+from ..constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN, SYSTEM_REGEX_EXTRACTED_KEY, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
 from ..exceptions import ProcessingError, ValidationError, APIError
 from ..utils.cost_tracker import CostTracker
 from .experiment_manager import ExperimentManager
@@ -52,38 +52,42 @@ class ExtractionManager:
     def process_and_parse(
         self, 
         text_chunks: List[str], 
-        verbose: bool = False,
+        record_ids: List[str],
+        record_id_column: str,
         chunk_id_offset: int = 0,
         batch_id: int = 0
     ) -> pd.DataFrame:
         """Process text chunks and return structured DataFrame or Dataframe with JSON output."""
-        # Process chunks
-        results = self.extract_from_text_chunks(text_chunks, verbose)
-        
-        # Return JSON output by default, or parse to DataFrame if configured
-        if self.extract_to_dataframe:
-            return self._parse_results_dataframe(results, text_chunks, chunk_id_offset, batch_id, "exploded")
-        else:
-            return self._parse_results_dataframe(results, text_chunks, chunk_id_offset, batch_id, "json_column")
+        results = self.extract_from_text_chunks(text_chunks)
+        parsed_df = self.parse_results_dataframe(
+            results=results,
+            text_chunks=text_chunks,
+            record_ids=record_ids,
+            record_id_column=record_id_column,
+            chunk_id_offset=chunk_id_offset,
+            batch_id=batch_id,
+            output="exploded" if self.extract_to_dataframe else "json_string_column" # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
+        )
+        return parsed_df
     
     def extract_from_text_chunks(
         self, 
         text_chunks: List[str], 
-        verbose: bool = False
     ) -> List[Dict[str, Any]]:
         """Process text chunks with concurrent execution."""
         return self.concurrent_processor.process_concurrently(
             text_chunks,
-            lambda p: self._extract_from_text_chunk(p, verbose)
+            lambda p: self._extract_from_text_chunk(p)
         )
 
     def process_with_persistent_batching(
         self, 
         text_chunks: List[str], 
+        record_ids: List[str],
+        record_id_column: str,
         batch_size: int,
         experiment_manager: 'ExperimentManager',
         auto_checkpoint: bool = True,
-        verbose: bool = False
     ) -> pd.DataFrame:
         """
         Process text chunks with persistent batching and checkpointing.
@@ -111,30 +115,26 @@ class ExtractionManager:
                 if batch_df is not None:
                     verified_batch_ids.add(batch_id)
                     already_processed_chunks += len(batch_df)
-                    if verbose:
-                        print(f"Loaded existing batch {batch_id:0{BATCH_FILE_DIGITS}d}")
                 else:
                     corrupted_batch_ids.add(batch_id)
             except Exception as e:
                 corrupted_batch_ids.add(batch_id)
-                if verbose:
-                    print(f"Failed to load batch {batch_id}: {e}")
 
         # 3. Delete corrupted batch files so they can be replaced
         for batch_id in corrupted_batch_ids:
             try:
                 deleted = experiment_manager.delete_batch_checkpoint(batch_id)
-                if verbose and deleted:
-                    print(f"Deleted corrupted batch file for batch {batch_id}")
             except Exception as e:
-                if verbose:
-                    print(f"Failed to delete corrupted batch file {batch_id}: {e}")
+                pass
 
         # 4. Determine which batches to process (not verified)
         total_batches = (len(text_chunks) + batch_size - 1) // batch_size
         all_batch_ids = list(range(total_batches))
         total_chunks = len(text_chunks)
         batches_to_process = [i for i in all_batch_ids if i not in verified_batch_ids]
+
+        if not auto_checkpoint:
+            batch_dfs = []
 
         # 5. Set up progress bar
         with tqdm(
@@ -149,44 +149,51 @@ class ExtractionManager:
                 if not batch_chunks:
                     continue
                 chunk_id_offset = start
-                batch_df = self.process_and_parse(
-                    batch_chunks, verbose,
-                    chunk_id_offset=chunk_id_offset, batch_id=batch_id
+                results = self.extract_from_text_chunks(batch_chunks)
+                batch_df = self.parse_results_dataframe(
+                    results=results,
+                    text_chunks=batch_chunks,
+                    record_ids=record_ids,
+                    record_id_column=record_id_column,
+                    chunk_id_offset=chunk_id_offset,
+                    batch_id=batch_id,
+                    output="exploded" if self.extract_to_dataframe else "json_string_column" # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
                 )
                 pbar.update(len(batch_chunks))
                 if auto_checkpoint:
                     experiment_manager.save_batch_checkpoint(batch_df, batch_id)
                     experiment_manager.save_state(self.cost_tracker)
+                else:
+                    batch_dfs.append(batch_df)
 
-        # 6. Concatenate all results (load all batch DataFrames at the end to avoid memory issues)
-        batch_files = experiment_manager.list_batch_checkpoints()
-        dfs = [experiment_manager.load_batch_checkpoint(p) for p in batch_files]
-        if dfs:
-            consolidated_df = pd.concat(dfs, ignore_index=True)
-            return consolidated_df
+
+        if auto_checkpoint:
+            # 6. Concatenate all results
+            consolidated_df = experiment_manager.consolidate_batches()
+            experiment_manager.cleanup_batch_checkpoints()
         else:
-            return pd.DataFrame()
+            consolidated_df = pd.concat(batch_dfs, ignore_index=True)
+        
+        # save to extracted data path
+        experiment_manager.save_extracted_data(consolidated_df)
+        return consolidated_df
+        
     
     def _extract_from_text_chunk(
         self, 
         text_chunk: str, 
-        verbose: bool = False
     ) -> Dict[str, Any]:
         """Extract data from a single text chunk with optional regex fallback."""
         try:
             result = self._instructor_extract(text_chunk)
             return {"extracted_data": result, "errors": []}
         except Exception as llm_error:
-            if verbose: print(f"Error processing text chunk: {llm_error}")
             if not self.regex_fallback_pattern:
-                if verbose: print("No regex fallback enabled, returning null extracted_data with error")
                 return {"extracted_data": None, "errors": [str(llm_error)]}
             try:
-                if verbose: print("Falling back to regex extraction")
                 regex_result = self._regex_extract(text_chunk)
                 return {"extracted_data": regex_result, "errors": [str(llm_error)]}
             except Exception as regex_error:
-                if verbose: print(f"Regex fallback also failed: {regex_error}")
                 return {"extracted_data": None, "errors": [str(llm_error), str(regex_error)]}
     
     def _regex_extract(self, text_chunk: str) -> Dict[str, List[str]]:
@@ -257,13 +264,15 @@ class ExtractionManager:
                 {"text_length": len(text_chunk), "model_name": self.model_config.name}
             ) from e
     
-    def _parse_results_dataframe(
+    def parse_results_dataframe(
         self,
         results: List[Dict[str, Any]],
         text_chunks: List[str],
+        record_ids: List[str],
+        record_id_column: str,
         chunk_id_offset: int = 0,
         batch_id: int = 0,
-        output: str = "exploded"  # or "json_column"
+        output: str = "exploded"  # or "json_string_column"
     ) -> pd.DataFrame:
         """
         Parse extraction results into a DataFrame.
@@ -279,9 +288,10 @@ class ExtractionManager:
             if output == "exploded":
                 if extracted_data is None:
                     row_df = pd.DataFrame([{ 
-                        SYSTEM_CHUNK_COLUMN: text_chunk,
+                        record_id_column: record_ids[chunk_id],
                         SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                         SYSTEM_BATCH_ID_COLUMN: batch_id,
+                        SYSTEM_CHUNK_COLUMN: text_chunk,
                         SYSTEM_ERRORS_COLUMN: errors_json
                         # Other extracted variable columns will be added by outer join method
                     }])
@@ -289,33 +299,31 @@ class ExtractionManager:
                 else:
                     parsed_df = self._parse_single_result_to_exploded_dataframe(extracted_data, text_chunk)
                     if not parsed_df.empty:
-                        parsed_df[SYSTEM_CHUNK_COLUMN] = text_chunk
+                        parsed_df[record_id_column] = record_ids[chunk_id]
                         parsed_df[SYSTEM_CHUNK_ID_COLUMN] = chunk_id
                         parsed_df[SYSTEM_BATCH_ID_COLUMN] = batch_id
+                        parsed_df[SYSTEM_CHUNK_COLUMN] = text_chunk
                         parsed_df[SYSTEM_ERRORS_COLUMN] = errors_json
                         data.append(parsed_df)
-            elif output == "json_column":
+            elif output == "json_string_column":
                 if extracted_data is None:
                     row_df = pd.DataFrame([{ 
-                        SYSTEM_CHUNK_COLUMN: text_chunk,
+                        record_id_column: record_ids[chunk_id],
                         SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                         SYSTEM_BATCH_ID_COLUMN: batch_id,
-                        SYSTEM_EXTRACTED_JSON_DATA_COLUMN: None,
+                        SYSTEM_CHUNK_COLUMN: text_chunk,
+                        SYSTEM_EXTRACTED_DATA_JSON_COLUMN: None,
                         SYSTEM_ERRORS_COLUMN: errors_json
                     }])
                     data.append(row_df)
                 else:
-                    extracted_data_json = self._parse_single_result_to_json(extracted_data, text_chunk)
-                    # Ensure serialization to JSON string
-                    if extracted_data_json is not None:
-                        extracted_data_json_str = json.dumps(extracted_data_json, default=str)
-                    else:
-                        extracted_data_json_str = None
+                    extracted_data_dict = self._parse_single_result_to_dict(extracted_data, text_chunk)
                     row = {
-                        SYSTEM_CHUNK_COLUMN: text_chunk,
+                        record_id_column: record_ids[chunk_id],
                         SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                         SYSTEM_BATCH_ID_COLUMN: batch_id,
-                        SYSTEM_EXTRACTED_JSON_DATA_COLUMN: extracted_data_json_str,
+                        SYSTEM_CHUNK_COLUMN: text_chunk,
+                        SYSTEM_EXTRACTED_DATA_JSON_COLUMN: json.dumps(extracted_data_dict), 
                         SYSTEM_ERRORS_COLUMN: errors_json
                     }
                     data.append(pd.DataFrame([row]))
@@ -335,12 +343,12 @@ class ExtractionManager:
             {"response_type": type(result), "text_chunk": text_chunk[:100]}
         )
 
-    def _parse_single_result_to_json(self, result: Any, text_chunk: str) -> dict:
+    def _parse_single_result_to_dict(self, result: Any, text_chunk: str) -> dict:
         """Parse a single LLM or regex response using schema's validate_and_parse_response_to_json."""
         if is_regex_fallback_response(result):
             return result
         if is_pydantic_model(result):
-            return self.extraction_schema.validate_and_parse_response_to_json(result, str(text_chunk))
+            return self.extraction_schema.validate_and_parse_response_to_dict(result, str(text_chunk))
         raise ProcessingError(
             f"Unsupported result type in _parse_single_result: {type(result)}",
             {"response_type": type(result), "text_chunk": text_chunk[:100]}

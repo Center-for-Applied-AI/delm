@@ -18,6 +18,7 @@ DEFAULT_REGEX_FALLBACK_PATTERN = None # Default regex fallback pattern (None = n
 DEFAULT_TRACK_COST = True            # Default bool to track cost of API calls
 
 # Data Processing Defaults
+DEFAULT_RECORD_ID_COLUMN = "delm_record_id"      # Default record ID column in data
 DEFAULT_TARGET_COLUMN = "text"       # Default target column in data
 DEFAULT_DROP_TARGET_COLUMN = True    # Whether to drop target column after processing
 DEFAULT_PANDAS_SCORE_FILTER = None  # Default pandas score filter (None = no filter)
@@ -36,7 +37,6 @@ Please extract the requested information accurately and return it in the specifi
 # Experiment Defaults
 DEFAULT_EXPERIMENT_DIR = Path("delm_experiments") # Default experiment directory
 DEFAULT_OVERWRITE_EXPERIMENT = False # Whether to overwrite existing experiments by default
-DEFAULT_VERBOSE = False             # Whether to enable verbose logging by default
 
 # Extraction Defaults
 DEFAULT_EXTRACT_TO_DATAFRAME = False  # Whether to extract JSON to DataFrame by default
@@ -49,7 +49,8 @@ DEFAULT_SYSTEM_PROMPT = "You are a precise data‑extraction assistant."
 SYSTEM_CHUNK_COLUMN = "delm_text_chunk"   # Internal column name for text chunks
 SYSTEM_SCORE_COLUMN = "delm_score"        # Internal column name for relevance scores
 SYSTEM_CHUNK_ID_COLUMN = "delm_chunk_id"  # Internal column name for chunk IDs
-SYSTEM_EXTRACTED_JSON_DATA_COLUMN = "delm_extracted_json_data"  # Internal column name for extracted JSON output
+# Internal column name for extracted data (dict in memory, JSON string on disk)
+SYSTEM_EXTRACTED_DATA_JSON_COLUMN = "delm_extracted_data_json" # For saving to disk
 SYSTEM_BATCH_ID_COLUMN = "delm_batch_id"  # Internal column name for batch IDs
 SYSTEM_ERRORS_COLUMN = "delm_errors"
 SYSTEM_REGEX_EXTRACTED_KEY = "delm_regex_extracted_data"

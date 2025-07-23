@@ -1,0 +1,4 @@
+record_id,expected_dict
+1,"{'author': 'Alice', 'book_title': 'The Great Adventure'}"
+2,"{'author': 'Bob', 'book_title': 'Deep Learning 101'}"
+3,"{'author': 'Carol', 'book_title': 'Python for Kids'}" 

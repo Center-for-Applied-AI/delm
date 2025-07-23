@@ -30,7 +30,7 @@ data_preprocessing:
       - "forecast"
       - "guidance"
       - "estimate"
-      - "expectation"
+      # - "expectation"
 
 # Schema configuration
 schema:

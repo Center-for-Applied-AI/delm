@@ -22,6 +22,8 @@ from typing import Any, Dict, List, Optional, Union, Sequence
 
 import dotenv
 import pandas as pd
+import json
+from pprint import pprint
 
 # Required deps -------------------------------------------------------------- #
 import openai  # type: ignore
@@ -30,10 +32,13 @@ from .config import DELMConfig
 from .core import DataProcessor, ExperimentManager, ExtractionManager
 from .schemas import SchemaManager
 from .constants import (
-    SYSTEM_CHUNK_COLUMN 
+    SYSTEM_CHUNK_COLUMN,
+    DEFAULT_RECORD_ID_COLUMN,
+    SYSTEM_EXTRACTED_DATA_JSON_COLUMN
 )
 from .utils.cost_tracker import CostTracker
 from .utils.cost_estimator import CostEstimator
+from .exceptions import ProcessingError
 
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
@@ -50,7 +55,6 @@ class DELM:
         experiment_name: str,
         experiment_directory: Path,
         overwrite_experiment: bool = False,
-        verbose: bool = False,
         auto_checkpoint_and_resume_experiment: bool = True,
     ) -> None:
         # Config
@@ -58,7 +62,6 @@ class DELM:
         self.experiment_name = experiment_name
         self.experiment_directory = experiment_directory
         self.overwrite_experiment = overwrite_experiment
-        self.verbose = verbose
         self.auto_checkpoint_and_resume_experiment = auto_checkpoint_and_resume_experiment
         self._initialize_components()
 
@@ -103,30 +106,50 @@ class DELM:
         config = DELMConfig.from_dict(config_dict)
         return cls(config=config, experiment_name=experiment_name, experiment_directory=experiment_directory, **kwargs)
 
-    @staticmethod
-    def _prep_data_stateless(config: 'DELMConfig', data: str | Path | pd.DataFrame, save_path: str | Path | None = None) -> tuple[pd.DataFrame, int]:
-        """
-        Preprocess data using the config. Optionally save to disk if save_path is provided.
-        Returns a DataFrame of prepped (chunked) data and the total number of records in the original data.
-        """
-        processor = DataProcessor(config.data_preprocessing)
-        df = processor.load_and_process(data)
-        if save_path is not None:
-            df.to_feather(str(save_path))
-        return df, processor.total_records
+    ## ------------------------------- Public API ------------------------------- ##
 
+
+    def process_via_llm(self, preprocessed_file_path: Path | None = None) -> pd.DataFrame:
+        """Process data through LLM extraction using configuration from constructor, with batch checkpointing and resuming."""
+        # Load preprocessed data from feather file
+        data = self.experiment_manager.load_preprocessed_data(preprocessed_file_path)
+        text_chunks = data[SYSTEM_CHUNK_COLUMN].tolist()
+        record_ids = data[self.record_id_column].tolist()
+        
+        # Process with persistent batching
+        final_df = self.extraction_manager.process_with_persistent_batching(
+            text_chunks=text_chunks,
+            record_ids=record_ids,
+            record_id_column=self.record_id_column,
+            batch_size=self.config.llm_extraction.batch_size,
+            experiment_manager=self.experiment_manager,
+            auto_checkpoint=self.auto_checkpoint_and_resume_experiment,
+        )
+        
+        # Print summary
+        if self.config.llm_extraction.extract_to_dataframe:
+            print(f"Processed {len(data)} chunks from {len(record_ids)} records. Extracted to DataFrame with {len(final_df)} structured rows.")
+        else:
+            print(f"Processed {len(data)} chunks from {len(record_ids)} records. JSON output saved to `extracted_data` column.")
+        
+        if self.config.llm_extraction.track_cost:
+            self.cost_tracker.print_cost_summary()
+        
+        return final_df
+
+    
     def prep_data(self, data: str | Path | pd.DataFrame) -> pd.DataFrame:
         """
         Preprocess data using the instance config and always save to the experiment directory.
         Returns a DataFrame of prepped (chunked) data.
         """
+
         save_path = self.experiment_manager.preprocessed_data_path
         df, _ = DELM._prep_data_stateless(self.config, data, save_path=save_path)
         return df
 
-    @classmethod
+    @staticmethod
     def estimate_cost(
-        cls,
         config: Union[str, Dict[str, Any], 'DELMConfig'],
         data_source: str | Path | pd.DataFrame,
         use_api_calls: bool = False,
@@ -136,19 +159,24 @@ class DELM:
         Estimate the extraction cost for the given data and config.
         """
         config_obj = DELMConfig.from_any(config)
-        prepped_data, total_records = cls._prep_data_stateless(config_obj, data_source)
+        prepped_data, total_records = DELM._prep_data_stateless(config_obj, data_source)
         # Sample data if needed
         if len(prepped_data) > sample_size:
             sample_df = prepped_data.sample(n=sample_size, random_state=42)
         else:
             sample_df = prepped_data
         # --- Delegate to CostEstimator ---
-        estimator = CostEstimator(config_obj, sample_df, total_chunks=len(prepped_data), total_records=total_records)
+        cost_tracker = CostTracker(
+            provider=config_obj.llm_extraction.provider,
+            model=config_obj.llm_extraction.name,
+        )
+        schema_manager = SchemaManager(config_obj.schema)
+        estimator = CostEstimator(config_obj, sample_df, total_chunks=len(prepped_data), total_records=total_records, cost_tracker=cost_tracker, schema_manager=schema_manager)
         return estimator.estimate_cost(use_api_calls=use_api_calls)
 
-    @classmethod
+
+    @staticmethod
     def estimate_cost_batch(
-        cls,
         configs: Sequence[Union[str, Dict[str, Any], 'DELMConfig']],
         data_source: str | Path | pd.DataFrame,
         use_api_calls: bool = False,
@@ -157,10 +185,11 @@ class DELM:
         """
         Estimate extraction costs for multiple configs on the same dataset.
         """
+        # TODO: split into two functions. 1. CalculateInputCost (should use the whole dataset), 2. EstimateTotalCost (uses api calls)
         results = []
         for i, config in enumerate(configs):
             try:
-                result = cls.estimate_cost(config, data_source, use_api_calls, sample_size)
+                result = DELM.estimate_cost(config, data_source, use_api_calls, sample_size)
                 result["config_index"] = i
                 results.append(result)
             except Exception as e:
@@ -178,8 +207,84 @@ class DELM:
                 })
         return results
 
+
+    @staticmethod
+    def estimate_performance(
+        config: Union[str, Dict[str, Any], 'DELMConfig'],
+        data_source: str | Path | pd.DataFrame,
+        expected_extraction_output: pd.DataFrame,
+        true_json_column: str, 
+        record_sample_size: int = 3,
+    ) -> tuple[Dict[str, Any], pd.DataFrame]:
+        """
+        Estimate the performance of the DELM pipeline.
+        Returns a dict with both the aggregated_extracted_data and field-level precision/recall metrics.
+        """
+        from .utils.json_match_tree import aggregate_precision_recall_across_records, merge_jsons_for_record
+        
+        config = DELMConfig.from_any(config)
+        record_id_col = config.data_preprocessing.record_id_column or DEFAULT_RECORD_ID_COLUMN
+
+        prepped_data, _ = DELM._prep_data_stateless(config, data_source)
+
+        # Filter out input data not in expected_extraction_output
+        prepped_data = prepped_data[prepped_data[record_id_col].isin(expected_extraction_output[record_id_col])]
+
+        if len(prepped_data) == 0:
+            raise ProcessingError("No data to process. There may be no overlap in record_id in input data.")
+
+        # Sample data
+        if len(prepped_data) > record_sample_size:
+            prepped_data = prepped_data.sample(n=record_sample_size, random_state=42)
+
+        # Pass through ExtractionManager
+        config.llm_extraction.extract_to_dataframe = False
+        results = DELM._process_via_llm_stateless(config, prepped_data) # type: ignore
+        if results.empty or SYSTEM_EXTRACTED_DATA_JSON_COLUMN not in results.columns:
+            raise ValueError("No results or missing DICT column.")
+
+        schema_manager = SchemaManager(config.schema)
+        extraction_schema = schema_manager.get_extraction_schema()
+
+        # Parse expected JSON column if needed (if user provided as string)
+        if isinstance(expected_extraction_output[true_json_column].iloc[0], str):
+            expected_extraction_output[true_json_column] = expected_extraction_output[true_json_column].apply(json.loads)
+        # Verify that that expected_extraction_output is valid against the schema
+        for i, row in expected_extraction_output.iterrows():
+            extraction_schema.validate_json_dict(row[true_json_column], path=f"expected_extraction_output[{i}]") # type: ignore
+        
+        # Group and merge extracted data by record_id using agg to keep dicts as values
+        extracted_data_df = (
+            results.groupby(record_id_col)[SYSTEM_EXTRACTED_DATA_JSON_COLUMN]
+            .agg(lambda x: merge_jsons_for_record(list(x), extraction_schema))
+            .reset_index()
+        )
+
+        record_id_extracted_expected_dicts_df = pd.merge(
+            expected_extraction_output[[record_id_col, true_json_column]],
+            extracted_data_df[[record_id_col, SYSTEM_EXTRACTED_DATA_JSON_COLUMN]],
+            on=record_id_col,
+            how="inner"
+        )
+        record_id_extracted_expected_dicts_df.columns = [record_id_col, "expected_dict", "extracted_dict"]
+        performance_metrics_dict = aggregate_precision_recall_across_records(record_id_extracted_expected_dicts_df["expected_dict"], record_id_extracted_expected_dicts_df["extracted_dict"], extraction_schema) # type: ignore
+        return performance_metrics_dict, record_id_extracted_expected_dicts_df
+
+
+
+    def get_extraction_results(self) -> pd.DataFrame:
+        """
+        Get the results from the experiment directory.
+        """
+        return self.experiment_manager.get_results()
+
+    ## ------------------------------ Private API ------------------------------- ##
+
+
     def _initialize_components(self) -> None:
         """Initialize all components using composition."""
+        # 
+        self.record_id_column = self.config.data_preprocessing.record_id_column or DEFAULT_RECORD_ID_COLUMN
         # Environment & secrets -------------------------------------------- #
         if self.config.llm_extraction.dotenv_path:
             dotenv.load_dotenv(self.config.llm_extraction.dotenv_path)
@@ -191,7 +296,6 @@ class DELM:
             experiment_name=self.experiment_name,
             experiment_directory=self.experiment_directory,
             overwrite_experiment=self.overwrite_experiment,
-            verbose=self.verbose,
             auto_checkpoint_and_resume_experiment=self.auto_checkpoint_and_resume_experiment,
         )
         
@@ -220,48 +324,50 @@ class DELM:
         )
 
 
-    # ------------------------------ Public API --------------------------- #
-    def process_via_llm(self, preprocessed_file_path: Path | None = None) -> pd.DataFrame:
-        """Process data through LLM extraction using configuration from constructor, with batch checkpointing and resuming."""
-        # Load preprocessed data from feather file
-        data = self.experiment_manager.load_preprocessed_data(preprocessed_file_path)
+
+    @staticmethod
+    def _prep_data_stateless(config: 'DELMConfig', data: str | Path | pd.DataFrame, save_path: str | Path | None = None) -> tuple[pd.DataFrame, int]:
+        """
+        Preprocess data using the config. Optionally save to disk if save_path is provided.
+        Returns a DataFrame of prepped (chunked) data and the total number of records in the original data.
+        """
+        processor = DataProcessor(config.data_preprocessing)
+        df = processor.load_data(data)
+
+        if config.data_preprocessing.record_id_column is None:
+            df[DEFAULT_RECORD_ID_COLUMN] = range(len(df))
+            config.data_preprocessing.record_id_column = DEFAULT_RECORD_ID_COLUMN
+
+        df = processor.process_dataframe(df)
+
+        if save_path is not None:
+            df.to_feather(str(save_path))
+        return df, processor.total_records
+
+
+    @staticmethod
+    def _process_via_llm_stateless(config: DELMConfig, data: pd.DataFrame) -> pd.DataFrame:
+        """Process data through LLM extraction using configuration from constructor."""
         text_chunks = data[SYSTEM_CHUNK_COLUMN].tolist()
+        record_id_column = config.data_preprocessing.record_id_column or DEFAULT_RECORD_ID_COLUMN
+        record_ids = data[record_id_column].tolist()
         
-        # Process with persistent batching
-        final_df = self.extraction_manager.process_with_persistent_batching(
-            text_chunks=text_chunks,
-            batch_size=self.config.llm_extraction.batch_size,
-            experiment_manager=self.experiment_manager,
-            auto_checkpoint=self.auto_checkpoint_and_resume_experiment,
-            verbose=self.verbose
+        schema_manager = SchemaManager(config.schema)
+        cost_tracker = CostTracker(
+            provider=config.llm_extraction.provider,
+            model=config.llm_extraction.name,
         )
-        
-        # Handle final consolidation and cleanup
-        if self.auto_checkpoint_and_resume_experiment:
-            result_path = self.experiment_manager.consolidate_batches(self.experiment_name)
-            self.experiment_manager.cleanup_batch_checkpoints()
-            if self.verbose:
-                print(f"Final consolidated result saved to: {result_path}")
-            # Load and return the consolidated result
-            final_df = pd.read_feather(result_path)
-        
-        # Print summary
-        if self.verbose:
-            if self.config.llm_extraction.extract_to_dataframe:
-                print(f"Processed {len(data)} chunks. Extracted to DataFrame with {len(final_df)} structured rows.")
-            else:
-                print(f"Processed {len(data)} chunks. JSON output saved to `extracted_data` column.")
-        
-        if self.config.llm_extraction.track_cost:
-            self.cost_tracker.print_cost_summary()
-        
-        return final_df
-    
-
-    
-
-
-
-
-
-
+        extraction_manager = ExtractionManager(
+            config.llm_extraction,
+            schema_manager=schema_manager,
+            cost_tracker=cost_tracker,
+        )
+        results = extraction_manager.extract_from_text_chunks(text_chunks)
+        parsed_df = extraction_manager.parse_results_dataframe(
+            results=results,
+            text_chunks=text_chunks,
+            record_ids=record_ids,
+            record_id_column=record_id_column,
+            output="exploded" if config.llm_extraction.extract_to_dataframe else "json_string_column" # TODO: rename extract_to_dataframe to extract_to_exploded_dataframe
+        )
+        return parsed_df

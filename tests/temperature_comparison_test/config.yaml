@@ -1,0 +1,35 @@
+llm_extraction:
+  name: gpt-4o-mini
+  temperature: 0.0  # Will be varied in the test
+  max_retries: 3
+  batch_size: 1
+  max_workers: 1
+  dotenv_path: null
+  regex_fallback_pattern: null
+
+data_preprocessing:
+  target_column: text
+  drop_target_column: true
+  splitting:
+    strategy: ParagraphSplit
+  scoring:
+    scorer: KeywordScorer
+    keywords:
+      - price
+      - prices
+      - oil
+      - gas
+      - expect
+      - barrel
+      - ton
+      - used
+      - expectations
+      - using
+
+schema:
+  spec_path: tests/temperature_comparison_test/schema_spec.yaml
+  container_name: commodities
+  prompt_template: null
+
+experiment:
+  name: temp_0.0 

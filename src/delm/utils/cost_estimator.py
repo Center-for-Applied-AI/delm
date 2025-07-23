@@ -5,17 +5,13 @@ from ..schemas import SchemaManager
 from ..core.extraction_manager import ExtractionManager
 
 class CostEstimator:
-    def __init__(self, config, sample_df, total_chunks, total_records):
+    def __init__(self, config, sample_df, total_chunks, total_records, cost_tracker, schema_manager):
         self.config = config
         self.sample_df = sample_df
         self.total_chunks = total_chunks
         self.total_records = total_records 
-        self.cost_tracker = CostTracker(
-            config.llm_extraction.provider,
-            config.llm_extraction.name
-        )
-        # Load schema to get variables for token estimation
-        self.schema_manager = SchemaManager(config.schema)
+        self.cost_tracker = cost_tracker
+        self.schema_manager = schema_manager
         self.extraction_schema = self.schema_manager.get_extraction_schema()
 
     def estimate_cost(self, use_api_calls: bool = False):
@@ -65,23 +61,17 @@ class CostEstimator:
         return total_input_tokens
 
     def _estimate_output_tokens_heuristic(self, text_chunks: List[str]) -> int:
-        total_input_tokens = self.cost_tracker.count_tokens_batch(text_chunks)
-        avg_input_tokens = total_input_tokens / len(text_chunks)
-        output_ratio = 0.15
-        if hasattr(self.config, 'schema') and self.config.schema:
-            output_ratio = 0.20
-        estimated_output_tokens = int(avg_input_tokens * output_ratio)
-        return estimated_output_tokens
+        raise NotImplementedError("Output token estimation is not supported in heuristic mode. Set use_api_calls=True to estimate output token cost. This will be more accurate but it will charge you for the sampled data requests.")
 
     def _estimate_with_api(self):
-        # Basically call extraction manager with the CostTracker and the sample data and extrapolate to the full dataset
+        # Call extraction manager with the CostTracker and the sample data and extrapolate to the full dataset
         extraction_manager = ExtractionManager(
             model_config=self.config.llm_extraction,
             schema_manager=self.schema_manager,
             cost_tracker=self.cost_tracker
         )
 
-        extraction_manager.process_and_parse(self.sample_df[SYSTEM_CHUNK_COLUMN].tolist())
+        extraction_manager.extract_from_text_chunks(self.sample_df[SYSTEM_CHUNK_COLUMN].tolist())
         sample_cost = self.cost_tracker.get_current_cost()
         sample_input_tokens = self.cost_tracker.input_tokens
         # Get the total output tokens from the cost tracker

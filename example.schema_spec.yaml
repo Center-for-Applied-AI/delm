@@ -1,7 +1,77 @@
-# DELM Schema Specification Template
-# =================================
-# This file defines the extraction schema for DELM (Data Extraction with LLMs).
-# Copy this file and modify the extraction section for your specific use case.
+# DELM Schema Specification Examples
+# ==================================
+#
+# Below are minimal, clear examples for each schema type supported by DELM.
+# Use these as templates for your own extraction tasks.
+#
+# NOTE: For list data types in YAML (e.g., [string], [number]), always use quotes: "[string]". This ensures YAML parses the type as a string, not a list.
+
+# -----------------------------------------------------------------------------
+# Simple Schema Example
+# -----------------------------------------------------------------------------
+# schema_type: simple
+# variables:
+#   - name: "author"
+#     data_type: string
+#     required: true
+#   - name: "tags"
+#     data_type: "[string]"   # <-- Quotes required!
+#     required: false
+#
+# Example expected JSON:
+# {"author": "Alice", "tags": ["fiction", "adventure"]}
+
+# -----------------------------------------------------------------------------
+# Nested Schema Example
+# -----------------------------------------------------------------------------
+# schema_type: nested
+# container_name: books
+# variables:
+#   - name: "title"
+#     data_type: string
+#     required: true
+#   - name: "genres"
+#     data_type: "[string]"   # <-- Quotes required!
+#     required: false
+#
+# Example expected JSON:
+# {"books": [
+#     {"title": "Book A", "genres": ["fantasy", "epic"]},
+#     {"title": "Book B", "genres": ["mystery"]}
+# ]}
+
+# -----------------------------------------------------------------------------
+# Multiple Schema Example
+# -----------------------------------------------------------------------------
+# schema_type: multiple
+# book:
+#   schema_type: simple
+#   variables:
+#     - name: "author"
+#       data_type: string
+#       required: true
+#     - name: "tags"
+#       data_type: "[string]"   # <-- Quotes required!
+#       required: false
+# reviews:
+#   schema_type: nested
+#   container_name: reviews
+#   variables:
+#     - name: "reviewer"
+#       data_type: string
+#       required: true
+#     - name: "score"
+#       data_type: number
+#       required: false
+#
+# Example expected JSON:
+# {
+#   "book": {"author": "Alice", "tags": ["fiction", "adventure"]},
+#   "reviews": [
+#     {"reviewer": "Bob", "score": 4.5},
+#     {"reviewer": "Carol", "score": 5.0}
+#   ]
+# }
 
 # =============================================================================
 # EXTRACTION SCHEMA CONFIGURATION
@@ -68,15 +138,15 @@ variables:
 # Example 1: Simple Schema (Key-Value Pairs)
 # Uncomment and modify this section to use simple extraction
 # schema_type: "simple"
-# variables:
-#   - name: "price"
-#     description: "Price mentioned in the text"
-#     data_type: "number"
-#     required: false
-#   - name: "company"
-#     description: "Company name mentioned"
-#     data_type: "string"
-#     required: false
+variables:
+  - name: "price"
+    description: "Price mentioned in the text"
+    data_type: "number"
+    required: false
+  - name: "company"
+    description: "Company name mentioned"
+    data_type: "string"
+    required: false
 
 # =============================================================================
 # DATA TYPE REFERENCE

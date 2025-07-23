@@ -3,12 +3,12 @@ Temperature Comparison Test for DELM
 Tests different temperature settings and compares outputs
 """
 
+from copy import deepcopy
 import sys
 from pathlib import Path
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from dataclasses import replace
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 from delm import DELM, DELMConfig
 from delm.config import LLMExtractionConfig, DataPreprocessingConfig, SchemaConfig, ExperimentConfig, SplittingConfig, ScoringConfig
 from delm.strategies import KeywordScorer, ParagraphSplit
+from delm.constants import SYSTEM_EXTRACTED_DATA_JSON_COLUMN
 
 def create_mock_data():
     """Create mock dataset for testing."""
@@ -47,87 +48,52 @@ def create_mock_data():
     return pd.DataFrame(data)
 
 def create_base_config():
-    """Create base configuration."""
-    model_config = LLMExtractionConfig(
-        name="gpt-4o-mini",
-        temperature=0.0,  # Will be varied
-        max_retries=3,
-        batch_size=1,
-        max_workers=1,
-        dotenv_path=None,
-        regex_fallback_pattern=None
-    )
-    
-    splitting_config = SplittingConfig(strategy=ParagraphSplit())
-    
-    scoring_config = ScoringConfig(
-        scorer=KeywordScorer([
-            "price", "prices", "oil", "gas", "expect", "barrel", 
-            "ton", "used", "expectations", "using"
-        ])
-    )
-    
-    data_config = DataPreprocessingConfig(
-        target_column="text",
-        drop_target_column=True,
-        splitting=splitting_config,
-        scoring=scoring_config
-    )
-    
-    schema_config = SchemaConfig(
-        spec_path=Path("tests/experiments/temperature_comparison_test/schema_spec.yaml"),
-        container_name="commodities",
-        prompt_template=None
-    )
-    
-    experiment_config = ExperimentConfig()
-    
-    return DELMConfig(
-        llm_extraction=model_config,
-        data_preprocessing=data_config,
-        schema=schema_config,
-        experiment=experiment_config
-    )
+    """Load base configuration from config.yaml."""
+    return DELMConfig.from_yaml(Path("tests/temperature_comparison_test/config.yaml"))
 
 def run_temperature_comparison():
     """Run comparison test with different temperatures."""
     print("Creating mock dataset...")
     test_data = create_mock_data().iloc[:3]
     print(f"Dataset created: {len(test_data)} rows")
-    
-    # Create base config
+
+    # Load base config from YAML
     base_config = create_base_config()
-    
+
     # Test temperatures
     temperatures = [0.0, 0.5, 1.0]
     results = {}
-    
+
     for temp in temperatures:
         print(f"\n--- Testing Temperature: {temp} ---")
-        
+
+        exp_name = f"temp_{temp}"
         # Create config variation using dataclasses.replace
-        config = replace(
-            base_config,
-            llm_extraction=replace(base_config.llm_extraction, temperature=temp),
-            experiment=replace(base_config.experiment, name=f"temp_{temp}")
-        )
-        
+        config = deepcopy(base_config)
+        config.llm_extraction.temperature = temp
+
         # Initialize DELM
         delm = DELM(
             config=config,
-            experiment_name=f"temp_{temp}",
-            experiment_directory=Path("test-experiments"),
+            experiment_name=exp_name,
+            experiment_directory=Path("test_experiments"),
             overwrite_experiment=True,
-            verbose=False
+            auto_checkpoint_and_resume_experiment=False,
         )
-        
+
         # Process data
-        output_df = delm.prep_data(test_data)
-        llm_output_df = delm.process_via_llm()
-        # The structured DataFrame is now returned directly from process_via_llm()
-        structured_df = llm_output_df
-        
-        print(f'structured_df: {structured_df}')
+        delm.prep_data(test_data)
+        delm.process_via_llm()
+
+        # Get the results from the experiment directory
+        results[temp] = delm.get_extraction_results()
+
+    return results
 
 if __name__ == "__main__":
-    run_temperature_comparison() 
+    results = run_temperature_comparison() 
+    for temp, result in results.items():
+        print(f"Temperature: {temp}")
+        print(result[SYSTEM_EXTRACTED_DATA_JSON_COLUMN])
+        print("\n")
+    

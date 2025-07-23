@@ -1,0 +1,81 @@
+# DELM Configuration Example
+# This file shows all available configuration options for DELM
+
+# LLM extraction configuration
+llm_extraction:
+  provider: "openai"                  # LLM provider (openai, anthropic, google, groq, together, fireworks)
+  name: "gpt-4o-mini"                 # LLM model name
+  temperature: 0.0                    # Temperature for generation (0.0-2.0)
+  max_retries: 3                      # Maximum API retries
+  batch_size: 10                      # Batch size for processing
+  max_workers: 1                      # Number of concurrent workers
+  base_delay: 1.0                     # Base delay for retry handler (seconds)
+  dotenv_path: ".env"                 # Path to .env file (optional, can be null)
+  regex_fallback_pattern: null        # Regex pattern for fallback (optional, can be null)
+  track_cost: true                    # Whether to track cost of API calls
+
+# Data preprocessing configuration
+data_preprocessing:
+  record_id_column: "report"
+  target_column: "text"         # Column containing text to process
+  drop_target_column: true      # Whether to drop target column after processing
+  pandas_score_filter: "delm_score > 0.5" # Filter via scores in preprocessing step. Uses pandas query syntax. Must use delm_score column name.
+  
+  # Splitting strategy configuration
+  splitting:
+    type: "ParagraphSplit"      # Available: ParagraphSplit, FixedWindowSplit, RegexSplit, None
+    # For FixedWindowSplit, you can also specify:
+    # window: 5                 # Number of sentences per chunk
+    # stride: 5                 # Number of sentences to overlap
+    # For RegexSplit, you can also specify:
+    # pattern: "\n\n"           # Regex pattern to split on
+  
+  # Scoring strategy configuration  
+  scoring:
+    type: "KeywordScorer"       # Available: KeywordScorer, FuzzyScorer, None
+    keywords:                   # List of keywords for relevance scoring
+      - "price"
+      - "forecast"
+      - "guidance"
+      - "estimate"
+      - "expectation"
+      - "revenue"
+      - "earnings"
+
+# Schema configuration
+schema:
+  spec_path: "tests/human_labeled_data/schema_spec.yaml" # Path to schema specification file
+  container_name: "commodities"        # Container name for nested schemas
+  prompt_template: |
+    You are assisting a finance professor who expects meticulous and reliable results.
+
+    Extract the following information from the text:
+
+    {variables}
+
+    Text to analyze:
+    {text}
+
+    CRITICAL INSTRUCTIONS:
+    - ONLY extract information that is EXPLICITLY mentioned in the text
+    - If NO relevant information is mentioned, return empty lists or null values
+    - Do NOT infer or guess based on context or company names
+    - Do NOT extract information just because it might be related
+    - For each item mentioned, create a separate entry with all relevant details
+    - If a field is not mentioned in the text, leave it as null/None rather than guessing
+    - Focus on extracting accurate, factual data as stated in the text
+
+    Examples of what NOT to extract:
+    - "1-800 CONTACTS" → NOT oil (even though contacts might use oil-based solutions)
+    - "Apple Inc." → NOT aluminum (even though phones contain aluminum)
+    - "Bank of America" → NOT gold (even though banks might trade gold)
+  # Example of a simpler prompt template:
+  # prompt_template: |
+  #   You are a financial data extraction expert. Extract the following information:
+  #   
+  #   {variables}
+  #   
+  #   Text to analyze:
+  #   {text}
+  #   
+  #   Focus on extracting accurate financial data and return results in the specified format.

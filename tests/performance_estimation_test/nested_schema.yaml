@@ -1,0 +1,15 @@
+schema_type: nested
+container_name: books
+variables:
+  - name: title
+    description: Title of the book
+    data_type: string
+    required: true
+  - name: copies_sold
+    description: Number of copies sold
+    data_type: integer
+    required: false
+  - name: price
+    description: Price per copy
+    data_type: number
+    required: false 

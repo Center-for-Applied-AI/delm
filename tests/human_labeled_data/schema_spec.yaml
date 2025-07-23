@@ -1,0 +1,110 @@
+# DELM Schema Specification Template
+# =================================
+# This file defines the extraction schema for DELM (Data Extraction with LLMs).
+# Copy this file and modify the extraction section for your specific use case.
+
+# =============================================================================
+# EXTRACTION SCHEMA CONFIGURATION
+# =============================================================================
+
+# Schema type determines how data is structured
+# Options: "simple", "nested", "multiple"
+# - simple: Key-value pairs (e.g., {"price": 100, "company": "Apple"})
+# - nested: List of objects (e.g., {"commodities": [{"type": "oil", "price": 100}]})
+# - multiple: Multiple independent schemas in one config (e.g., {"commodities": [{"type": "oil", "price": 100}], "companies": [{"name": "Apple", "sector": "Technology"}]})
+# schema_type: "nested"
+
+# # Container name for nested schemas (only used when schema_type = "nested")
+# # This becomes the key that holds the list of extracted objects
+# container_name: "commodities"
+
+# # Variables to extract from text
+# # Each variable defines a field in your extracted data
+# variables:
+#   # Example 1: Required string with allowed values
+#   - name: "commodity_type"
+#     description: "Type of commodity mentioned in the text"
+#     data_type: "string"
+#     required: true
+#     allowed_values: ["oil", "gas", "copper", "gold", "silver", "steel", "aluminum"]
+#     validate_in_text: true
+  
+#   # Example 2: Optional boolean field
+#   - name: "price_mention"
+#     description: "Whether a specific price is mentioned"
+#     data_type: "boolean"
+#     required: false
+  
+#   # Example 3: Optional numeric field
+#   - name: "price_value"
+#     description: "Numeric price value if mentioned"
+#     data_type: "number"
+#     required: false
+  
+#   # Example 4: Optional string without restrictions
+#   - name: "price_unit"
+#     description: "Unit of the price (e.g., barrel, ton, MMBtu)"
+#     data_type: "string"
+#     required: false
+  
+#   # Example 5: Optional string with allowed values
+#   - name: "expectation_type"
+#     description: "Type of price expectation mentioned"
+#     data_type: "string"
+#     required: false
+#     allowed_values: ["forecast", "guidance", "estimate", "projection", "outlook"]
+  
+#   # Example 6: Optional string for company names
+#   - name: "company_mention"
+#     description: "Company names mentioned in relation to commodities"
+#     data_type: "string"
+#     required: false
+#     validate_in_text: true
+
+# =============================================================================
+# ALTERNATIVE SCHEMA EXAMPLES
+# =============================================================================
+
+# Example 1: Simple Schema (Key-Value Pairs)
+# Uncomment and modify this section to use simple extraction
+schema_type: "simple"
+variables:
+  - name: "horizon"
+    description: "Time horizon for the price expectation or forecast, if mentioned"
+    data_type: "string"
+    required: false
+
+  - name: "good_subtype"
+    description: "Subtype or specific variety of the good or commodity mentioned"
+    data_type: "string"
+    required: false
+
+  - name: "price"
+    description: "Price value mentioned in the text"
+    data_type: "number"
+    required: false
+
+  - name: "unit"
+    description: "Unit of measurement for the price (e.g., barrel, ton, MMBtu)"
+    data_type: "string"
+    required: false
+
+  - name: "currency"
+    description: "Currency in which the price is denominated (e.g., USD, EUR)"
+    data_type: "string"
+    required: false
+
+  - name: "good"
+    description: "Name of the good or commodity mentioned"
+    data_type: "string"
+    required: false
+
+  - name: "price_lower"
+    description: "Lower bound of a price range if specified"
+    data_type: "number"
+    required: false
+
+  - name: "price_upper"
+    description: "Upper bound of a price range if specified"
+    data_type: "number"
+    required: false
