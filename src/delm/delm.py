@@ -6,8 +6,7 @@ Major upgrades from the Phase‑1 prototype:
 • Multi‑format loaders (.txt, .html/.md, .docx, .pdf*)
 • Pluggable split strategies (ParagraphSplit, FixedWindowSplit, RegexSplit)
 • Relevance scoring abstraction (KeywordScorer, FuzzyScorer)
-• Structured extraction via `Instructor` with a Pydantic schema fallback
-• Built‑in stub fallback when either OPENAI_API_KEY or Instructor is absent
+• Structured extraction via `Instructor` 
 *PDF uses `marker` OCR if available; else raises NotImplementedError.
 
 The public API and method signatures remain unchanged so downstream code
@@ -229,10 +228,10 @@ class DELM:
             if state and "cost_tracker" in state:
                 self.cost_tracker = CostTracker.from_dict(state["cost_tracker"])
         
-        self.semantic_cache = SemanticCacheFactory.from_config(self.config.semantic_cache)  # new field
+        self.semantic_cache = SemanticCacheFactory.from_config(self.config.semantic_cache)
         self.extraction_manager = ExtractionManager(
             self.config.llm_extraction,
-            schema_manager=self.schema_manager,  # Pass the instance
+            schema_manager=self.schema_manager,
             cost_tracker=self.cost_tracker,
             semantic_cache=self.semantic_cache,
         )

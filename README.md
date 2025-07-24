@@ -9,7 +9,7 @@ A comprehensive toolkit for extracting structured data from unstructured text an
 - **Multi-format Support**: TXT, HTML, MD, DOCX, PDF, CSV, JSON, images
 - **Pluggable Strategies**: Customizable text splitting and relevance scoring
 - **Unified Schema System**: Progressive complexity from simple to nested to multiple schemas
-- **Structured Extraction**: Instructor + Pydantic schemas with fallback mechanisms
+- **Structured Extraction**: Instructor + Pydantic schemas 
 - **Batch Processing**: Parallel execution for efficient large-scale processing
 - **Multi-Provider Support**: OpenAI, Anthropic, Google, Groq, Together AI, Fireworks AI
 
@@ -57,7 +57,6 @@ delm = DELM(
     max_workers=4,
     split_strategy=ParagraphSplit(),
     relevance_scorer=KeywordScorer(["price", "forecast", "estimate"]),
-    regex_fallback_pattern=r'\d+'  # Extract numbers as fallback
 )
 
 # Load and process data
@@ -167,24 +166,6 @@ This approach makes it intuitive to:
 - **Switch providers**: Just change the `provider` field  
 - **Compare models**: Easy to test different models with the same provider
 - **Understand configuration**: Clear separation of provider vs model concepts
-
-#### Regex Fallback Configuration
-
-You can provide a custom regex pattern for fallback extraction when LLM processing fails:
-
-```python
-# Extract numbers when LLM fails
-delm = DELM(regex_fallback_pattern=r'\d+')
-
-# Extract email addresses
-delm = DELM(regex_fallback_pattern=r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b')
-
-# Extract currency amounts
-delm = DELM(regex_fallback_pattern=r'\$\d+(?:,\d{3})*(?:\.\d{2})?')
-
-# No regex fallback (default)
-delm = DELM()  # regex_fallback_pattern=None
-```
 
 ### Schema Types
 

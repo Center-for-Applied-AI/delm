@@ -9,7 +9,6 @@ llm_extraction:
   batch_size: 2
   max_workers: 1
   dotenv_path: ".env"
-  regex_fallback_pattern: null
   track_cost: true
 
 # Data preprocessing configuration
@@ -35,8 +34,6 @@ data_preprocessing:
 semantic_cache:
   backend: "sqlite"
   path: ".delm_cache"
-  max_size_mb: 512
-  synchronous: "normal"
 
 # Schema configuration
 schema:
