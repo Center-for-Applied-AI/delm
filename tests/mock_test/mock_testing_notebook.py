@@ -161,6 +161,10 @@ for idx, row in result_df.head(3).iterrows():
         if col != "delm_extracted_data_json":
             print(f"{col}: {row[col]}")
     print("delm_extracted_data_json:")
-    parsed = json.loads(row["delm_extracted_data_json"]) # type: ignore
-    print(json.dumps(parsed, indent=2))
+    try:
+        parsed = json.loads(row["delm_extracted_data_json"]) # type: ignore
+        print(json.dumps(parsed, indent=2))
+    except Exception as e:
+        print(f"Error parsing JSON: {e}")
+        print(row["delm_extracted_data_json"])
     print("-" * 40)

@@ -11,6 +11,10 @@ llm_extraction:
   max_retries: 2
   dotenv_path: ".env"
 
+semantic_cache:
+  backend: "sqlite"
+  path: ".delm_cache"
+
 data_preprocessing:
   target_column: text
   drop_target_column: true

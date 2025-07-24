@@ -67,6 +67,8 @@ def estimate_total_cost(
         auto_checkpoint_and_resume_experiment=True,
         use_disk_storage=False,
     )
+    delm.cost_tracker.count_cache_hits_towards_cost = True
+
     records_df = delm.data_processor.load_data(data_source)
     total_records = len(records_df)
     sample_records_df = records_df.sample(n=sample_size, random_state=SYSTEM_RANDOM_SEED)
@@ -75,8 +77,7 @@ def estimate_total_cost(
 
     delm.process_via_llm()
 
-    cost_tracker = delm.cost_tracker
-    sample_cost = cost_tracker.get_current_cost()
+    sample_cost = delm.cost_tracker.get_current_cost()
     total_estimated_cost = sample_cost * (total_records / sample_size)
 
     return total_estimated_cost

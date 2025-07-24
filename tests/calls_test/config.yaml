@@ -32,6 +32,12 @@ data_preprocessing:
       - "estimate"
       # - "expectation"
 
+semantic_cache:
+  backend: "sqlite"
+  path: ".delm_cache"
+  max_size_mb: 512
+  synchronous: "normal"
+
 # Schema configuration
 schema:
   spec_path: "tests/calls_test/schema_spec.yaml"

@@ -32,6 +32,7 @@ from delm.constants import (
     SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
 )
 from delm.utils.cost_tracker import CostTracker
+from delm.utils.semantic_cache import SemanticCacheFactory
 from typing import Any, Dict, Union
 
 # --------------------------------------------------------------------------- #
@@ -228,8 +229,12 @@ class DELM:
             if state and "cost_tracker" in state:
                 self.cost_tracker = CostTracker.from_dict(state["cost_tracker"])
         
+        self.semantic_cache = SemanticCacheFactory.from_config(self.config.semantic_cache)  # new field
         self.extraction_manager = ExtractionManager(
             self.config.llm_extraction,
             schema_manager=self.schema_manager,  # Pass the instance
             cost_tracker=self.cost_tracker,
+            semantic_cache=self.semantic_cache,
         )
+
+

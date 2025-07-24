@@ -12,7 +12,8 @@ from delm.constants import (
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
     DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER,
-    DEFAULT_AUTO_CHECKPOINT_AND_RESUME, DEFAULT_SYSTEM_PROMPT
+    DEFAULT_AUTO_CHECKPOINT_AND_RESUME, DEFAULT_SYSTEM_PROMPT,
+    DEFAULT_SEMANTIC_CACHE_BACKEND, DEFAULT_SEMANTIC_CACHE_PATH, DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB, DEFAULT_SEMANTIC_CACHE_SYNCHRONOUS,
 )
 from delm.exceptions import ConfigurationError
 
@@ -359,13 +360,35 @@ class SchemaConfig:
             )
 
 @dataclass
-class ExperimentConfig:
-    """Configuration for experiment management."""
-    # This dataclass is now empty, but kept for future experiment-defining parameters if needed.
-    pass
+class SemanticCacheConfig:
+    """Persistent semantic‑cache settings."""
+    backend: str = DEFAULT_SEMANTIC_CACHE_BACKEND          # sqlite | lmdb | filesystem
+    path: Union[str, Path] = DEFAULT_SEMANTIC_CACHE_PATH
+    max_size_mb: int = DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB
+    synchronous: str = DEFAULT_SEMANTIC_CACHE_SYNCHRONOUS  # sqlite only
 
+    # ----- helpers ---------------------------------------------------------
+    def resolve_path(self) -> Path:
+        return Path(self.path).expanduser().resolve()
+
+    # ----- validation ------------------------------------------------------
     def validate(self):
-        pass
+        if self.backend not in {"sqlite", "lmdb", "filesystem"}:
+            raise ConfigurationError(
+                "cache.backend must be 'sqlite', 'lmdb', or 'filesystem'",
+                {"backend": self.backend}
+            )
+        if not isinstance(self.max_size_mb, int) or self.max_size_mb <= 0:
+            raise ConfigurationError(
+                "cache.max_size_mb must be a positive integer",
+                {"max_size_mb": self.max_size_mb}
+            )
+        if self.backend == "sqlite" and self.synchronous not in {"normal", "full"}:
+            raise ConfigurationError(
+                "cache.synchronous must be 'normal' or 'full' for SQLite",
+                {"synchronous": self.synchronous}
+            )
+
 
 @dataclass
 class DELMConfig:
@@ -373,7 +396,7 @@ class DELMConfig:
     llm_extraction: LLMExtractionConfig
     data_preprocessing: DataPreprocessingConfig
     schema: SchemaConfig
-    experiment: ExperimentConfig
+    semantic_cache: SemanticCacheConfig
 
     def __post_init__(self):
         self.validate()
@@ -382,7 +405,7 @@ class DELMConfig:
         self.llm_extraction.validate()
         self.data_preprocessing.validate()
         self.schema.validate()
-        self.experiment.validate()
+        self.semantic_cache.validate()
 
     def to_config_dict(self) -> dict:
         """Return a dictionary suitable for saving as the experiment config YAML (excluding runtime/operational fields)."""
@@ -414,6 +437,12 @@ class DELMConfig:
                 "container_name": self.schema.container_name,
                 "prompt_template": self.schema.prompt_template,
                 "system_prompt": self.schema.system_prompt,
+            },
+            "semantic_cache": {
+                "backend": self.semantic_cache.backend,
+                "path": str(self.semantic_cache.path),
+                "max_size_mb": self.semantic_cache.max_size_mb,
+                "synchronous": self.semantic_cache.synchronous,
             }
         }
 
@@ -457,9 +486,11 @@ class DELMConfig:
             # Handle LLM extraction config
             llm_extraction_data = data.get("llm_extraction", {})
             llm_extraction = LLMExtractionConfig(**llm_extraction_data)
+            
             # Handle data preprocessing config
             data_preprocessing_data = data.get("data_preprocessing", {})
             data_preprocessing_cfg = DataPreprocessingConfig.from_config(data_preprocessing_data)
+            
             # Handle schema config
             schema_data = data.get("schema", {})
             spec_path = schema_data.get("spec_path", "")
@@ -471,9 +502,17 @@ class DELMConfig:
                 prompt_template=schema_data.get("prompt_template", DEFAULT_PROMPT_TEMPLATE),
                 system_prompt=schema_data.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
             )
-            # Handle experiment config
-            experiment = ExperimentConfig()
-            config = cls(llm_extraction=llm_extraction, data_preprocessing=data_preprocessing_cfg, schema=schema, experiment=experiment)
+
+            # Handle semantic cache config
+            semantic_cache_data = data.get("semantic_cache", {})
+            semantic_cache_cfg = SemanticCacheConfig(**semantic_cache_data)
+
+            config = cls(
+                llm_extraction=llm_extraction, 
+                data_preprocessing=data_preprocessing_cfg, 
+                schema=schema, 
+                semantic_cache=semantic_cache_cfg,
+            )
             return config
         except Exception as e:
             raise ConfigurationError(f"Failed to load DELMConfig from dict: {e}", {"error": str(e)}) 

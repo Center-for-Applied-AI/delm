@@ -18,6 +18,7 @@ from delm.exceptions import ProcessingError, ValidationError, APIError
 from delm.utils.cost_tracker import CostTracker
 from delm.core.experiment_manager import BaseExperimentManager
 from delm.utils.type_checks import is_pydantic_model, is_regex_fallback_response
+from delm.utils.semantic_cache import SemanticCache, make_cache_key
 
 
 class ExtractionManager:
@@ -28,6 +29,7 @@ class ExtractionManager:
         model_config: LLMExtractionConfig, 
         schema_manager: 'SchemaManager', 
         cost_tracker: 'CostTracker',
+        semantic_cache: 'SemanticCache',
     ):
         self.model_config = model_config
         self.temperature = model_config.temperature
@@ -47,28 +49,7 @@ class ExtractionManager:
 
         self.track_cost = model_config.track_cost
         self.cost_tracker = cost_tracker
-    
-
-    # def process_and_parse(
-    #     self, 
-    #     text_chunks: List[str], 
-    #     record_ids: List[str],
-    #     record_id_column: str,
-    #     chunk_id_offset: int = 0,
-    #     batch_id: int = 0
-    # ) -> pd.DataFrame:
-    #     """Process text chunks and return structured DataFrame or Dataframe with JSON output."""
-    #     results = self.extract_from_text_chunks(text_chunks)
-    #     parsed_df = self.parse_results_dataframe(
-    #         results=results,
-    #         text_chunks=text_chunks,
-    #         record_ids=record_ids,
-    #         record_id_column=record_id_column,
-    #         chunk_id_offset=chunk_id_offset,
-    #         batch_id=batch_id,
-    #         output="exploded" if self.extract_to_dataframe else "json_string_column" # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
-    #     )
-    #     return parsed_df
+        self.semantic_cache = semantic_cache
     
     def extract_from_text_chunks(
         self, 
@@ -83,8 +64,6 @@ class ExtractionManager:
     def process_with_persistent_batching(
         self, 
         text_chunks: List[str], 
-        # record_ids: List[str],
-        # record_id_column: str,
         batch_size: int,
         experiment_manager: 'BaseExperimentManager',
         auto_checkpoint: bool = True,
@@ -154,8 +133,6 @@ class ExtractionManager:
                 batch_df = self.parse_results_dataframe(
                     results=results,
                     text_chunks=batch_chunks,
-                    # record_ids=record_ids,
-                    # record_id_column=record_id_column,
                     chunk_id_offset=chunk_id_offset,
                     batch_id=batch_id,
                     output="exploded" if self.extract_to_dataframe else "json_string_column" # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
@@ -212,34 +189,28 @@ class ExtractionManager:
                 {"regex_pattern": self.regex_fallback_pattern, "text_length": len(text_chunk)}
             )
     
-    def _instructor_extract(self, text_chunk: str) -> Dict[str, Any]:
+    def _instructor_extract(self, text_chunk: str) -> BaseModel:
         """Use Instructor + Pydantic schema for structured output."""
-        def _extract_with_schema():
-            # Use configurable schema if available, otherwise raise an error
-            if self.extraction_schema:
-                schema = self.extraction_schema.create_pydantic_schema()
-                prompt = self.extraction_schema.create_prompt(text_chunk)
-            else:
-                raise ProcessingError(
-                    "No extraction schema provided. You must specify a schema for extraction.",
-                    {"text_chunk": text_chunk[:100]}
-                )
+        schema = self.extraction_schema.create_pydantic_schema()
+        prompt = self.extraction_schema.create_prompt(text_chunk)
+        system_prompt = self.schema_manager.config.system_prompt
+        provider_and_model = self.model_config.get_provider_string()
 
-            system_prompt = self.schema_manager.config.system_prompt
+
+        def _extract_with_schema():
             if self.track_cost:
                 self.cost_tracker.track_input_text(system_prompt + "\n" + prompt)
             
-            
-            # Use the model name directly
             try:
                 response = self.client.chat.completions.create(
                     model=self.model_config.name,
                     temperature=self.temperature,
-                    response_model=schema,
+                    response_model=schema, # type: ignore TODO: is there a way to get rid of this type error?
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt},
                     ],
+                    # max_retries=0,
                 )
             except Exception as e:
                 raise APIError(
@@ -249,28 +220,43 @@ class ExtractionManager:
             if self.track_cost:
                 if is_pydantic_model(response):
                     self.cost_tracker.track_output_pydantic(response)
-                elif is_regex_fallback_response(response):
-                    self.cost_tracker.track_output_text(response.dict()) # type: ignore
-                else:
+                elif not is_regex_fallback_response(response):
                     raise ProcessingError(
                         f"Unsupported response type: {type(response)}",
                         {"response_type": type(response), "text_chunk": text_chunk[:100]}
                     )
             return response
         try:
-            return self.retry_handler.execute_with_retry(_extract_with_schema)
+
+            key = make_cache_key(
+                prompt_text=prompt,
+                system_prompt=system_prompt,
+                model_name=provider_and_model,
+                temperature=self.temperature,
+            )
+            cached = self.semantic_cache.get(key)
+            if cached:
+                loaded = json.loads(cached.decode("utf-8"))
+                pydantic_result = schema(**loaded)
+                if self.track_cost and self.cost_tracker.count_cache_hits_towards_cost:
+                    self.cost_tracker.track_input_text(system_prompt + "\n" + prompt)
+                    self.cost_tracker.track_output_pydantic(pydantic_result)
+                return pydantic_result
+            response = self.retry_handler.execute_with_retry(_extract_with_schema)
+            # Convert to dict to save to semantic cache
+            response_dict = response.model_dump(mode="json")
+            self.semantic_cache.set(key, json.dumps(response_dict).encode("utf-8"))
+            return response
         except Exception as e:
             raise ProcessingError(
                 f"Failed to extract data from text chunk: {e}",
                 {"text_length": len(text_chunk), "model_name": self.model_config.name}
-            ) from e
+            )
     
     def parse_results_dataframe(
         self,
         results: List[Dict[str, Any]],
         text_chunks: List[str],
-        # record_ids: List[str],
-        # record_id_column: str,
         chunk_id_offset: int = 0,
         batch_id: int = 0,
         output: str = "exploded"  # or "json_string_column"
@@ -285,16 +271,14 @@ class ExtractionManager:
         for idx, (result, text_chunk) in enumerate(zip(results, text_chunks)):
             chunk_id = chunk_id_offset + idx
             errors_json = json.dumps(result["errors"]) if result["errors"] else None
-            extracted_data = result["extracted_data"]
+            extracted_data: BaseModel | None = result["extracted_data"]
             if output == "exploded":
                 if extracted_data is None:
                     row_df = pd.DataFrame([{ 
-                        # record_id_column: record_ids[chunk_id],
                         SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                         SYSTEM_BATCH_ID_COLUMN: batch_id,
                         SYSTEM_CHUNK_COLUMN: text_chunk,
                         SYSTEM_ERRORS_COLUMN: errors_json
-                        # Other extracted variable columns will be added by outer join method
                     }])
                     data.append(row_df)
                 else:
