@@ -1,6 +1,6 @@
 import tiktoken
 import json
-from .model_price_database import get_model_token_price
+from delm.utils.model_price_database import get_model_token_price
 from typing import List, Any
 
 class CostTracker:
@@ -42,6 +42,17 @@ class CostTracker:
             input_tokens * self.model_input_cost_per_1M_tokens / 1_000_000
             + output_tokens * self.model_output_cost_per_1M_tokens / 1_000_000
         )
+
+    def get_cost_summary_dict(self) -> dict[str, Any]:
+        return {
+            "provider": self.provider,
+            "model": self.model,
+            "input_tokens": self.input_tokens,
+            "output_tokens": self.output_tokens,
+            "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,
+            "model_output_cost_per_1M_tokens": self.model_output_cost_per_1M_tokens,
+            "total_cost": self.get_current_cost(),
+        }
     
     def print_cost_summary(self) -> None:
         print("=" * 50)

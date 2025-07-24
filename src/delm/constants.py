@@ -18,7 +18,6 @@ DEFAULT_REGEX_FALLBACK_PATTERN = None # Default regex fallback pattern (None = n
 DEFAULT_TRACK_COST = True            # Default bool to track cost of API calls
 
 # Data Processing Defaults
-DEFAULT_RECORD_ID_COLUMN = "delm_record_id"      # Default record ID column in data
 DEFAULT_TARGET_COLUMN = "text"       # Default target column in data
 DEFAULT_DROP_TARGET_COLUMN = True    # Whether to drop target column after processing
 DEFAULT_PANDAS_SCORE_FILTER = None  # Default pandas score filter (None = no filter)
@@ -46,6 +45,7 @@ DEFAULT_SYSTEM_PROMPT = "You are a precise data‑extraction assistant."
 
 # System Constants (Internal - Not User Configurable)
 # TODO: Throw error if these are used in the data.
+SYSTEM_RECORD_ID_COLUMN = "delm_record_id"
 SYSTEM_CHUNK_COLUMN = "delm_text_chunk"   # Internal column name for text chunks
 SYSTEM_SCORE_COLUMN = "delm_score"        # Internal column name for relevance scores
 SYSTEM_CHUNK_ID_COLUMN = "delm_chunk_id"  # Internal column name for chunk IDs
@@ -54,6 +54,8 @@ SYSTEM_EXTRACTED_DATA_JSON_COLUMN = "delm_extracted_data_json" # For saving to d
 SYSTEM_BATCH_ID_COLUMN = "delm_batch_id"  # Internal column name for batch IDs
 SYSTEM_ERRORS_COLUMN = "delm_errors"
 SYSTEM_REGEX_EXTRACTED_KEY = "delm_regex_extracted_data"
+
+SYSTEM_RANDOM_SEED = 42
 
 DATA_DIR_NAME = "delm_data"
 
@@ -68,6 +70,8 @@ CONSOLIDATED_RESULT_PREFIX = "extraction_result_"
 CONSOLIDATED_RESULT_SUFFIX = ".feather"
 PREPROCESSED_DATA_PREFIX = "preprocessed_"
 PREPROCESSED_DATA_SUFFIX = ".feather"
+META_DATA_PREFIX = "meta_data_"
+META_DATA_SUFFIX = ".feather"
 
 # Config key for auto checkpointing
 DEFAULT_AUTO_CHECKPOINT_AND_RESUME = True 

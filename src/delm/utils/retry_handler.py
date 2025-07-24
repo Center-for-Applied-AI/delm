@@ -8,7 +8,7 @@ import time
 from typing import Any, Callable
 import traceback
 
-from ..exceptions import APIError
+from delm.exceptions import APIError
 
 
 class RetryHandler:

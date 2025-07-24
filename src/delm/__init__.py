@@ -3,7 +3,7 @@ DELM - Data Extraction Language Model
 A pipeline for extracting structured data from text using language models.
 """
 
-from .DELM import DELM
+from .delm import DELM
 from .config import DELMConfig, LLMExtractionConfig, DataPreprocessingConfig, SchemaConfig, ExperimentConfig, SplittingConfig, ScoringConfig
 from .exceptions import (
     DELMError, ConfigurationError, DataError, ProcessingError, SchemaError,
@@ -16,7 +16,7 @@ from .constants import (
     DEFAULT_SCHEMA_CONTAINER, DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
     DEFAULT_OVERWRITE_EXPERIMENT,
     # System constants
-    SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
+    SYSTEM_RECORD_ID_COLUMN, SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN, SYSTEM_RANDOM_SEED
 )
 
 __version__ = "0.2.0"
@@ -58,8 +58,10 @@ __all__ = [
     "DEFAULT_EXPERIMENT_DIR",
     "DEFAULT_OVERWRITE_EXPERIMENT",
     # System constants
+    "SYSTEM_RECORD_ID_COLUMN",
     "SYSTEM_CHUNK_COLUMN",
     "SYSTEM_SCORE_COLUMN", 
     "SYSTEM_CHUNK_ID_COLUMN",
-    "SYSTEM_EXTRACTED_DATA_JSON_COLUMN"
+    "SYSTEM_EXTRACTED_DATA_JSON_COLUMN",
+    "SYSTEM_RANDOM_SEED",  
 ] 

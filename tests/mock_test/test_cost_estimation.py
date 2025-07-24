@@ -1,6 +1,7 @@
 import pandas as pd
 from pathlib import Path
-from delm import DELM, DELMConfig
+from delm.config import DELMConfig
+from delm.utils.cost_estimation import estimate_input_token_cost, estimate_total_cost
 import numpy as np
 from datetime import datetime, timedelta
 import json
@@ -66,16 +67,18 @@ def main():
     configs = [config, config2]
 
     # Heuristic estimation
-    results_heuristic = DELM.estimate_cost_batch(configs, mock_data(), use_api_calls=False, sample_size=5)
+    results_heuristic = [
+        estimate_input_token_cost(config, mock_data()),
+        estimate_input_token_cost(config2, mock_data())
+    ]
     print("Heuristic cost estimation results:")
     for res in results_heuristic:
         print(json.dumps(res, indent=2, default=str))
 
     # API estimation (just for the default config)
-    results_api = DELM.estimate_cost_batch([config], mock_data(), use_api_calls=True, sample_size=5)
+    res = estimate_total_cost(config, mock_data(), sample_size=3)
     print("API cost estimation result:")
-    for res in results_api:
-        print(json.dumps(res, indent=2, default=str))
+    print(json.dumps(res, indent=2, default=str))
 
 if __name__ == "__main__":
     main() 

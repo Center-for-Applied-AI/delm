@@ -2,6 +2,7 @@ import pandas as pd
 import json
 from pathlib import Path
 from delm import DELM, DELMConfig
+from delm.utils.performance_estimation import estimate_performance
 from pprint import pprint
 
 print(f"="*60)
@@ -21,7 +22,7 @@ human_labeled_output_df = pd.read_stata("tests/human_labeled_data/KIRILL_priceex
 human_labeled_output_df["report"] = human_labeled_output_df["report"].astype(int) # type: ignore
 
 # Add expected_json as a dict, not a string
-human_labeled_output_df["expected_dict"] = human_labeled_output_df.apply(lambda row: {
+human_labeled_output_df["expected_dict"] = human_labeled_output_df.apply(lambda row: { # type: ignore
     "horizon": row["horizon"],
     "good_subtype": row["good_subtype"],
     "price": row["price"],
@@ -33,11 +34,13 @@ human_labeled_output_df["expected_dict"] = human_labeled_output_df.apply(lambda 
 }, axis=1)
 
 config = DELMConfig.from_any("tests/human_labeled_data/config.yaml")
-performance_metrics_dict, processed_df = DELM.estimate_performance(
+performance_metrics_dict, processed_df = estimate_performance(
     config=config,
     data_source=human_labeled_input_df,
-    expected_extraction_output=human_labeled_output_df,
-    true_json_column="expected_dict"
+    expected_extraction_output_df=human_labeled_output_df, # type: ignore
+    true_json_column="expected_dict",
+    matching_id_column="record_id",
+    record_sample_size=5
 )
 
 print(f"-"*40)

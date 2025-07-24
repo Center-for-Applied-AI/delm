@@ -2,7 +2,8 @@ import os
 import pandas as pd
 import yaml
 from pprint import pprint
-from delm import DELM, DELMConfig
+from delm import DELMConfig
+from delm.utils.performance_estimation import estimate_performance
 
 DIR = "tests/performance_estimation_test"
 
@@ -19,6 +20,8 @@ EXPECTED_FILES = [
     "expected_deeply_nested_multiple.csv"
 ]
 
+MATCHING_ID_COLUMN = "record_id"
+
 # Show all columns
 pd.set_option('display.max_columns', None)
 # Show all rows
@@ -30,8 +33,13 @@ pd.set_option('display.width', None)
 
 def run_performance_test(schema_file, expected_file):
     print("="*60)
-    print(f"Performance Estimation Test for Schema: {schema_file}")
-    print("="*60)
+    print("Performance Estimation Test: Paragraph Splitting & Keyword Scoring")
+    print("Components Tested:")
+    print("- DELM with RegexSplit (sentence splitting) and KeywordScorer")
+    print("Expected Outputs:")
+    print("- Per-sentence extraction results, merged per record")
+    print(f"="*60)
+    print("\n")
     # Load config and update schema path
     with open(os.path.join(DIR, "config.yaml")) as f:
         config = yaml.safe_load(f)
@@ -43,12 +51,13 @@ def run_performance_test(schema_file, expected_file):
     # Convert expected_dict from string to dict
     expected_df["expected_dict"] = expected_df["expected_dict"].apply(eval)
     # Run performance estimation
-    metrics, merged_df = DELM.estimate_performance(
+    metrics, merged_df = estimate_performance(
         config_obj,
         input_df,
         expected_df,
         true_json_column="expected_dict",
-        record_sample_size=10
+        matching_id_column=MATCHING_ID_COLUMN,
+        record_sample_size=5
     )
     print("-"*40)
     print("Performance Metrics (Precision and Recall Only)")

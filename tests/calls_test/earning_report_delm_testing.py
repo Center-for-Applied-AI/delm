@@ -76,7 +76,8 @@ delm = DELM(
     experiment_name="earning_report_test",
     experiment_directory=Path("./test_experiments"),
     overwrite_experiment=False,
-    auto_checkpoint_and_resume_experiment=True
+    auto_checkpoint_and_resume_experiment=True,
+    use_disk_storage=True,
 )
 delm.prep_data(report_text_df.iloc[:3])
 delm.process_via_llm()
@@ -85,7 +86,10 @@ print(f"-"*40)
 print("Data finished processing")
 print(f"-"*40)
 
-result_df = pd.read_feather(delm.experiment_manager.experiment_dir / DATA_DIR_NAME / f"{CONSOLIDATED_RESULT_PREFIX}{delm.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}")
+result_df = delm.get_extraction_results()
+
+cost_summary = delm.get_cost_summary()
+print(json.dumps(cost_summary, indent=2))
 
 # The output is JSON by default - let's show how to work with it
 print("="*60)

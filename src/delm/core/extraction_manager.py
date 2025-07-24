@@ -10,14 +10,14 @@ import pandas as pd
 import instructor
 from pydantic import BaseModel, Field
 
-from ..schemas import SchemaManager
-from ..utils import RetryHandler, ConcurrentProcessor
-from ..config import LLMExtractionConfig
-from ..constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN, SYSTEM_REGEX_EXTRACTED_KEY, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
-from ..exceptions import ProcessingError, ValidationError, APIError
-from ..utils.cost_tracker import CostTracker
-from .experiment_manager import ExperimentManager
-from ..utils.type_checks import is_pydantic_model, is_regex_fallback_response
+from delm.schemas import SchemaManager
+from delm.utils import RetryHandler, ConcurrentProcessor
+from delm.config import LLMExtractionConfig
+from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN, SYSTEM_REGEX_EXTRACTED_KEY, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
+from delm.exceptions import ProcessingError, ValidationError, APIError
+from delm.utils.cost_tracker import CostTracker
+from delm.core.experiment_manager import BaseExperimentManager
+from delm.utils.type_checks import is_pydantic_model, is_regex_fallback_response
 
 
 class ExtractionManager:
@@ -49,26 +49,26 @@ class ExtractionManager:
         self.cost_tracker = cost_tracker
     
 
-    def process_and_parse(
-        self, 
-        text_chunks: List[str], 
-        record_ids: List[str],
-        record_id_column: str,
-        chunk_id_offset: int = 0,
-        batch_id: int = 0
-    ) -> pd.DataFrame:
-        """Process text chunks and return structured DataFrame or Dataframe with JSON output."""
-        results = self.extract_from_text_chunks(text_chunks)
-        parsed_df = self.parse_results_dataframe(
-            results=results,
-            text_chunks=text_chunks,
-            record_ids=record_ids,
-            record_id_column=record_id_column,
-            chunk_id_offset=chunk_id_offset,
-            batch_id=batch_id,
-            output="exploded" if self.extract_to_dataframe else "json_string_column" # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
-        )
-        return parsed_df
+    # def process_and_parse(
+    #     self, 
+    #     text_chunks: List[str], 
+    #     record_ids: List[str],
+    #     record_id_column: str,
+    #     chunk_id_offset: int = 0,
+    #     batch_id: int = 0
+    # ) -> pd.DataFrame:
+    #     """Process text chunks and return structured DataFrame or Dataframe with JSON output."""
+    #     results = self.extract_from_text_chunks(text_chunks)
+    #     parsed_df = self.parse_results_dataframe(
+    #         results=results,
+    #         text_chunks=text_chunks,
+    #         record_ids=record_ids,
+    #         record_id_column=record_id_column,
+    #         chunk_id_offset=chunk_id_offset,
+    #         batch_id=batch_id,
+    #         output="exploded" if self.extract_to_dataframe else "json_string_column" # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
+    #     )
+    #     return parsed_df
     
     def extract_from_text_chunks(
         self, 
@@ -83,10 +83,10 @@ class ExtractionManager:
     def process_with_persistent_batching(
         self, 
         text_chunks: List[str], 
-        record_ids: List[str],
-        record_id_column: str,
+        # record_ids: List[str],
+        # record_id_column: str,
         batch_size: int,
-        experiment_manager: 'ExperimentManager',
+        experiment_manager: 'BaseExperimentManager',
         auto_checkpoint: bool = True,
     ) -> pd.DataFrame:
         """
@@ -98,7 +98,7 @@ class ExtractionManager:
         - Saving batch checkpoints for resuming
         - Consolidating results into final DataFrame
         """
-        from ..constants import BATCH_FILE_DIGITS
+        from ..constants import BATCH_FILE_DIGITS, SYSTEM_CHUNK_ID_COLUMN
         from tqdm.auto import tqdm
         import os
 
@@ -146,6 +146,7 @@ class ExtractionManager:
                 start = batch_id * batch_size
                 end = min((batch_id + 1) * batch_size, total_chunks)
                 batch_chunks = text_chunks[start:end]
+                # Chunk id is the start index
                 if not batch_chunks:
                     continue
                 chunk_id_offset = start
@@ -153,8 +154,8 @@ class ExtractionManager:
                 batch_df = self.parse_results_dataframe(
                     results=results,
                     text_chunks=batch_chunks,
-                    record_ids=record_ids,
-                    record_id_column=record_id_column,
+                    # record_ids=record_ids,
+                    # record_id_column=record_id_column,
                     chunk_id_offset=chunk_id_offset,
                     batch_id=batch_id,
                     output="exploded" if self.extract_to_dataframe else "json_string_column" # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
@@ -268,8 +269,8 @@ class ExtractionManager:
         self,
         results: List[Dict[str, Any]],
         text_chunks: List[str],
-        record_ids: List[str],
-        record_id_column: str,
+        # record_ids: List[str],
+        # record_id_column: str,
         chunk_id_offset: int = 0,
         batch_id: int = 0,
         output: str = "exploded"  # or "json_string_column"
@@ -288,7 +289,7 @@ class ExtractionManager:
             if output == "exploded":
                 if extracted_data is None:
                     row_df = pd.DataFrame([{ 
-                        record_id_column: record_ids[chunk_id],
+                        # record_id_column: record_ids[chunk_id],
                         SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                         SYSTEM_BATCH_ID_COLUMN: batch_id,
                         SYSTEM_CHUNK_COLUMN: text_chunk,
@@ -299,7 +300,6 @@ class ExtractionManager:
                 else:
                     parsed_df = self._parse_single_result_to_exploded_dataframe(extracted_data, text_chunk)
                     if not parsed_df.empty:
-                        parsed_df[record_id_column] = record_ids[chunk_id]
                         parsed_df[SYSTEM_CHUNK_ID_COLUMN] = chunk_id
                         parsed_df[SYSTEM_BATCH_ID_COLUMN] = batch_id
                         parsed_df[SYSTEM_CHUNK_COLUMN] = text_chunk
@@ -307,8 +307,7 @@ class ExtractionManager:
                         data.append(parsed_df)
             elif output == "json_string_column":
                 if extracted_data is None:
-                    row_df = pd.DataFrame([{ 
-                        record_id_column: record_ids[chunk_id],
+                    row_df = pd.DataFrame([{
                         SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                         SYSTEM_BATCH_ID_COLUMN: batch_id,
                         SYSTEM_CHUNK_COLUMN: text_chunk,
@@ -319,7 +318,6 @@ class ExtractionManager:
                 else:
                     extracted_data_dict = self._parse_single_result_to_dict(extracted_data, text_chunk)
                     row = {
-                        record_id_column: record_ids[chunk_id],
                         SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                         SYSTEM_BATCH_ID_COLUMN: batch_id,
                         SYSTEM_CHUNK_COLUMN: text_chunk,

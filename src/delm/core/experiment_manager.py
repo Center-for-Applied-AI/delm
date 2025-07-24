@@ -1,23 +1,87 @@
 """
-DELM Experiment Manager
-======================
-Handles experiment directories and file I/O.
+DELM Experiment Managers
+=======================
+Defines the interface for experiment managers and provides disk-based and in-memory implementations.
+
+- DiskExperimentManager: Handles experiment directories, file I/O, checkpointing, and state management on disk.
+- InMemoryExperimentManager: Stores all data in memory. Any disk-specific config (e.g., overwrite_experiment, checkpointing) is not supported and will raise an error if used.
 """
 
-import datetime
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, List
 import pandas as pd
 import json
-import hashlib
+from abc import ABC, abstractmethod
 
-from ..config import ExperimentConfig
-from ..constants import DATA_DIR_NAME, CACHE_DIR_NAME, PROCESSING_CACHE_DIR_NAME, BATCH_FILE_PREFIX, BATCH_FILE_SUFFIX, BATCH_FILE_DIGITS, STATE_FILE_NAME, CONSOLIDATED_RESULT_PREFIX, CONSOLIDATED_RESULT_SUFFIX, PREPROCESSED_DATA_PREFIX, PREPROCESSED_DATA_SUFFIX, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
-from ..exceptions import ExperimentError, FileError
+from delm.constants import (
+    DATA_DIR_NAME, 
+    CACHE_DIR_NAME, 
+    PROCESSING_CACHE_DIR_NAME, 
+    BATCH_FILE_PREFIX, 
+    BATCH_FILE_SUFFIX, 
+    BATCH_FILE_DIGITS, 
+    STATE_FILE_NAME, 
+    CONSOLIDATED_RESULT_PREFIX, 
+    CONSOLIDATED_RESULT_SUFFIX,
+    PREPROCESSED_DATA_PREFIX, 
+    PREPROCESSED_DATA_SUFFIX, 
+)
+from delm.exceptions import ExperimentError, FileError
 
-class ExperimentManager:
-    """Handles experiment directories, config/schema validation, batch checkpointing, and state management."""
+class BaseExperimentManager(ABC):
+    """Abstract base class for DELM experiment managers."""
+    @abstractmethod
+    def get_results(self) -> pd.DataFrame:
+        pass
+    @abstractmethod
+    def initialize_experiment(self, config_dict: dict, schema_dict: dict):
+        pass
+    @abstractmethod
+    def save_preprocessed_data(self, df: pd.DataFrame) -> Path:
+        pass
+    @abstractmethod
+    def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
+        pass
+    @abstractmethod
+    def save_batch_checkpoint(self, batch_df: pd.DataFrame, batch_id: int) -> Path:
+        pass
+    @abstractmethod
+    def list_batch_checkpoints(self) -> List[Path]:
+        pass
+    @abstractmethod
+    def load_batch_checkpoint(self, batch_path: Path) -> pd.DataFrame:
+        pass
+    @abstractmethod
+    def load_batch_checkpoint_by_id(self, batch_id: int) -> pd.DataFrame:
+        pass
+    @abstractmethod
+    def consolidate_batches(self) -> pd.DataFrame:
+        pass
+    @abstractmethod
+    def cleanup_batch_checkpoints(self):
+        pass
+    @abstractmethod
+    def get_all_batch_ids(self) -> set:
+        pass
+    @abstractmethod
+    def get_batch_checkpoint_path(self, batch_id: int) -> Path:
+        pass
+    @abstractmethod
+    def delete_batch_checkpoint(self, batch_id: int) -> bool:
+        pass
+    @abstractmethod
+    def save_state(self, cost_tracker: Any):
+        pass
+    @abstractmethod
+    def load_state(self):
+        pass
+    @abstractmethod
+    def save_extracted_data(self, df: pd.DataFrame) -> Path:
+        pass
+
+class DiskExperimentManager(BaseExperimentManager):
+    """Handles experiment directories, config/schema validation, batch checkpointing, and state management (disk-based)."""
 
     def __init__(self, experiment_name: str, experiment_directory: Path, overwrite_experiment: bool = False, auto_checkpoint_and_resume_experiment: bool = True):
         self.experiment_name = experiment_name
@@ -269,3 +333,94 @@ class ExperimentManager:
     def _get_experiment_dir(self) -> Path:
         """Return the experiment directory path (does not create it)."""
         return self.experiment_directory / self.experiment_name 
+
+class InMemoryExperimentManager(BaseExperimentManager):
+    """Stores all experiment data in memory. Disk-specific features are not supported."""
+    def __init__(self, experiment_name: str, **kwargs):
+        if kwargs.get('overwrite_experiment', False):
+            raise ValueError("overwrite_experiment is not supported for InMemoryExperimentManager.")
+        if kwargs.get('auto_checkpoint_and_resume_experiment', False):
+            raise ValueError("auto_checkpoint_and_resume_experiment is not supported for InMemoryExperimentManager.")
+        self.experiment_name = experiment_name
+        self._preprocessed_data = None
+        self._batches = {}  # batch_id -> DataFrame
+        self._state = None
+        self._extracted_data = None
+        self._config_dict = None
+        self._schema_dict = None
+
+    def get_results(self) -> pd.DataFrame:
+        if self._extracted_data is None:
+            raise ValueError("No extracted data available in memory.")
+        return self._extracted_data
+
+    def initialize_experiment(self, config_dict: dict, schema_dict: dict):
+        self._config_dict = config_dict
+        self._schema_dict = schema_dict
+
+    def save_preprocessed_data(self, df: pd.DataFrame) -> str:
+        self._preprocessed_data = df.copy()
+        return "in-memory"
+
+    def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
+        if file_path is not None:
+            raise NotImplementedError("Loading preprocessed data from a file path is not supported for InMemoryExperimentManager.")
+        if self._preprocessed_data is None:
+            raise ValueError("No preprocessed data available in memory.")
+        return self._preprocessed_data.copy()
+
+    def save_batch_checkpoint(self, batch_df: pd.DataFrame, batch_id: int) -> str:
+        """Save a batch checkpoint in memory."""
+        self._batches[batch_id] = batch_df.copy()
+        return f"in-memory-batch-{batch_id}"
+
+    def list_batch_checkpoints(self) -> list:
+        """List all batch checkpoint IDs in memory."""
+        return sorted(self._batches.keys())
+
+    def load_batch_checkpoint(self, batch_path: str) -> pd.DataFrame:
+        """Load a batch checkpoint by a string path (expects 'in-memory-batch-{id}')."""
+        try:
+            batch_id = int(batch_path.split('-')[-1])
+            return self.load_batch_checkpoint_by_id(batch_id)
+        except Exception:
+            raise ValueError(f"Invalid batch_path for in-memory manager: {batch_path}")
+
+    def load_batch_checkpoint_by_id(self, batch_id: int) -> pd.DataFrame:
+        """Load a batch checkpoint by batch ID."""
+        if batch_id not in self._batches:
+            raise ValueError(f"No batch checkpoint with id {batch_id} in memory.")
+        return self._batches[batch_id].copy()
+
+    def consolidate_batches(self) -> pd.DataFrame:
+        """Concatenate all batch DataFrames in memory."""
+        if not self._batches:
+            raise ValueError("No batch checkpoints in memory to consolidate.")
+        dfs = [self._batches[bid] for bid in sorted(self._batches.keys())]
+        return pd.concat(dfs, ignore_index=True)
+
+    def cleanup_batch_checkpoints(self):
+        """Remove all batch checkpoints from memory."""
+        self._batches.clear()
+
+    def get_all_batch_ids(self) -> set:
+        return set(self._batches.keys())
+
+    def get_batch_checkpoint_path(self, batch_id: int) -> str:
+        return f"in-memory-batch-{batch_id}"
+
+    def delete_batch_checkpoint(self, batch_id: int) -> bool:
+        if batch_id in self._batches:
+            del self._batches[batch_id]
+            return True
+        return False
+
+    def save_state(self, cost_tracker: Any):
+        self._state = cost_tracker
+
+    def load_state(self):
+        return self._state
+
+    def save_extracted_data(self, df: pd.DataFrame) -> str:
+        self._extracted_data = df.copy()
+        return "in-memory" 

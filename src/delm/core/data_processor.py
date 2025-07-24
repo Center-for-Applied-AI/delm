@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Union
 import pandas as pd
 
-from ..strategies import loader_factory
-from ..config import DataPreprocessingConfig
-from ..constants import (
+from delm.strategies import loader_factory
+from delm.config import DataPreprocessingConfig
+from delm.constants import (
     SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN,
-    DEFAULT_TARGET_COLUMN
+    DEFAULT_TARGET_COLUMN, SYSTEM_RECORD_ID_COLUMN
 )
 from ..exceptions import DataError, ValidationError
 
@@ -87,7 +87,7 @@ class DataProcessor:
                     {"data_type": "DataFrame", "suggestion": "Specify target_column in config"}
                 )
             df = data_source.copy()
-        
+        df[SYSTEM_RECORD_ID_COLUMN] = range(len(df))
         return df
     
     def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -103,9 +103,6 @@ class DataProcessor:
                     "suggestion": "Either specify a splitting strategy or set drop_target_column=False"
                 }
             )
-            
-        # Save count of original records
-        self.total_records = len(df)
 
         # 1. Chunk the data (or use target column if no splitting)
         if self.splitter is not None:

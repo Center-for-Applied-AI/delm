@@ -6,10 +6,6 @@ Asynchronous concurrent processing utilities for handling I/O-bound operations.
 
 import asyncio
 from typing import Any, Callable, List
-from tqdm.auto import tqdm
-
-from ..exceptions import ProcessingError
-
 
 class ConcurrentProcessor:
     """
@@ -44,6 +40,7 @@ class ConcurrentProcessor:
                 results.append(result)
             except Exception as e:
                 # Log error but continue processing other items
+                # TODO: How should we handle errors here?
                 print(f"Error processing item: {e}")
                 results.append(None)
         return results
@@ -68,6 +65,7 @@ class ConcurrentProcessor:
                     return result
                 except Exception as e:
                     # Log error but continue processing other items
+                    # TODO: How should we handle errors here?
                     print(f"Error processing item {index}: {e}")
                     results[index] = None
                     return None

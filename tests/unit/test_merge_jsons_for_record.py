@@ -1,4 +1,4 @@
-from delm.utils.json_match_tree import merge_jsons_for_record
+from delm.utils.json_merge import merge_jsons_for_record
 from delm.schemas.schemas import NestedSchema, SimpleSchema, MultipleSchema
 
 source_simple_schema_config = {

@@ -16,9 +16,11 @@ data_preprocessing:
   target_column: text
   drop_target_column: false
   splitting:
-    type: None
+    type: RegexSplit
+    pattern: "(?<=[.!?])\\s+"
   scoring:
-    type: None
+    type: KeywordScorer
+    keywords: ["sale", "copies", "author", "price", "book", "title"]
 
 schema:
   spec_path: simple_schema.yaml  # This will be updated in the test for each schema
