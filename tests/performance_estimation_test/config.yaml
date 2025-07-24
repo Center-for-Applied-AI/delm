@@ -7,7 +7,6 @@ llm_extraction:
   max_workers: 1
   base_delay: 0.1
   dotenv_path: .env
-  regex_fallback_pattern: null
   extract_to_dataframe: false
   track_cost: false
 

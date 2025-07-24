@@ -13,11 +13,11 @@ from pydantic import BaseModel, Field
 from delm.schemas import SchemaManager
 from delm.utils import RetryHandler, ConcurrentProcessor
 from delm.config import LLMExtractionConfig
-from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN, SYSTEM_REGEX_EXTRACTED_KEY, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
+from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
 from delm.exceptions import ProcessingError, ValidationError, APIError
 from delm.utils.cost_tracker import CostTracker
 from delm.core.experiment_manager import BaseExperimentManager
-from delm.utils.type_checks import is_pydantic_model, is_regex_fallback_response
+from delm.utils.type_checks import is_pydantic_model
 from delm.utils.semantic_cache import SemanticCache, make_cache_key
 
 
@@ -33,7 +33,6 @@ class ExtractionManager:
     ):
         self.model_config = model_config
         self.temperature = model_config.temperature
-        self.regex_fallback_pattern = model_config.regex_fallback_pattern
         self.extract_to_dataframe = model_config.extract_to_dataframe
         
         # Use Instructor's universal provider interface
@@ -161,33 +160,12 @@ class ExtractionManager:
         self, 
         text_chunk: str, 
     ) -> Dict[str, Any]:
-        """Extract data from a single text chunk with optional regex fallback."""
+        """Extract data from a single text chunk."""
         try:
             result = self._instructor_extract(text_chunk)
             return {"extracted_data": result, "errors": []}
         except Exception as llm_error:
-            if not self.regex_fallback_pattern:
-                return {"extracted_data": None, "errors": [str(llm_error)]}
-            try:
-                regex_result = self._regex_extract(text_chunk)
-                return {"extracted_data": regex_result, "errors": [str(llm_error)]}
-            except Exception as regex_error:
-                return {"extracted_data": None, "errors": [str(llm_error), str(regex_error)]}
-    
-    def _regex_extract(self, text_chunk: str) -> Dict[str, List[str]]:
-        """Extract data using the user-provided regex pattern."""
-        if not self.regex_fallback_pattern:
-            return {}
-        
-        try:
-            pattern = re.compile(self.regex_fallback_pattern)
-            matches = pattern.findall(text_chunk)
-            return {SYSTEM_REGEX_EXTRACTED_KEY: matches}
-        except re.error as e:
-            raise ValidationError(
-                f"Invalid regex pattern '{self.regex_fallback_pattern}': {e}",
-                {"regex_pattern": self.regex_fallback_pattern, "text_length": len(text_chunk)}
-            )
+            return {"extracted_data": None, "errors": str(llm_error)}
     
     def _instructor_extract(self, text_chunk: str) -> BaseModel:
         """Use Instructor + Pydantic schema for structured output."""
@@ -217,14 +195,13 @@ class ExtractionManager:
                     f"Failed to extract data from text chunk with Instructor: {e}",
                     {"text_length": len(text_chunk), "model_name": self.model_config.name}
                 ) from e
+            if not is_pydantic_model(response):
+                raise ProcessingError(
+                    f"Unsupported response type: {type(response)}",
+                    {"response_type": type(response), "text_chunk": text_chunk[:10]}
+                )
             if self.track_cost:
-                if is_pydantic_model(response):
-                    self.cost_tracker.track_output_pydantic(response)
-                elif not is_regex_fallback_response(response):
-                    raise ProcessingError(
-                        f"Unsupported response type: {type(response)}",
-                        {"response_type": type(response), "text_chunk": text_chunk[:100]}
-                    )
+                self.cost_tracker.track_output_pydantic(response)
             return response
         try:
 
@@ -282,7 +259,7 @@ class ExtractionManager:
                     }])
                     data.append(row_df)
                 else:
-                    parsed_df = self._parse_single_result_to_exploded_dataframe(extracted_data, text_chunk)
+                    parsed_df = self.extraction_schema.validate_and_parse_response_to_exploded_dataframe(extracted_data, text_chunk)
                     if not parsed_df.empty:
                         parsed_df[SYSTEM_CHUNK_ID_COLUMN] = chunk_id
                         parsed_df[SYSTEM_BATCH_ID_COLUMN] = batch_id
@@ -300,7 +277,7 @@ class ExtractionManager:
                     }])
                     data.append(row_df)
                 else:
-                    extracted_data_dict = self._parse_single_result_to_dict(extracted_data, text_chunk)
+                    extracted_data_dict = self.extraction_schema.validate_and_parse_response_to_dict(extracted_data, str(text_chunk))
                     row = {
                         SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                         SYSTEM_BATCH_ID_COLUMN: batch_id,
@@ -313,26 +290,3 @@ class ExtractionManager:
                 raise ValueError(f"Unknown output type: {output}")
         # Outer join to preserve all columns
         return pd.concat(data, ignore_index=True, join="outer") if data else pd.DataFrame()
-    
-    def _parse_single_result_to_exploded_dataframe(self, result: Any, text_chunk: str) -> pd.DataFrame:
-        """Parse a single LLM or regex response using schema's validate_and_parse_response_to_dataframe."""
-        if is_regex_fallback_response(result):
-            return pd.DataFrame([result])
-        if is_pydantic_model(result):
-            return self.extraction_schema.validate_and_parse_response_to_exploded_dataframe(result, str(text_chunk))
-        raise ProcessingError(
-            f"Unsupported result type in _parse_single_result: {type(result)}",
-            {"response_type": type(result), "text_chunk": text_chunk[:100]}
-        )
-
-    def _parse_single_result_to_dict(self, result: Any, text_chunk: str) -> dict:
-        """Parse a single LLM or regex response using schema's validate_and_parse_response_to_json."""
-        if is_regex_fallback_response(result):
-            return result
-        if is_pydantic_model(result):
-            return self.extraction_schema.validate_and_parse_response_to_dict(result, str(text_chunk))
-        raise ProcessingError(
-            f"Unsupported result type in _parse_single_result: {type(result)}",
-            {"response_type": type(result), "text_chunk": text_chunk[:100]}
-        )
- 

@@ -4,8 +4,7 @@ llm_extraction:
   max_retries: 3
   batch_size: 1
   max_workers: 1
-  dotenv_path: null
-  regex_fallback_pattern: null
+  dotenv_path: .env
 
 data_preprocessing:
   target_column: text
@@ -30,6 +29,3 @@ schema:
   spec_path: tests/temperature_comparison_test/schema_spec.yaml
   container_name: commodities
   prompt_template: null
-
-experiment:
-  name: temp_0.0 

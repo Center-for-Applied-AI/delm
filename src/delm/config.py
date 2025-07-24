@@ -8,7 +8,7 @@ from delm.strategies import RelevanceScorer, KeywordScorer, FuzzyScorer
 from delm.strategies import SplitStrategy, ParagraphSplit, FixedWindowSplit, RegexSplit
 from delm.constants import (
     DEFAULT_MODEL_NAME, DEFAULT_PROVIDER, DEFAULT_TEMPERATURE, DEFAULT_MAX_RETRIES, DEFAULT_BATCH_SIZE,
-    DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH, DEFAULT_REGEX_FALLBACK_PATTERN,
+    DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH,
     DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
     DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER,
@@ -80,7 +80,6 @@ class LLMExtractionConfig:
     max_workers: int = DEFAULT_MAX_WORKERS
     base_delay: float = DEFAULT_BASE_DELAY
     dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
-    regex_fallback_pattern: Optional[str] = DEFAULT_REGEX_FALLBACK_PATTERN
     extract_to_dataframe: bool = DEFAULT_EXTRACT_TO_DATAFRAME
     track_cost: bool = DEFAULT_TRACK_COST
 
@@ -128,11 +127,6 @@ class LLMExtractionConfig:
             raise ConfigurationError(
                 f"dotenv_path does not exist: {self.dotenv_path}",
                 {"dotenv_path": str(self.dotenv_path), "suggestion": "Check the file path or create the .env file"}
-            )
-        if self.regex_fallback_pattern is not None and not isinstance(self.regex_fallback_pattern, str):
-            raise ConfigurationError(
-                "regex_fallback_pattern must be a string or None.",
-                {"regex_fallback_pattern": self.regex_fallback_pattern, "suggestion": "Provide a valid regex pattern or None"}
             )
         if not isinstance(self.extract_to_dataframe, bool):
             raise ConfigurationError(
@@ -420,7 +414,6 @@ class DELMConfig:
                 "max_workers": self.llm_extraction.max_workers,
                 "base_delay": self.llm_extraction.base_delay,
                 "dotenv_path": str(self.llm_extraction.dotenv_path) if self.llm_extraction.dotenv_path else None,
-                "regex_fallback_pattern": self.llm_extraction.regex_fallback_pattern,
                 "extract_to_dataframe": self.llm_extraction.extract_to_dataframe,
                 "track_cost": self.llm_extraction.track_cost,
             },
@@ -505,7 +498,12 @@ class DELMConfig:
 
             # Handle semantic cache config
             semantic_cache_data = data.get("semantic_cache", {})
-            semantic_cache_cfg = SemanticCacheConfig(**semantic_cache_data)
+            semantic_cache_cfg = SemanticCacheConfig(
+                backend=semantic_cache_data.get("backend", DEFAULT_SEMANTIC_CACHE_BACKEND),
+                path=semantic_cache_data.get("path", DEFAULT_SEMANTIC_CACHE_PATH),
+                max_size_mb=semantic_cache_data.get("max_size_mb", DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB),
+                synchronous=semantic_cache_data.get("synchronous", DEFAULT_SEMANTIC_CACHE_SYNCHRONOUS),
+            )
 
             config = cls(
                 llm_extraction=llm_extraction, 
