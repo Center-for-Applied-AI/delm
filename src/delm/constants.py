@@ -40,6 +40,13 @@ DEFAULT_OVERWRITE_EXPERIMENT = False # Whether to overwrite existing experiments
 # Extraction Defaults
 DEFAULT_EXTRACT_TO_DATAFRAME = False  # Whether to extract JSON to DataFrame by default
 
+# Semantic Cache Defaults
+DEFAULT_SEMANTIC_CACHE_BACKEND      = "sqlite"          # "sqlite" | "lmdb" | "filesystem"
+DEFAULT_SEMANTIC_CACHE_PATH         = ".delm_cache"     # relative or absolute path
+DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB  = 512               # disk cap before prune()
+DEFAULT_SEMANTIC_CACHE_SYNCHRONOUS  = "normal"          # sqlite only: "normal" | "full"
+
+
 # System Prompt Default
 DEFAULT_SYSTEM_PROMPT = "You are a precise data‑extraction assistant."
 

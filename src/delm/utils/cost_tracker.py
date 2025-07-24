@@ -8,6 +8,7 @@ class CostTracker:
         self, 
         provider: str,
         model: str,
+        count_cache_hits_towards_cost: bool = False,
         # TODO: Let user specify input/output cost per 1M tokens
         # model_input_cost_per_1M_tokens: float,
         # model_output_cost_per_1M_tokens: float,
@@ -20,6 +21,7 @@ class CostTracker:
         self.model_input_cost_per_1M_tokens, self.model_output_cost_per_1M_tokens = get_model_token_price(provider, model)
         self.input_tokens = 0
         self.output_tokens = 0
+        self.count_cache_hits_towards_cost = count_cache_hits_towards_cost
     
     def track_input_text(self, text: str):
         self.input_tokens += self.count_tokens(text)
