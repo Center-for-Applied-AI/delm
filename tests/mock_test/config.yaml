@@ -10,8 +10,6 @@ llm_extraction:
   max_workers: 1
   max_retries: 2
   dotenv_path: ".env"
-  extract_to_dataframe: false
-  track_cost: true
 
 data_preprocessing:
   target_column: text

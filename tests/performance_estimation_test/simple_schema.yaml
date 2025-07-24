@@ -1,0 +1,10 @@
+schema_type: simple
+variables:
+  - name: author
+    description: Main author of the book
+    data_type: string
+    required: true
+  - name: book_title
+    description: Title of the book
+    data_type: string
+    required: true 

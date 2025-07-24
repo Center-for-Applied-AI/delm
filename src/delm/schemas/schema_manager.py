@@ -36,7 +36,7 @@ class SchemaManager:
     
     @staticmethod
     def _load_schema_spec(path: Path) -> Dict[str, Any]:
-        """Load schema specification from YAML or JSON file."""
+        """Load schema specification from YAML or JSON file as a dict."""
         import yaml
         import json
         

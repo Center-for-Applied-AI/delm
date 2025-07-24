@@ -8,11 +8,11 @@ from pathlib import Path
 from typing import Union
 import pandas as pd
 
-from ..strategies import loader_factory
-from ..config import DataPreprocessingConfig
-from ..constants import (
+from delm.strategies import loader_factory
+from delm.config import DataPreprocessingConfig
+from delm.constants import (
     SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN,
-    DEFAULT_TARGET_COLUMN
+    DEFAULT_TARGET_COLUMN, SYSTEM_RECORD_ID_COLUMN
 )
 from ..exceptions import DataError, ValidationError
 
@@ -24,7 +24,7 @@ class DataProcessor:
         self.config = config
         self.splitter = config.splitting.strategy
         self.scorer = config.scoring.scorer
-
+        self.total_records = 0
         self.target_column = config.target_column
         if not self.target_column:
             self.target_column = DEFAULT_TARGET_COLUMN
@@ -33,12 +33,13 @@ class DataProcessor:
         self.pandas_score_filter = config.pandas_score_filter
     
 
-    def load_and_process(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
-        """Load data and apply preprocessing pipeline."""
-        df = self._load_data(data_source)
-        return self._process_dataframe(df)
+    # Did two things so violated single responsibility principle
+    # def load_and_process(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
+    #     """Load data and apply preprocessing pipeline."""
+    #     df = self.load_data(data_source)
+    #     return self.process_dataframe(df)
     
-    def _load_data(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
+    def load_data(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
         """Load data from various sources."""
         if isinstance(data_source, (str, Path)):
             # Handle file loading
@@ -86,10 +87,10 @@ class DataProcessor:
                     {"data_type": "DataFrame", "suggestion": "Specify target_column in config"}
                 )
             df = data_source.copy()
-        
+        df[SYSTEM_RECORD_ID_COLUMN] = range(len(df))
         return df
     
-    def _process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+    def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply chunking and scoring to DataFrame."""
         
         # Check for invalid configuration: dropping target column without splitting
@@ -102,9 +103,6 @@ class DataProcessor:
                     "suggestion": "Either specify a splitting strategy or set drop_target_column=False"
                 }
             )
-            
-        # Save count of original records
-        self.total_records = len(df)
 
         # 1. Chunk the data (or use target column if no splitting)
         if self.splitter is not None:

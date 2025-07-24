@@ -1,4 +1,4 @@
-from ..constants import SYSTEM_REGEX_EXTRACTED_KEY
+from delm.constants import SYSTEM_REGEX_EXTRACTED_KEY
 
 def is_pydantic_model(obj) -> bool:
     """Return True if obj is a Pydantic model instance (v1 or v2)."""

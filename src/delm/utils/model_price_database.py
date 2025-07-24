@@ -2,7 +2,7 @@
 # Add new models and providers as needed.
 
 from typing import Tuple
-from ..exceptions import ConfigurationError
+from delm.exceptions import ConfigurationError
 
 _MODEL_PRICING_DB = {
     # ------------------------------------------------------------------------ #

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-"""
-DELM v0.2 – "Phase‑2" implementation
------------------------------------
+"""DELM extraction pipeline core module.
+
 Major upgrades from the Phase‑1 prototype:
 • Multi‑format loaders (.txt, .html/.md, .docx, .pdf*)
 • Pluggable split strategies (ParagraphSplit, FixedWindowSplit, RegexSplit)
@@ -15,25 +14,25 @@ The public API and method signatures remain unchanged so downstream code
 continues to work.  Future phases should require **only** new strategy
 classes or loader helpers – no breaking changes.
 """
-
-import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Sequence
-
 import dotenv
 import pandas as pd
 
-# Required deps -------------------------------------------------------------- #
-import openai  # type: ignore
-
-from .config import DELMConfig
-from .core import DataProcessor, ExperimentManager, ExtractionManager
-from .schemas import SchemaManager
-from .constants import (
-    SYSTEM_CHUNK_COLUMN 
+from delm.config import DELMConfig
+from delm.core.data_processor import DataProcessor
+from delm.core.experiment_manager import DiskExperimentManager, InMemoryExperimentManager
+from delm.core.extraction_manager import ExtractionManager
+from delm.schemas import SchemaManager
+from delm.constants import (
+    SYSTEM_RECORD_ID_COLUMN,
+    SYSTEM_CHUNK_COLUMN,
+    SYSTEM_RANDOM_SEED,
+    SYSTEM_SCORE_COLUMN,
+    SYSTEM_CHUNK_ID_COLUMN,
+    SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
 )
-from .utils.cost_tracker import CostTracker
-from .utils.cost_estimator import CostEstimator
+from delm.utils.cost_tracker import CostTracker
+from typing import Any, Dict, Union
 
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
@@ -41,7 +40,15 @@ from .utils.cost_estimator import CostEstimator
 
 
 class DELM:
-    """Extraction pipeline with pluggable strategies."""
+    """Extraction pipeline with pluggable strategies.
+
+    Attributes:
+        config: DELMConfig instance for this pipeline.
+        experiment_name: Name of the experiment.
+        experiment_directory: Directory for experiment outputs.
+        overwrite_experiment: Whether to overwrite existing experiment data.
+        auto_checkpoint_and_resume_experiment: Whether to auto-resume experiments.
+    """
 
     def __init__(
         self,
@@ -50,133 +57,137 @@ class DELM:
         experiment_name: str,
         experiment_directory: Path,
         overwrite_experiment: bool = False,
-        verbose: bool = False,
         auto_checkpoint_and_resume_experiment: bool = True,
+        use_disk_storage: bool = True,
     ) -> None:
-        # Config
+        """Initialize the DELM extraction pipeline.
+
+        Args:
+            config: DELMConfig instance for this pipeline.
+            experiment_name: Name of the experiment.
+            experiment_directory: Directory for experiment outputs.
+            overwrite_experiment: Whether to overwrite existing experiment data.
+            auto_checkpoint_and_resume_experiment: Whether to auto-resume experiments.
+            use_disk_storage: If True, use disk-based experiment manager; if False, use in-memory manager.
+        """
         self.config = config
         self.experiment_name = experiment_name
         self.experiment_directory = experiment_directory
         self.overwrite_experiment = overwrite_experiment
-        self.verbose = verbose
         self.auto_checkpoint_and_resume_experiment = auto_checkpoint_and_resume_experiment
+        self.use_disk_storage = use_disk_storage
         self._initialize_components()
 
     @classmethod
-    def from_yaml(cls, config_path: Union[str, Path], experiment_name: str, experiment_directory: Path, **kwargs) -> "DELM":
-        """
-        Create a DELM instance from a YAML configuration file.
-        
-        This is the recommended way to create DELM instances for most use cases.
-        
+    def from_yaml(
+        cls,
+        config_path: Union[str, Path],
+        experiment_name: str,
+        experiment_directory: Path,
+        **kwargs
+    ) -> "DELM":
+        """Create a DELM instance from a YAML configuration file.
+
         Args:
-            config_path: Path to YAML configuration file
-            experiment_name: Name of the experiment (used for directory structure, file naming)
-            experiment_directory: Base directory for experiment outputs
+            config_path: Path to YAML configuration file.
+            experiment_name: Name of the experiment.
+            experiment_directory: Base directory for experiment outputs.
+            **kwargs: Additional keyword arguments for DELM constructor.
+
         Returns:
-            Configured DELM instance
-        Example:
-            delm = DELM.from_yaml("config.yaml", experiment_name="my_exp", experiment_directory=Path("./experiments"))
+            Configured DELM instance.
         """
         config = DELMConfig.from_yaml(Path(config_path))
         return cls(config=config, experiment_name=experiment_name, experiment_directory=experiment_directory, **kwargs)
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any], experiment_name: str, experiment_directory: Path, **kwargs) -> "DELM":
-        """
-        Create a DELM instance from a configuration dictionary.
-        
+    def from_dict(
+        cls,
+        config_dict: Dict[str, Any],
+        experiment_name: str,
+        experiment_directory: Path,
+        **kwargs
+    ) -> "DELM":
+        """Create a DELM instance from a configuration dictionary.
+
         Args:
-            config_dict: Configuration dictionary
-            experiment_name: Name of the experiment (used for directory structure, file naming)
-            experiment_directory: Base directory for experiment outputs
+            config_dict: Configuration dictionary.
+            experiment_name: Name of the experiment.
+            experiment_directory: Base directory for experiment outputs.
+            **kwargs: Additional keyword arguments for DELM constructor.
+
         Returns:
-            Configured DELM instance
-        Example:
-            config = {
-                "model": {"name": "gpt-4o-mini"},
-                "data": {"target_column": "text"},
-                "schema": {"spec_path": "schema.yaml"},
-            }
-            delm = DELM.from_dict(config, experiment_name="my_exp", experiment_directory=Path("./experiments"))
+            Configured DELM instance.
         """
         config = DELMConfig.from_dict(config_dict)
         return cls(config=config, experiment_name=experiment_name, experiment_directory=experiment_directory, **kwargs)
 
-    @staticmethod
-    def _prep_data_stateless(config: 'DELMConfig', data: str | Path | pd.DataFrame, save_path: str | Path | None = None) -> tuple[pd.DataFrame, int]:
-        """
-        Preprocess data using the config. Optionally save to disk if save_path is provided.
-        Returns a DataFrame of prepped (chunked) data and the total number of records in the original data.
-        """
-        processor = DataProcessor(config.data_preprocessing)
-        df = processor.load_and_process(data)
-        if save_path is not None:
-            df.to_feather(str(save_path))
-        return df, processor.total_records
+    ## ------------------------------- Public API ------------------------------- ##
 
-    def prep_data(self, data: str | Path | pd.DataFrame) -> pd.DataFrame:
+
+    def process_via_llm(
+        self, preprocessed_file_path: Path | None = None
+    ) -> pd.DataFrame:
+        """Process data through LLM extraction using configuration from constructor, with batch checkpointing and resuming."""
+        # Load preprocessed data from the experiment manager
+        data = self.experiment_manager.load_preprocessed_data(preprocessed_file_path)
+        meta_data = data.drop(columns=[SYSTEM_CHUNK_COLUMN])
+        text_chunks = data[SYSTEM_CHUNK_COLUMN].tolist()
+        
+        final_df = self.extraction_manager.process_with_persistent_batching(
+            text_chunks=text_chunks,
+            batch_size=self.config.llm_extraction.batch_size,
+            experiment_manager=self.experiment_manager,
+            auto_checkpoint=self.auto_checkpoint_and_resume_experiment,
+        )
+
+        # left join with meta_data on chunk id
+        final_df = pd.merge(final_df, meta_data, on=SYSTEM_CHUNK_ID_COLUMN, how="left", )
+
+        # get unique record ids
+        record_ids = meta_data[SYSTEM_RECORD_ID_COLUMN].unique().tolist()
+
+        # Print summary
+        if self.config.llm_extraction.extract_to_dataframe:
+            print(f"Processed {len(data)} chunks from {len(record_ids)} records. Extracted to DataFrame with {len(final_df)} structured rows.")
+        else:
+            print(f"Processed {len(data)} chunks from {len(record_ids)} records. JSON output saved to `extracted_data` column.")
+        
+        return final_df
+
+    
+    def prep_data(self, data: str | Path | pd.DataFrame, sample_size: int = -1) -> pd.DataFrame:
+        """Preprocess data using the instance config and always save to the experiment manager.
+
+        Args:
+            data: Input data as a string, Path, or DataFrame.
+
+        Returns:
+            DataFrame of prepped (chunked) data.
         """
-        Preprocess data using the instance config and always save to the experiment directory.
-        Returns a DataFrame of prepped (chunked) data.
-        """
-        save_path = self.experiment_manager.preprocessed_data_path
-        df, _ = DELM._prep_data_stateless(self.config, data, save_path=save_path)
+        df = self.data_processor.load_data(data)
+        
+        
+        if sample_size > 0 and sample_size < len(df):
+            df = df.sample(n=sample_size, random_state=SYSTEM_RANDOM_SEED)
+
+        df = self.data_processor.process_dataframe(df) # type: ignore
+        self.experiment_manager.save_preprocessed_data(df)
         return df
 
-    @classmethod
-    def estimate_cost(
-        cls,
-        config: Union[str, Dict[str, Any], 'DELMConfig'],
-        data_source: str | Path | pd.DataFrame,
-        use_api_calls: bool = False,
-        sample_size: int = 10
-    ) -> Dict[str, Any]:
-        """
-        Estimate the extraction cost for the given data and config.
-        """
-        config_obj = DELMConfig.from_any(config)
-        prepped_data, total_records = cls._prep_data_stateless(config_obj, data_source)
-        # Sample data if needed
-        if len(prepped_data) > sample_size:
-            sample_df = prepped_data.sample(n=sample_size, random_state=42)
-        else:
-            sample_df = prepped_data
-        # --- Delegate to CostEstimator ---
-        estimator = CostEstimator(config_obj, sample_df, total_chunks=len(prepped_data), total_records=total_records)
-        return estimator.estimate_cost(use_api_calls=use_api_calls)
 
-    @classmethod
-    def estimate_cost_batch(
-        cls,
-        configs: Sequence[Union[str, Dict[str, Any], 'DELMConfig']],
-        data_source: str | Path | pd.DataFrame,
-        use_api_calls: bool = False,
-        sample_size: int = 10
-    ) -> List[Dict[str, Any]]:
-        """
-        Estimate extraction costs for multiple configs on the same dataset.
-        """
-        results = []
-        for i, config in enumerate(configs):
-            try:
-                result = cls.estimate_cost(config, data_source, use_api_calls, sample_size)
-                result["config_index"] = i
-                results.append(result)
-            except Exception as e:
-                results.append({
-                    "config_index": i,
-                    "error": str(e),
-                    "estimated_total_cost": None,
-                    "input_tokens": None,
-                    "output_tokens": None,
-                    "price_per_1k_input": None,
-                    "price_per_1k_output": None,
-                    "method": "error",
-                    "sample_size": None,
-                    "total_chunks": None
-                })
-        return results
+    def get_extraction_results(self) -> pd.DataFrame:
+        """Get the results from the experiment manager."""
+        return self.experiment_manager.get_results()
+
+    def get_cost_summary(self) -> dict[str, Any]:
+        if not self.config.llm_extraction.track_cost:
+            raise ValueError("Cost tracking is not enabled in the configuration. Please set `track_cost` to `True` in the configuration.")
+        return self.cost_tracker.get_cost_summary_dict()
+
+    
+    ## ------------------------------ Private API ------------------------------- ##
+
 
     def _initialize_components(self) -> None:
         """Initialize all components using composition."""
@@ -187,13 +198,17 @@ class DELM:
         # Initialize components
         self.data_processor = DataProcessor(self.config.data_preprocessing)
         self.schema_manager = SchemaManager(self.config.schema)
-        self.experiment_manager = ExperimentManager(
-            experiment_name=self.experiment_name,
-            experiment_directory=self.experiment_directory,
-            overwrite_experiment=self.overwrite_experiment,
-            verbose=self.verbose,
-            auto_checkpoint_and_resume_experiment=self.auto_checkpoint_and_resume_experiment,
-        )
+        if self.use_disk_storage:
+            self.experiment_manager = DiskExperimentManager(
+                experiment_name=self.experiment_name,
+                experiment_directory=self.experiment_directory,
+                overwrite_experiment=self.overwrite_experiment,
+                auto_checkpoint_and_resume_experiment=self.auto_checkpoint_and_resume_experiment,
+            )
+        else:
+            self.experiment_manager = InMemoryExperimentManager(
+                experiment_name=self.experiment_name
+            )
         
         # Initialize experiment with config and schema
         # Note that config dict contains everything but the schema, which is in schema_dict
@@ -218,50 +233,3 @@ class DELM:
             schema_manager=self.schema_manager,  # Pass the instance
             cost_tracker=self.cost_tracker,
         )
-
-
-    # ------------------------------ Public API --------------------------- #
-    def process_via_llm(self, preprocessed_file_path: Path | None = None) -> pd.DataFrame:
-        """Process data through LLM extraction using configuration from constructor, with batch checkpointing and resuming."""
-        # Load preprocessed data from feather file
-        data = self.experiment_manager.load_preprocessed_data(preprocessed_file_path)
-        text_chunks = data[SYSTEM_CHUNK_COLUMN].tolist()
-        
-        # Process with persistent batching
-        final_df = self.extraction_manager.process_with_persistent_batching(
-            text_chunks=text_chunks,
-            batch_size=self.config.llm_extraction.batch_size,
-            experiment_manager=self.experiment_manager,
-            auto_checkpoint=self.auto_checkpoint_and_resume_experiment,
-            verbose=self.verbose
-        )
-        
-        # Handle final consolidation and cleanup
-        if self.auto_checkpoint_and_resume_experiment:
-            result_path = self.experiment_manager.consolidate_batches(self.experiment_name)
-            self.experiment_manager.cleanup_batch_checkpoints()
-            if self.verbose:
-                print(f"Final consolidated result saved to: {result_path}")
-            # Load and return the consolidated result
-            final_df = pd.read_feather(result_path)
-        
-        # Print summary
-        if self.verbose:
-            if self.config.llm_extraction.extract_to_dataframe:
-                print(f"Processed {len(data)} chunks. Extracted to DataFrame with {len(final_df)} structured rows.")
-            else:
-                print(f"Processed {len(data)} chunks. JSON output saved to `extracted_data` column.")
-        
-        if self.config.llm_extraction.track_cost:
-            self.cost_tracker.print_cost_summary()
-        
-        return final_df
-    
-
-    
-
-
-
-
-
-

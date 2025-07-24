@@ -62,7 +62,7 @@ delm = DELM(
 
 # Load and process data
 df = delm.prep_data("data/input/report.txt")
-processed_df = delm.process_via_llm(df, verbose=True)
+processed_df = delm.process_via_llm(df)
 
 # Get results
 results_df = delm.parse_to_dataframe(processed_df)
@@ -195,6 +195,93 @@ DELM supports three levels of schema complexity:
 - **Multiple Schemas (Level 3)**: Multiple independent structured objects
 
 For detailed examples and configuration options, see [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md).
+
+## 🧩 Expected JSON Format for estimate_performance
+
+When using `estimate_performance`, your hand-labeled (expected) data must match the schema type. Here are examples for each:
+
+**Note:**
+- For list data types in YAML (e.g., `[string]`, `[number]`), always use quotes: `"[string]"`. This ensures YAML parses the type as a string, not a list.
+
+### Simple Schema
+- **Schema:**
+  ```yaml
+  schema_type: simple
+  variables:
+    - name: "author"
+      data_type: string
+      required: true
+    - name: "tags"
+      data_type: "[string]"
+      required: false
+  ```
+- **Expected JSON:**
+  ```python
+  {"author": "Alice", "tags": ["fiction", "adventure"]}
+  ```
+
+### Nested Schema
+- **Schema:**
+  ```yaml
+  schema_type: nested
+  container_name: books
+  variables:
+    - name: "title"
+      data_type: string
+      required: true
+    - name: "genres"
+      data_type: "[string]"
+      required: false
+  ```
+- **Expected JSON:**
+  ```python
+  {"books": [
+      {"title": "Book A", "genres": ["fantasy", "epic"]},
+      {"title": "Book B", "genres": ["mystery"]}
+  ]}
+  ```
+
+### Multiple Schema
+- **Schema:**
+  ```yaml
+  schema_type: multiple
+  book:
+    schema_type: simple
+    variables:
+      - name: "author"
+        data_type: string
+        required: true
+      - name: "tags"
+        data_type: "[string]"
+        required: false
+  reviews:
+    schema_type: nested
+    container_name: reviews
+    variables:
+      - name: "reviewer"
+        data_type: string
+        required: true
+      - name: "score"
+        data_type: number
+        required: false
+  ```
+- **Expected JSON:**
+  ```python
+  {
+    "book": {"author": "Alice", "tags": ["fiction", "adventure"]},
+    "reviews": [
+      {"reviewer": "Bob", "score": 4.5},
+      {"reviewer": "Carol", "score": 5.0}
+    ]
+  }
+  ```
+
+**Note:**
+- For simple schemas, use a dict of fields (scalars or lists).
+- For nested schemas, use a dict with the container name as the key and a list of objects as the value.
+- For multiple schemas, use a dict with each sub-schema name as the key. For nested sub-schemas, the value is a list of objects (not a dict with the container name).
+
+See the `example.schema_spec.yaml` for more detailed schema examples.
 
 ## 🏗️ Architecture
 

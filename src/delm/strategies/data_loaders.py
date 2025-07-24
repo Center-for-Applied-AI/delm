@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Union, Dict, Any, Callable
 import pandas as pd
 
-from ..exceptions import DataError, FileError, DependencyError
+from delm.exceptions import DataError, FileError, DependencyError
 
 # Optional dependencies
 try:
