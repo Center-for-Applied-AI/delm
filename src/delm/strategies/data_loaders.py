@@ -188,6 +188,15 @@ class PdfLoader(DataLoader):
         except Exception as e:
             raise DataError(f"Failed to load PDF file: {path}", {"file_path": str(path)}) from e
 
+class ExcelLoader(DataLoader):
+    """Load Excel files."""
+    @property
+    def requires_target_column(self) -> bool:
+        return True
+
+    def load(self, path: Path) -> pd.DataFrame:
+        return pd.read_excel(path)
+
 
 class DataLoaderFactory:
     """Factory for creating data loaders based on file extension."""
@@ -203,6 +212,7 @@ class DataLoaderFactory:
             ".csv": CsvLoader(),
             ".parquet": ParquetLoader(),
             ".feather": FeatherLoader(),
+            ".xlsx": ExcelLoader(),
         }
     
     def _get_loader(self, extension: str) -> DataLoader:
