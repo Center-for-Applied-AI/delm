@@ -61,8 +61,9 @@ class ExtractionManager:
         )
 
     def process_with_persistent_batching(
-        self, 
+        self,
         text_chunks: List[str], 
+        text_chunk_ids: List[int],
         batch_size: int,
         experiment_manager: 'BaseExperimentManager',
         auto_checkpoint: bool = True,
@@ -124,6 +125,7 @@ class ExtractionManager:
                 start = batch_id * batch_size
                 end = min((batch_id + 1) * batch_size, total_chunks)
                 batch_chunks = text_chunks[start:end]
+                batch_chunk_ids = text_chunk_ids[start:end]
                 # Chunk id is the start index
                 if not batch_chunks:
                     continue
@@ -132,7 +134,7 @@ class ExtractionManager:
                 batch_df = self.parse_results_dataframe(
                     results=results,
                     text_chunks=batch_chunks,
-                    chunk_id_offset=chunk_id_offset,
+                    text_chunk_ids=batch_chunk_ids,
                     batch_id=batch_id,
                     output="exploded" if self.extract_to_dataframe else "json_string_column" # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
                 )
@@ -234,7 +236,7 @@ class ExtractionManager:
         self,
         results: List[Dict[str, Any]],
         text_chunks: List[str],
-        chunk_id_offset: int = 0,
+        text_chunk_ids: List[int],
         batch_id: int = 0,
         output: str = "exploded"  # or "json_string_column"
     ) -> pd.DataFrame:
@@ -245,8 +247,7 @@ class ExtractionManager:
         output="json_column": All extracted data for a chunk is serialized into a single JSON column.
         """
         data = []
-        for idx, (result, text_chunk) in enumerate(zip(results, text_chunks)):
-            chunk_id = chunk_id_offset + idx
+        for result, text_chunk, chunk_id in zip(results, text_chunks, text_chunk_ids):
             errors_json = json.dumps(result["errors"]) if result["errors"] else None
             extracted_data: BaseModel | None = result["extracted_data"]
             if output == "exploded":

@@ -9,11 +9,12 @@ from delm.strategies import SplitStrategy, ParagraphSplit, FixedWindowSplit, Reg
 from delm.constants import (
     DEFAULT_MODEL_NAME, DEFAULT_PROVIDER, DEFAULT_TEMPERATURE, DEFAULT_MAX_RETRIES, DEFAULT_BATCH_SIZE,
     DEFAULT_MAX_WORKERS, DEFAULT_BASE_DELAY, DEFAULT_DOTENV_PATH,
-    DEFAULT_TARGET_COLUMN, DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
+    DEFAULT_DROP_TARGET_COLUMN, DEFAULT_SCHEMA_CONTAINER,
     DEFAULT_PROMPT_TEMPLATE, DEFAULT_EXPERIMENT_DIR,
     DEFAULT_OVERWRITE_EXPERIMENT, DEFAULT_EXTRACT_TO_DATAFRAME, DEFAULT_TRACK_COST, DEFAULT_PANDAS_SCORE_FILTER,
     DEFAULT_AUTO_CHECKPOINT_AND_RESUME, DEFAULT_SYSTEM_PROMPT,
-    DEFAULT_SEMANTIC_CACHE_BACKEND, DEFAULT_SEMANTIC_CACHE_PATH, DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB, DEFAULT_SEMANTIC_CACHE_SYNCHRONOUS,
+    DEFAULT_SEMANTIC_CACHE_BACKEND, DEFAULT_SEMANTIC_CACHE_PATH, DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB, DEFAULT_SEMANTIC_CACHE_SYNCHRONOUS, SYSTEM_RAW_DATA_COLUMN,
+    SYSTEM_RAW_DATA_COLUMN,
 )
 from delm.exceptions import ConfigurationError
 
@@ -194,7 +195,7 @@ class ScoringConfig:
 @dataclass
 class DataPreprocessingConfig:
     """Configuration for data preprocessing pipeline."""
-    target_column: str = DEFAULT_TARGET_COLUMN
+    target_column: str = SYSTEM_RAW_DATA_COLUMN
     drop_target_column: bool = DEFAULT_DROP_TARGET_COLUMN
     splitting: SplittingConfig = field(default_factory=SplittingConfig)
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
@@ -308,7 +309,7 @@ class DataPreprocessingConfig:
             explicitly_set_fields.add("preprocessed_data_path")
 
         instance = cls(
-            target_column=cfg.get("target_column", DEFAULT_TARGET_COLUMN),
+            target_column=cfg.get("target_column", SYSTEM_RAW_DATA_COLUMN),
             drop_target_column=cfg.get("drop_target_column", DEFAULT_DROP_TARGET_COLUMN),
             splitting=splitting,
             scoring=scoring,

@@ -39,7 +39,7 @@ performance_metrics_dict, processed_df = estimate_performance(
     data_source=human_labeled_input_df,
     expected_extraction_output_df=human_labeled_output_df, # type: ignore
     true_json_column="expected_dict",
-    matching_id_column="record_id",
+    matching_id_column="report",
     record_sample_size=5
 )
 
