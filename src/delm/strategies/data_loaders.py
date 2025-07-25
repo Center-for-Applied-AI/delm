@@ -141,6 +141,26 @@ class CsvLoader(DataLoader):
             raise DataError(f"Failed to load CSV file: {path}", {"file_path": str(path)}) from e
 
 
+class ParquetLoader(DataLoader):
+    """Load Parquet files."""
+    @property
+    def requires_target_column(self) -> bool:
+        return True
+    
+    def load(self, path: Path) -> pd.DataFrame:
+        return pd.read_parquet(path)
+
+
+class FeatherLoader(DataLoader):
+    """Load Feather files."""
+    @property
+    def requires_target_column(self) -> bool:
+        return True
+    
+    def load(self, path: Path) -> pd.DataFrame:
+        return pd.read_feather(path)
+
+
 class PdfLoader(DataLoader):
     """Load PDF files using marker OCR."""
     @property
@@ -181,6 +201,8 @@ class DataLoaderFactory:
             ".docx": DocxLoader(),
             ".pdf": PdfLoader(),
             ".csv": CsvLoader(),
+            ".parquet": ParquetLoader(),
+            ".feather": FeatherLoader(),
         }
     
     def _get_loader(self, extension: str) -> DataLoader:
