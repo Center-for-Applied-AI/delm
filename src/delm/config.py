@@ -83,6 +83,7 @@ class LLMExtractionConfig:
     dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
     extract_to_dataframe: bool = DEFAULT_EXTRACT_TO_DATAFRAME
     track_cost: bool = DEFAULT_TRACK_COST
+    max_budget: float | None = None
 
     def get_provider_string(self) -> str:
         """Get the combined provider string for Instructor (e.g., 'openai/gpt-4o-mini')."""
@@ -139,6 +140,17 @@ class LLMExtractionConfig:
                 "track_cost must be a boolean.",
                 {"track_cost": self.track_cost, "suggestion": "Use True or False"}
             )
+        if self.max_budget is not None:
+            if not self.track_cost:
+                raise ConfigurationError(
+                    "track_cost must be True if max_budget is specified.",
+                    {"track_cost": self.track_cost}
+                )
+            if not isinstance(self.max_budget, (int, float)):
+                raise ConfigurationError(
+                    "max_budget must be a number.",
+                    {"max_budget": self.max_budget, "suggestion": "Use a number"}
+                )
 
 @dataclass
 class SplittingConfig:
@@ -417,6 +429,7 @@ class DELMConfig:
                 "dotenv_path": str(self.llm_extraction.dotenv_path) if self.llm_extraction.dotenv_path else None,
                 "extract_to_dataframe": self.llm_extraction.extract_to_dataframe,
                 "track_cost": self.llm_extraction.track_cost,
+                "max_budget": self.llm_extraction.max_budget,
             },
             "data_preprocessing": {
                 "target_column": self.data_preprocessing.target_column,

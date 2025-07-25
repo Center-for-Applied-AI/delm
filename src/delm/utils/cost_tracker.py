@@ -8,6 +8,7 @@ class CostTracker:
         self, 
         provider: str,
         model: str,
+        max_budget: float | None = None,
         count_cache_hits_towards_cost: bool = False,
         # TODO: Let user specify input/output cost per 1M tokens
         # model_input_cost_per_1M_tokens: float,
@@ -22,7 +23,14 @@ class CostTracker:
         self.input_tokens = 0
         self.output_tokens = 0
         self.count_cache_hits_towards_cost = count_cache_hits_towards_cost
-    
+        self.max_budget = max_budget
+
+    def is_over_budget(self) -> bool:
+        current_cost = self.get_current_cost()
+        if self.max_budget is None:
+            return False
+        return current_cost > self.max_budget
+
     def track_input_text(self, text: str):
         self.input_tokens += self.count_tokens(text)
 
@@ -74,6 +82,7 @@ class CostTracker:
         return {
             "provider": self.provider,
             "model": self.model,
+            "max_budget": self.max_budget,
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,
@@ -83,6 +92,7 @@ class CostTracker:
     @classmethod
     def from_dict(cls, d: dict) -> "CostTracker":
         obj = cls(d["provider"], d["model"])
+        obj.max_budget = d.get("max_budget", None)
         obj.input_tokens = d.get("input_tokens", 0)
         obj.output_tokens = d.get("output_tokens", 0)
         obj.model_input_cost_per_1M_tokens = d.get("model_input_cost_per_1M_tokens", 0.0)

@@ -12,6 +12,7 @@ llm_extraction:
   base_delay: 1.0                     # Base delay for retry handler (seconds)
   dotenv_path: ".env"                 # Path to .env file (optional, can be null)
   track_cost: true                    # Whether to track cost of API calls
+  max_budget: 1000                    # Maximum budget for API calls (in dollars). Track cost must be true.
 
 semantic_cache:
   backend: "sqlite"        # sqlite | lmdb | filesystem

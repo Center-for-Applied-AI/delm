@@ -33,7 +33,9 @@ from .constants import (
     SYSTEM_SCORE_COLUMN, 
     SYSTEM_CHUNK_ID_COLUMN, 
     SYSTEM_EXTRACTED_DATA_JSON_COLUMN, 
+    SYSTEM_ERRORS_COLUMN,
     SYSTEM_RANDOM_SEED,
+    IGNORE_FILES,
 )
 
 __version__ = "0.2.0"
@@ -81,5 +83,8 @@ __all__ = [
     "SYSTEM_SCORE_COLUMN", 
     "SYSTEM_CHUNK_ID_COLUMN",
     "SYSTEM_EXTRACTED_DATA_JSON_COLUMN",
+    "SYSTEM_ERRORS_COLUMN",
     "SYSTEM_RANDOM_SEED",  
+    # Ignore files
+    "IGNORE_FILES",
 ] 

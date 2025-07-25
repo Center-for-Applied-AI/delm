@@ -29,6 +29,7 @@ from delm.constants import (
     SYSTEM_SCORE_COLUMN,
     SYSTEM_CHUNK_ID_COLUMN,
     SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
+    SYSTEM_ERRORS_COLUMN,
 )
 from delm.utils.cost_tracker import CostTracker
 from delm.utils.semantic_cache import SemanticCacheFactory
@@ -135,7 +136,7 @@ class DELM:
         chunk_ids = data[SYSTEM_CHUNK_ID_COLUMN].tolist()
         text_chunks = data[SYSTEM_CHUNK_COLUMN].tolist()
 
-        final_df = self.extraction_manager.process_with_persistent_batching(
+        final_df = self.extraction_manager.process_with_batching(
             text_chunks=text_chunks,
             text_chunk_ids=chunk_ids,
             batch_size=self.config.llm_extraction.batch_size,
@@ -147,13 +148,15 @@ class DELM:
         final_df = pd.merge(final_df, meta_data, on=SYSTEM_CHUNK_ID_COLUMN, how="left", )
 
         # get unique record ids
-        record_ids = meta_data[SYSTEM_RECORD_ID_COLUMN].unique().tolist()
+        num_records_processed = len(final_df[SYSTEM_RECORD_ID_COLUMN].unique())
+        num_chunks_processed = len(final_df[SYSTEM_CHUNK_ID_COLUMN].unique())
+        num_chunks_with_errors = len(final_df[final_df[SYSTEM_ERRORS_COLUMN].notna()])
 
         # Print summary
         if self.config.llm_extraction.extract_to_dataframe:
-            print(f"Processed {len(data)} chunks from {len(record_ids)} records. Extracted to DataFrame with {len(final_df)} exploded rows.")
+            print(f"Processed {num_chunks_processed} chunks ({num_chunks_with_errors} with errors) from {num_records_processed} records. Extracted to DataFrame with {len(final_df)} exploded rows.")
         else:
-            print(f"Processed {len(data)} chunks from {len(record_ids)} records. JSON output saved to `{SYSTEM_EXTRACTED_DATA_JSON_COLUMN}` column.")
+            print(f"Processed {num_chunks_processed} chunks ({num_chunks_with_errors} with errors) from {num_records_processed} records. JSON output saved to `{SYSTEM_EXTRACTED_DATA_JSON_COLUMN}` column.")
         
         return final_df
 
@@ -229,6 +232,7 @@ class DELM:
         self.cost_tracker = CostTracker(
             provider=self.config.llm_extraction.provider,
             model=self.config.llm_extraction.name,
+            max_budget=self.config.llm_extraction.max_budget,
         )
         
         # Load state if resuming

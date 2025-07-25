@@ -50,17 +50,7 @@ class ExtractionManager:
         self.cost_tracker = cost_tracker
         self.semantic_cache = semantic_cache
     
-    def extract_from_text_chunks(
-        self, 
-        text_chunks: List[str], 
-    ) -> List[Dict[str, Any]]:
-        """Process text chunks with concurrent execution."""
-        return self.concurrent_processor.process_concurrently(
-            text_chunks,
-            lambda p: self._extract_from_text_chunk(p)
-        )
-
-    def process_with_persistent_batching(
+    def process_with_batching(
         self,
         text_chunks: List[str], 
         text_chunk_ids: List[int],
@@ -129,8 +119,14 @@ class ExtractionManager:
                 # Chunk id is the start index
                 if not batch_chunks:
                     continue
-                chunk_id_offset = start
-                results = self.extract_from_text_chunks(batch_chunks)
+                # Check if we are over budget
+                if self.track_cost and self.cost_tracker.is_over_budget():
+                    print("Over budget, stopping extraction.")
+                    break
+                results = self.concurrent_processor.process_concurrently(
+                    batch_chunks,
+                    lambda p: self._extract_from_text_chunk(p)
+                )
                 batch_df = self.parse_results_dataframe(
                     results=results,
                     text_chunks=batch_chunks,
@@ -163,6 +159,8 @@ class ExtractionManager:
         text_chunk: str, 
     ) -> Dict[str, Any]:
         """Extract data from a single text chunk."""
+        if self.track_cost and self.cost_tracker.is_over_budget():
+            return {"extracted_data": None, "errors": "Over budget"}
         try:
             result = self._instructor_extract(text_chunk)
             return {"extracted_data": result, "errors": []}
