@@ -5,7 +5,7 @@ CONFIG_PATH = Path("tests/dir_source_test/config.yaml")
 TXT_DATA_DIR_PATH = Path("tests/dir_source_test/txt_data")
 CSV_DATA_DIR_PATH = Path("tests/dir_source_test/csv_data")
 
-EXPERIMENT_DIR = Path("tests/dir_source_test/experiment")
+EXPERIMENT_DIR = Path("test_experiments")
 
 print("="*100)
 print("Directory Source Test\n")

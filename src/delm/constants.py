@@ -83,3 +83,7 @@ META_DATA_SUFFIX = ".feather"
 
 # Config key for auto checkpointing
 DEFAULT_AUTO_CHECKPOINT_AND_RESUME = True 
+
+IGNORE_FILES = [
+    ".DS_Store",
+]
