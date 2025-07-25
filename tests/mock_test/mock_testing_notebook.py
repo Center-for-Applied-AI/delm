@@ -4,22 +4,14 @@ Run this cell by cell in Jupyter for interactive testing
 Updated to use YAML configuration file
 """
 
-import sys
 from pathlib import Path
 
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
 import json
-from pprint import pprint
 
 from delm import DELM, DELMConfig
-from delm.constants import (
-    CONSOLIDATED_RESULT_PREFIX,
-    CONSOLIDATED_RESULT_SUFFIX,
-    DATA_DIR_NAME,
-)
 
 print(f"="*60)
 print("Basic Mock Test")

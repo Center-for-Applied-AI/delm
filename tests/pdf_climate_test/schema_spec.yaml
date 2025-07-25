@@ -1,0 +1,15 @@
+# -----------------------------------------------------------------------------
+# Simple Schema 
+# -----------------------------------------------------------------------------
+schema_type: simple
+variables:
+  - name: "climate_action_score"
+    description: |
+      1 = Strong opposition to climate action by the regulator. Explicitly resists climate measures. May deny climate change or climate risks.
+      2 = Skeptical or hesitant. Questions the need for special treatment or warns about costs and unintended consequences.
+      3 = Neutral. Takes no strong position for or against climate action.
+      4 = Supportive. Backs climate actions of the regulator. May support other climate measures. May advocate for more incremental steps.
+      5 = Strong advocate. Fully supports ambitious, binding climate targets and broad reforms. May seek to strengthen proposed initiatives.
+    data_type: "integer"
+    required: true
+    allowed_values: [0, 1, 2, 3, 4, 5]

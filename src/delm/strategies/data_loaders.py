@@ -10,7 +10,8 @@ from typing import Union, Dict, Any, Callable
 import pandas as pd
 
 from delm.exceptions import DataError, FileError, DependencyError
-from delm.constants import SYSTEM_FILE_NAME_COLUMN, SYSTEM_RAW_DATA_COLUMN
+from delm.constants import SYSTEM_FILE_NAME_COLUMN, SYSTEM_RAW_DATA_COLUMN, IGNORE_FILES
+
 
 # Optional dependencies
 try:
@@ -22,11 +23,6 @@ try:
     import docx  # python‑docx
 except ImportError:  # pragma: no cover
     docx = None  # type: ignore
-
-# try:
-#     import marker  # OCR & PDF
-# except ImportError:  # pragma: no cover
-#     marker = None  # type: ignore
 
 
 class DataLoader(ABC):
@@ -145,11 +141,32 @@ class CsvLoader(DataLoader):
             raise DataError(f"Failed to load CSV file: {path}", {"file_path": str(path)}) from e
 
 
-# class PdfLoader(DataLoader):
-#     """Load PDF files using OCR."""
-    
-#     def load(self, path: Path) -> str:
-#         pass
+class PdfLoader(DataLoader):
+    """Load PDF files using marker OCR."""
+    @property
+    def requires_target_column(self) -> bool:
+        return False
+
+    def load(self, path: Path) -> pd.DataFrame:
+        try:
+            import marker  # type: ignore[import]
+            from marker.converters.pdf import PdfConverter  # type: ignore[import]
+            from marker.models import create_model_dict  # type: ignore[import]
+            from marker.output import text_from_rendered  # type: ignore[import]
+        except ImportError:
+            raise DependencyError(
+                "marker-pdf not installed but required for .pdf loading",
+                {"file_path": str(path), "file_type": "pdf"}
+            )
+        try:
+            converter = PdfConverter(artifact_dict=create_model_dict())
+            rendered = converter(str(path))
+            text, _, _ = text_from_rendered(rendered)
+            return pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [text]})
+        except FileNotFoundError as e:
+            raise FileError(f"PDF file not found: {path}", {"file_path": str(path)}) from e
+        except Exception as e:
+            raise DataError(f"Failed to load PDF file: {path}", {"file_path": str(path)}) from e
 
 
 class DataLoaderFactory:
@@ -162,8 +179,7 @@ class DataLoaderFactory:
             ".html": HtmlLoader(),
             ".htm": HtmlLoader(),
             ".docx": DocxLoader(),
-            # TODO: add pdf loader
-            # ".pdf": PdfLoader(),
+            ".pdf": PdfLoader(),
             ".csv": CsvLoader(),
         }
     
@@ -208,10 +224,13 @@ class DataLoaderFactory:
     def load_file(self, file_path: Union[str, Path]) -> pd.DataFrame:
         """Load a file using the appropriate loader."""
         path = Path(file_path)
-        if not path.exists():
+        if not path.exists() or not path.is_file():
             raise FileError(f"File does not exist: {path}", {"file_path": str(path)})
         
-        loader = self._get_loader(path.suffix)
+        try:
+            loader = self._get_loader(path.suffix)
+        except DataError as e:
+            raise FileError(f"Failed to load file: {path}", {"file_path": str(path), "error": str(e)}) from e
         return loader.load(path)
     
     def load_directory(self, directory_path: Union[str, Path]) -> tuple[pd.DataFrame, str]:
@@ -231,7 +250,7 @@ class DataLoaderFactory:
         # Load all files into a dataframe. The record_id should be the file name.
         data = pd.DataFrame()
         for file in path.glob("**/*"):
-            if file.is_file():
+            if file.is_file() and file.name not in IGNORE_FILES:
                 data = pd.concat([data, self.load_file(file)], ignore_index=True)
                 extensions.add(file.suffix)
 
@@ -241,15 +260,6 @@ class DataLoaderFactory:
                 {"directory_path": str(path), "extensions found": list(extensions)}
             )
         return data, list(extensions)[0]
-
-    def get_loaded_extension(self) -> str:
-        """Get the extension of the loaded files."""
-        if len(self._loaded_extensions) != 1:
-            raise FileError(
-                f"Directory contains multiple file types, or no files were loaded",
-                {"extensions found": list(self._loaded_extensions)}
-            )
-        return list(self._loaded_extensions)[0]
 
 # Global factory instance
 loader_factory = DataLoaderFactory() 
