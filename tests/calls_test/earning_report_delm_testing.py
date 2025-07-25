@@ -79,7 +79,7 @@ delm = DELM(
     auto_checkpoint_and_resume_experiment=True,
     use_disk_storage=True,
 )
-delm.prep_data(report_text_df.iloc[:3])
+delm.prep_data(report_text_df)
 delm.process_via_llm()
 
 print(f"-"*40)

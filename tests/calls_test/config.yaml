@@ -6,10 +6,11 @@ llm_extraction:
   name: gpt-4o-mini
   provider: openai
   temperature: 0.0
-  batch_size: 2
+  batch_size: 8
   max_workers: 1
   dotenv_path: ".env"
   track_cost: true
+  max_budget: 0.004
 
 # Data preprocessing configuration
 data_preprocessing:
