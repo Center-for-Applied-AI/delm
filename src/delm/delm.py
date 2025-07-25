@@ -132,10 +132,12 @@ class DELM:
         # Load preprocessed data from the experiment manager
         data = self.experiment_manager.load_preprocessed_data(preprocessed_file_path)
         meta_data = data.drop(columns=[SYSTEM_CHUNK_COLUMN])
+        chunk_ids = data[SYSTEM_CHUNK_ID_COLUMN].tolist()
         text_chunks = data[SYSTEM_CHUNK_COLUMN].tolist()
-        
+
         final_df = self.extraction_manager.process_with_persistent_batching(
             text_chunks=text_chunks,
+            text_chunk_ids=chunk_ids,
             batch_size=self.config.llm_extraction.batch_size,
             experiment_manager=self.experiment_manager,
             auto_checkpoint=self.auto_checkpoint_and_resume_experiment,
@@ -149,9 +151,9 @@ class DELM:
 
         # Print summary
         if self.config.llm_extraction.extract_to_dataframe:
-            print(f"Processed {len(data)} chunks from {len(record_ids)} records. Extracted to DataFrame with {len(final_df)} structured rows.")
+            print(f"Processed {len(data)} chunks from {len(record_ids)} records. Extracted to DataFrame with {len(final_df)} exploded rows.")
         else:
-            print(f"Processed {len(data)} chunks from {len(record_ids)} records. JSON output saved to `extracted_data` column.")
+            print(f"Processed {len(data)} chunks from {len(record_ids)} records. JSON output saved to `{SYSTEM_EXTRACTED_DATA_JSON_COLUMN}` column.")
         
         return final_df
 
@@ -176,9 +178,16 @@ class DELM:
         return df
 
 
-    def get_extraction_results(self) -> pd.DataFrame:
+    def get_extraction_results_df(self) -> pd.DataFrame:
         """Get the results from the experiment manager."""
         return self.experiment_manager.get_results()
+
+    def get_extraction_results_json(self):
+        cols = [SYSTEM_CHUNK_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN]
+        results_df = self.experiment_manager.get_results()
+        if not all(col in results_df.columns for col in cols):
+            raise ValueError("Json extraction results are not available. Please set `extract_to_dataframe` to `True` in the configuration or use `get_extraction_results_df` instead.")
+        return results_df[[SYSTEM_CHUNK_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN]]
 
     def get_cost_summary(self) -> dict[str, Any]:
         if not self.config.llm_extraction.track_cost:

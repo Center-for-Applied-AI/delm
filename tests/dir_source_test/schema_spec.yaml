@@ -1,0 +1,170 @@
+# DELM Schema Specification Examples
+# ==================================
+#
+# Below are minimal, clear examples for each schema type supported by DELM.
+# Use these as templates for your own extraction tasks.
+#
+# NOTE: For list data types in YAML (e.g., [string], [number]), always use quotes: "[string]". This ensures YAML parses the type as a string, not a list.
+
+# -----------------------------------------------------------------------------
+# Simple Schema Example
+# -----------------------------------------------------------------------------
+schema_type: simple
+variables:
+  - name: "name"
+    description: "Name of the person"
+    data_type: string
+    required: true
+  - name: "fruit"
+    description: "Fruit the person likes"
+    data_type: "[string]" 
+    required: false
+
+# Example expected JSON:
+# {"author": "Alice", "tags": ["fiction", "adventure"]}
+
+# -----------------------------------------------------------------------------
+# Nested Schema Example
+# -----------------------------------------------------------------------------
+# schema_type: nested
+# container_name: books
+# variables:
+#   - name: "title"
+#     data_type: string
+#     required: true
+#   - name: "genres"
+#     data_type: "[string]"   # <-- Quotes required!
+#     required: false
+#
+# Example expected JSON:
+# {"books": [
+#     {"title": "Book A", "genres": ["fantasy", "epic"]},
+#     {"title": "Book B", "genres": ["mystery"]}
+# ]}
+
+# -----------------------------------------------------------------------------
+# Multiple Schema Example
+# -----------------------------------------------------------------------------
+# schema_type: multiple
+# book:
+#   schema_type: simple
+#   variables:
+#     - name: "author"
+#       data_type: string
+#       required: true
+#     - name: "tags"
+#       data_type: "[string]"   # <-- Quotes required!
+#       required: false
+# reviews:
+#   schema_type: nested
+#   container_name: reviews
+#   variables:
+#     - name: "reviewer"
+#       data_type: string
+#       required: true
+#     - name: "score"
+#       data_type: number
+#       required: false
+#
+# Example expected JSON:
+# {
+#   "book": {"author": "Alice", "tags": ["fiction", "adventure"]},
+#   "reviews": [
+#     {"reviewer": "Bob", "score": 4.5},
+#     {"reviewer": "Carol", "score": 5.0}
+#   ]
+# }
+
+# =============================================================================
+# EXTRACTION SCHEMA CONFIGURATION
+# =============================================================================
+
+# Schema type determines how data is structured
+# Options: "simple", "nested", "multiple"
+# - simple: Key-value pairs (e.g., {"price": 100, "company": "Apple"})
+# - nested: List of objects (e.g., {"commodities": [{"type": "oil", "price": 100}]})
+# - multiple: Multiple independent schemas in one config (e.g., {"commodities": [{"type": "oil", "price": 100}], "companies": [{"name": "Apple", "sector": "Technology"}]})
+# schema_type: "nested"
+
+# # Container name for nested schemas (only used when schema_type = "nested")
+# # This becomes the key that holds the list of extracted objects
+# container_name: "commodities"
+
+# # Variables to extract from text
+# # Each variable defines a field in your extracted data
+# variables:
+#   # Example 1: Required string with allowed values
+#   - name: "commodity_type"
+#     description: "Type of commodity mentioned in the text"
+#     data_type: "string"
+#     required: true
+#     allowed_values: ["oil", "gas", "copper", "gold", "silver", "steel", "aluminum"]
+#     validate_in_text: true
+  
+#   # Example 2: Optional boolean field
+#   - name: "price_mention"
+#     description: "Whether a specific price is mentioned"
+#     data_type: "boolean"
+#     required: false
+  
+#   # Example 3: Optional numeric field
+#   - name: "price_value"
+#     description: "Numeric price value if mentioned"
+#     data_type: "number"
+#     required: false
+  
+#   # Example 4: Optional string without restrictions
+#   - name: "price_unit"
+#     description: "Unit of the price (e.g., barrel, ton, MMBtu)"
+#     data_type: "string"
+#     required: false
+  
+#   # Example 5: Optional string with allowed values
+#   - name: "expectation_type"
+#     description: "Type of price expectation mentioned"
+#     data_type: "string"
+#     required: false
+#     allowed_values: ["forecast", "guidance", "estimate", "projection", "outlook"]
+  
+#   # Example 6: Optional string for company names
+#   - name: "company_mention"
+#     description: "Company names mentioned in relation to commodities"
+#     data_type: "string"
+#     required: false
+#     validate_in_text: true
+
+# # =============================================================================
+# # ALTERNATIVE SCHEMA EXAMPLES
+# # =============================================================================
+
+# # Example 1: Simple Schema (Key-Value Pairs)
+# # Uncomment and modify this section to use simple extraction
+# # schema_type: "simple"
+# variables:
+#   - name: "price"
+#     description: "Price mentioned in the text"
+#     data_type: "number"
+#     required: false
+#   - name: "company"
+#     description: "Company name mentioned"
+#     data_type: "string"
+#     required: false
+
+# # =============================================================================
+# # DATA TYPE REFERENCE
+# # =============================================================================
+
+# # Available data types for variables:
+# # - "string": Text values (default)
+# # - "number": Floating-point numbers
+# # - "integer": Whole numbers
+# # - "boolean": True/False values
+# # - "date": Date strings (YYYY-MM-DD format recommended)
+
+# # Field properties:
+# # - name: Unique identifier for the field (required)
+# # - description: Human-readable description for the LLM (required)
+# # - data_type: Type of data to extract (required)
+# # - required: Whether the field must be present (default: false)
+# # - allowed_values: List of valid values for the field (optional)
+# # - validate_in_text: Whether to validate the extracted value appears in the text (default: false) 

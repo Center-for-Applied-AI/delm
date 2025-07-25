@@ -4,7 +4,6 @@ Tests different temperature settings and compares outputs
 """
 
 from copy import deepcopy
-import json
 import sys
 from pathlib import Path
 import pandas as pd
@@ -15,7 +14,6 @@ from datetime import datetime, timedelta
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
 from delm import DELM, DELMConfig
-from delm.constants import SYSTEM_EXTRACTED_DATA_JSON_COLUMN
 
 def create_mock_data():
     """Create mock dataset for testing."""
@@ -84,11 +82,8 @@ def run_temperature_comparison():
         delm.prep_data(test_data)
         delm.process_via_llm()
 
-        cost_summary = delm.get_cost_summary()
-        print(json.dumps(cost_summary, indent=2))
-
         # Get the results from the experiment directory
-        results[temp] = delm.get_extraction_results()
+        results[temp] = delm.get_extraction_results_json()
 
     return results
 
@@ -96,6 +91,6 @@ if __name__ == "__main__":
     results = run_temperature_comparison() 
     for temp, result in results.items():
         print(f"Temperature: {temp}")
-        print(result[SYSTEM_EXTRACTED_DATA_JSON_COLUMN])
+        print(result)
         print("\n")
     

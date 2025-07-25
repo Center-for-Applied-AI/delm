@@ -36,7 +36,6 @@ def estimate_performance(
     from delm.delm import DELM
     print("[WARNING] This method will use the API to estimate performance. This will charge you for the sampled data requests.")
     config_obj = DELMConfig.from_any(config)
-    print(DELM)
     delm = DELM(
         config=config_obj,
         experiment_name="cost_estimation",
@@ -56,6 +55,12 @@ def estimate_performance(
     record_sample_size = min(record_sample_size, total_expected_records, total_source_records)
 
     sampled_expected_df = expected_extraction_output_df.sample(n=record_sample_size, random_state=SYSTEM_RANDOM_SEED)
+    
+    if matching_id_column not in source_df.columns:
+        raise ProcessingError(f"Matching ID column `{matching_id_column}` not found in source data columns {source_df.columns}")
+    if matching_id_column not in sampled_expected_df.columns:
+        raise ProcessingError(f"Matching ID column `{matching_id_column}` not found in expected data columns {sampled_expected_df.columns}")
+    
     sampled_source_df = source_df[source_df[matching_id_column].isin(sampled_expected_df[matching_id_column])]
     prepped_data = delm.data_processor.process_dataframe(sampled_source_df) # type: ignore
     if len(prepped_data) == 0:

@@ -143,7 +143,7 @@ print(f"-"*40)
 print("Data finished processing")
 print(f"-"*40)
 
-result_df = delm.get_extraction_results()
+result_df = delm.get_extraction_results_df()
 
 cost_summary = delm.get_cost_summary()
 print(json.dumps(cost_summary, indent=2))

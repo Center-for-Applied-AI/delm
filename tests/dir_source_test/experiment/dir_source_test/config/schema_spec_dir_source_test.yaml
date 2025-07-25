@@ -1,0 +1,10 @@
+schema_type: simple
+variables:
+- data_type: string
+  description: Name of the person
+  name: name
+  required: true
+- data_type: '[string]'
+  description: Fruit the person likes
+  name: fruit
+  required: false

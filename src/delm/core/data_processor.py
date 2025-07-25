@@ -11,10 +11,13 @@ import pandas as pd
 from delm.strategies import loader_factory
 from delm.config import DataPreprocessingConfig
 from delm.constants import (
-    SYSTEM_CHUNK_COLUMN, SYSTEM_SCORE_COLUMN, SYSTEM_CHUNK_ID_COLUMN,
-    DEFAULT_TARGET_COLUMN, SYSTEM_RECORD_ID_COLUMN
+    SYSTEM_CHUNK_COLUMN, 
+    SYSTEM_SCORE_COLUMN, 
+    SYSTEM_CHUNK_ID_COLUMN,
+    SYSTEM_RECORD_ID_COLUMN,
+    SYSTEM_RAW_DATA_COLUMN
 )
-from ..exceptions import DataError, ValidationError
+from delm.exceptions import DataError, ValidationError, ConfigurationError, FileError
 
 
 class DataProcessor:
@@ -24,11 +27,7 @@ class DataProcessor:
         self.config = config
         self.splitter = config.splitting.strategy
         self.scorer = config.scoring.scorer
-        self.total_records = 0
         self.target_column = config.target_column
-        if not self.target_column:
-            self.target_column = DEFAULT_TARGET_COLUMN
-
         self.drop_target_column = config.drop_target_column
         self.pandas_score_filter = config.pandas_score_filter
     
@@ -39,39 +38,44 @@ class DataProcessor:
     #     df = self.load_data(data_source)
     #     return self.process_dataframe(df)
     
-    def load_data(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
+    def load_data(self, data_source: Union[str,Path, pd.DataFrame]) -> pd.DataFrame:
         """Load data from various sources."""
         if isinstance(data_source, (str, Path)):
             # Handle file loading
             path = Path(data_source)
+            if not path.exists():
+                raise FileError(
+                    f"Data Source path does not exist: {path}",
+                    {"path": str(path), "suggestion": "Check the path"}
+                )
             
             try:
-                data = loader_factory.load_file(path)
-                self.extension_requires_target_column = loader_factory.requires_target_column(path.suffix)
+                # Check if file or directory
+                if path.is_file():
+                    # Load file
+                    loaded_df = loader_factory.load_file(path)
+                    extension = path.suffix
+                elif path.is_dir():
+                    # Load directory
+                    loaded_df, extension = loader_factory.load_directory(path)
+                self.extension_requires_target_column = loader_factory.requires_target_column(extension)
                 
-                if self.extension_requires_target_column:
-                    if self.target_column == "":
-                        raise ValidationError(
-                            f"Target column is required for {path.suffix} files",
-                            {"file_path": str(path), "file_type": path.suffix, "suggestion": "Specify target_column in config"}
+                if self.extension_requires_target_column and self.target_column == "":
+                    raise ValidationError(
+                        f"Target column is required for {path.suffix} files",
+                        {"file_path": str(path), "file_type": path.suffix, "suggestion": "Specify target_column in config"}
+                    )
+                if self.target_column not in loaded_df.columns:
+                    print(f'{self.target_column} not in {loaded_df.columns}')
+                    if self.target_column == SYSTEM_RAW_DATA_COLUMN:
+                        raise ConfigurationError(
+                            f"Target column {self.target_column} is not allowed for {extension} files",
+                            {"path": str(path), "extension": extension, "suggestion": "Remove target_column from config"}
                         )
-                    if isinstance(data, pd.DataFrame):
-                        df = data
                     else:
                         raise DataError(
-                            f"{path.suffix} loader should return DataFrame",
-                            {"file_path": str(path), "actual_type": type(data).__name__}
-                        )
-                else:
-                    # data is a string for text-based files
-                    if isinstance(data, str):
-                        df = pd.DataFrame({
-                            self.target_column: [data]
-                        })
-                    else:
-                        raise DataError(
-                            f"{path.suffix} loader should return string",
-                            {"file_path": str(path), "actual_type": type(data).__name__}
+                            f"Target column {self.target_column} not found in data columns {loaded_df.columns}",
+                            {"path": str(path), "extension": extension, "suggestion": "Specify target_column in config"}
                         )
                         
             except ValueError:
@@ -81,21 +85,23 @@ class DataProcessor:
                 )
         else:
             # Handle DataFrame input
-            if self.target_column == "":
-                raise ValidationError(
-                    "Target column is required for DataFrame input",
-                    {"data_type": "DataFrame", "suggestion": "Specify target_column in config"}
+            if self.target_column not in data_source.columns:
+                raise DataError(
+                    f"Target column {self.target_column} not found in data source",
+                    {"data_source_columns": data_source.columns, "target_column": self.target_column, "suggestion": "Specify valid target_column in config"}
                 )
-            df = data_source.copy()
-        df[SYSTEM_RECORD_ID_COLUMN] = range(len(df))
-        return df
+            
+            loaded_df = data_source.copy()
+        loaded_df[SYSTEM_RECORD_ID_COLUMN] = range(len(loaded_df))
+        return loaded_df
     
     def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply chunking and scoring to DataFrame."""
-        
+        df = df.copy()
+
         # Check for invalid configuration: dropping target column without splitting
         if self.drop_target_column and self.splitter is None:
-            raise DataError(
+            raise ConfigurationError(
                 "Cannot drop target column when no splitting strategy is specified",
                 {
                     "target_column": self.target_column,
@@ -107,7 +113,7 @@ class DataProcessor:
         # 1. Chunk the data (or use target column if no splitting)
         if self.splitter is not None:
             # Apply splitting strategy - use system chunk column name
-            df[SYSTEM_CHUNK_COLUMN] = df[self.target_column].apply(self.splitter.split)
+            df.loc[:, SYSTEM_CHUNK_COLUMN] = df[self.target_column].apply(self.splitter.split)
             df = df.explode(SYSTEM_CHUNK_COLUMN).reset_index(drop=True)
         else:
             # No splitting - use target column name as chunk column (no duplication)

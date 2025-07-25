@@ -17,8 +17,8 @@ DEFAULT_DOTENV_PATH = None           # Default dotenv path (None = no .env file)
 DEFAULT_TRACK_COST = True            # Default bool to track cost of API calls
 
 # Data Processing Defaults
-DEFAULT_TARGET_COLUMN = "text"       # Default target column in data
-DEFAULT_DROP_TARGET_COLUMN = True    # Whether to drop target column after processing
+# DEFAULT_TARGET_COLUMN = "text"       # Default target column in data
+DEFAULT_DROP_TARGET_COLUMN = False    # Whether to drop target column after processing
 DEFAULT_PANDAS_SCORE_FILTER = None  # Default pandas score filter (None = no filter)
 
 # Schema Defaults
@@ -51,6 +51,8 @@ DEFAULT_SYSTEM_PROMPT = "You are a precise data‑extraction assistant."
 
 # System Constants (Internal - Not User Configurable)
 # TODO: Throw error if these are used in the data.
+SYSTEM_FILE_NAME_COLUMN = "delm_file_name"
+SYSTEM_RAW_DATA_COLUMN = "delm_raw_data"
 SYSTEM_RECORD_ID_COLUMN = "delm_record_id"
 SYSTEM_CHUNK_COLUMN = "delm_text_chunk"   # Internal column name for text chunks
 SYSTEM_SCORE_COLUMN = "delm_score"        # Internal column name for relevance scores
