@@ -59,26 +59,12 @@ class CostVsCoverageAnalyzer:
         
         print(f"Loaded {len(self.commodity_data_df)} total records")
         
-        # Check if we have price_expectation column for stratification
-        if "price_expectation" in self.commodity_data_df.columns:
-            # Filter out NaN values for stratification
-            valid_data = self.commodity_data_df.dropna(subset=["price_expectation"])
-            print(f"Records with valid price_expectation: {len(valid_data)}")
-            
-            # Split into train/test (80/20) with stratification
-            self.train_df, self.test_df = train_test_split(
-                valid_data, 
-                test_size=0.2, 
-                random_state=42,
-                stratify=valid_data["price_expectation"]
-            )
-        else:
-            # No stratification if no price_expectation column
-            self.train_df, self.test_df = train_test_split(
-                self.commodity_data_df, 
-                test_size=0.2, 
-                random_state=42
-            )
+        # Split into train/test (80/20) on ALL data first
+        self.train_df, self.test_df = train_test_split(
+            self.commodity_data_df, 
+            test_size=0.2, 
+            random_state=42
+        )
         
         print(f"Train set: {len(self.train_df)} records")
         print(f"Test set: {len(self.test_df)} records")
@@ -99,6 +85,9 @@ class CostVsCoverageAnalyzer:
             else:
                 texts_without_extractions.append(row['text'])
         
+        print(f"Texts with extractions: {len(texts_with_extractions)}")
+        print(f"Texts without extractions: {len(texts_without_extractions)}")
+        
         # Combine texts and create labels
         all_texts = texts_with_extractions + texts_without_extractions
         labels = [1] * len(texts_with_extractions) + [0] * len(texts_without_extractions)
@@ -107,8 +96,8 @@ class CostVsCoverageAnalyzer:
         vectorizer = TfidfVectorizer(max_features=2000, stop_words='english', ngram_range=(1, 1))
         X = vectorizer.fit_transform(all_texts)
         
-        # Select best features
-        selector = SelectKBest(chi2, k=top_n)
+        # Select best features - analyze more words to get more commodity-related ones
+        selector = SelectKBest(chi2, k=min(500, len(vectorizer.get_feature_names_out())))
         X_selected = selector.fit_transform(X, labels)
         
         # Get selected feature names
@@ -118,12 +107,51 @@ class CostVsCoverageAnalyzer:
         # Get feature scores for ordering
         feature_scores = selector.scores_[selector.get_support()]
         
-        # Sort by TF-IDF importance (chi2 scores)
-        sorted_indices = np.argsort(feature_scores)[::-1]  # Descending order
-        self.top_keywords = selected_features[sorted_indices].tolist()
+        # Calculate which class each word is more associated with
+        X_dense = X.toarray()
+        word_class_associations = []
         
-        print(f"Discovered {len(self.top_keywords)} keywords")
+        for i, feature_idx in enumerate(np.where(selector.get_support())[0]):
+            word = selected_features[i]
+            score = feature_scores[i]
+            
+            # Calculate mean TF-IDF score for each class
+            class_1_scores = X_dense[:len(texts_with_extractions), feature_idx]
+            class_0_scores = X_dense[len(texts_with_extractions):, feature_idx]
+            
+            mean_class_1 = np.mean(class_1_scores)
+            mean_class_0 = np.mean(class_0_scores)
+            
+            # Determine which class this word is more associated with
+            if mean_class_1 > mean_class_0:
+                association = "WITH extractions"
+            else:
+                association = "WITHOUT extractions"
+            
+            word_class_associations.append((word, score, association, mean_class_1, mean_class_0))
+        
+        # Sort by chi2 score (descending) but only keep words associated with texts WITH extractions
+        word_class_associations.sort(key=lambda x: x[1], reverse=True)
+        
+        # Debug: Show top 100 most distinctive words regardless of class
+        print(f"\nTop 100 most distinctive words (regardless of class):")
+        for i, (word, score, association, mean_1, mean_0) in enumerate(word_class_associations[:100]):
+            print(f"{i+1:3d}. {word:15s} - {association:20s} (score: {score:.2f})")
+        
+        # Filter to only include words more common in texts WITH extractions
+        keywords_with_extractions = [word for word, score, association, _, _ in word_class_associations 
+                                   if association == "WITH extractions"]
+        
+        # Take top N keywords that are associated with extractions
+        self.top_keywords = keywords_with_extractions[:top_n]
+        
+        print(f"Discovered {len(self.top_keywords)} keywords associated with texts containing extractions")
         print(f"Top 10 keywords: {self.top_keywords[:10]}")
+        
+        # Debug: Show some examples of word associations
+        print("\nSample word associations:")
+        for i, (word, score, association, mean_1, mean_0) in enumerate(word_class_associations[:20]):
+            print(f"{i+1:2d}. {word:15s} - {association:20s} (score: {score:.2f}, class1: {mean_1:.4f}, class0: {mean_0:.4f})")
         
         # Save keywords to file
         with open("top_100_keywords.txt", "w") as f:
