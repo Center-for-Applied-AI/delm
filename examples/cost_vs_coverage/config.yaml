@@ -1,0 +1,31 @@
+llm_extraction:
+  provider: "openai"
+  name: "gpt-4o-mini"
+  temperature: 0.0
+  max_retries: 3
+  batch_size: 10
+  max_workers: 4
+  base_delay: 1.0
+  extract_to_dataframe: true
+  track_cost: true
+  max_budget: 50.0
+
+data_preprocessing:
+  target_column: "text"
+  drop_target_column: false
+  splitting:
+    type: "ParagraphSplit"
+  scoring:
+    type: "KeywordScorer"
+    keywords: ["price", "cost", "market", "commodity", "oil", "gas", "steel", "copper", "aluminum", "gold"]
+
+schema:
+  spec_path: "../commodity_schema.yaml"
+  container_name: "commodity_prices"
+  prompt_template: "Extract all numeric market prices for goods mentioned by firm representatives in investor call transcripts. For each, record: good, subtype (if needed), whether it's a price expectation, price bounds, unit, currency, and time horizon."
+
+semantic_cache:
+  backend: "sqlite"
+  path: "./cache"
+  max_size_mb: 100
+  synchronous: "normal"
