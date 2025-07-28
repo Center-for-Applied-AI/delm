@@ -14,6 +14,8 @@ import pandas as pd
 import json
 from abc import ABC, abstractmethod
 
+import yaml
+
 from delm.constants import (
     DATA_DIR_NAME, 
     CACHE_DIR_NAME, 
@@ -35,7 +37,7 @@ class BaseExperimentManager(ABC):
     def get_results(self) -> pd.DataFrame:
         pass
     @abstractmethod
-    def initialize_experiment(self, config_dict: dict, schema_dict: dict):
+    def initialize_experiment(self, delm_config):
         pass
     @abstractmethod
     def save_preprocessed_data(self, df: pd.DataFrame) -> Path:
@@ -115,15 +117,29 @@ class DiskExperimentManager(BaseExperimentManager):
         """
         return pd.read_feather(self.data_dir / f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}")
 
-    def initialize_experiment(self, config_dict: dict, schema_dict: dict):
+    def initialize_experiment(self, delm_config):
         """Validate and create experiment directory structure, write config and schema files."""
+        from delm.config import DELMConfig
+        
+        if not isinstance(delm_config, DELMConfig):
+            raise ExperimentError(
+                "initialize_experiment requires a DELMConfig object",
+                {"config_type": type(delm_config).__name__, "suggestion": "Pass a DELMConfig instance"}
+            )
+        
         experiment_dir_path = self.experiment_dir
         if experiment_dir_path.exists():
             if self.overwrite_experiment:
                 shutil.rmtree(experiment_dir_path)
             elif self.auto_checkpoint_and_resume_experiment:
+                # Check if experiment already completed
+                if self.get_results().shape[0] > 0:
+                    raise ExperimentError(
+                        "Experiment exists and is already completed. To proceed, do the following:\n"
+                        "  - Set overwrite_experiment=True to overwrite the existing experiment.\n"
+                    )
                 # Verify config/schema match before resuming
-                self.verify_resume_config(config_dict, schema_dict)
+                self.verify_resume_config(delm_config)
             else:
                 raise ExperimentError(
                     (
@@ -140,12 +156,17 @@ class DiskExperimentManager(BaseExperimentManager):
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save config and schema files to experiment config directory
-        import yaml
-        config_yaml = self.config_dir / f"config_{self.experiment_name}.yaml"
-        schema_yaml = self.config_dir / f"schema_spec_{self.experiment_name}.yaml"
-        config_yaml.write_text(yaml.safe_dump(config_dict))
-        schema_yaml.write_text(yaml.safe_dump(schema_dict))
+        # Save pipeline config and schema spec files to experiment config directory
+        pipeline_config_path = self.config_dir / f"config_{self.experiment_name}.yaml"
+        schema_spec_path = self.config_dir / f"schema_spec_{self.experiment_name}.yaml"
+        
+        serialized_config_dict = delm_config.to_serialized_config_dict()
+        serialized_schema_spec_dict = delm_config.to_serialized_schema_spec_dict()
+        with open(pipeline_config_path, 'w') as f:
+            yaml.dump(serialized_config_dict, f, default_flow_style=False, sort_keys=False)
+        with open(schema_spec_path, 'w') as f:
+            yaml.dump(serialized_schema_spec_dict, f, default_flow_style=False, sort_keys=False)
+        
         self.preprocessed_data_path = self.data_dir / f"{PREPROCESSED_DATA_PREFIX}{self.experiment_name}{PREPROCESSED_DATA_SUFFIX}"
 
     def _find_config_differences(self, config1: dict, config2: dict, path: str = "") -> list:
@@ -175,22 +196,40 @@ class DiskExperimentManager(BaseExperimentManager):
         
         return differences
 
-    def verify_resume_config(self, config_dict: dict, schema_dict: dict):
-        """Compare config/schema in config/ folder to user-supplied config/schema. Abort if they differ."""
+    def verify_resume_config(self, delm_config):
+        """Compare config/schema in config/ folder to user-supplied DELMConfig. Abort if they differ."""
         import yaml
+        from delm.config import DELMConfig
+        
+        if not isinstance(delm_config, DELMConfig):
+            raise ExperimentError(
+                "verify_resume_config requires a DELMConfig object",
+                {"config_type": type(delm_config).__name__}
+            )
+        
         config_yaml = self.config_dir / f"config_{self.experiment_name}.yaml"
         schema_yaml = self.config_dir / f"schema_spec_{self.experiment_name}.yaml"
+        
+        if not config_yaml.exists() or not schema_yaml.exists():
+            raise ExperimentError(
+                "Cannot resume experiment: config files not found",
+                {"config_dir": str(self.config_dir)}
+            )
+        
         file_config = yaml.safe_load(config_yaml.read_text())
         file_schema = yaml.safe_load(schema_yaml.read_text())
         
-        if file_config != config_dict:
-            differences = self._find_config_differences(config_dict, file_config)
+        current_config_dict = delm_config.to_serialized_config_dict()
+        current_schema_dict = delm_config.to_serialized_schema_spec_dict()
+        
+        if file_config != current_config_dict:
+            differences = self._find_config_differences(current_config_dict, file_config)
             raise ExperimentError(
                 f"Config mismatch: current config does not match the one used for this experiment.\n\nMismatched fields:\n" + "\n".join(f"  - {diff}" for diff in differences),
                 {"mismatched_fields": differences}
             )
-        if file_schema != schema_dict:
-            differences = self._find_config_differences(schema_dict, file_schema)
+        if file_schema != current_schema_dict:
+            differences = self._find_config_differences(current_schema_dict, file_schema)
             raise ExperimentError(
                 f"Schema mismatch: current schema does not match the one used for this experiment.\n\nMismatched fields:\n" + "\n".join(f"  - {diff}" for diff in differences),
                 {"mismatched_fields": differences}
@@ -354,9 +393,17 @@ class InMemoryExperimentManager(BaseExperimentManager):
             raise ValueError("No extracted data available in memory.")
         return self._extracted_data
 
-    def initialize_experiment(self, config_dict: dict, schema_dict: dict):
-        self._config_dict = config_dict
-        self._schema_dict = schema_dict
+    def initialize_experiment(self, delm_config):
+        from delm.config import DELMConfig
+        
+        if not isinstance(delm_config, DELMConfig):
+            raise ExperimentError(
+                "initialize_experiment requires a DELMConfig object",
+                {"config_type": type(delm_config).__name__, "suggestion": "Pass a DELMConfig instance"}
+            )
+        
+        self._config_dict = delm_config.to_serialized_config_dict()
+        self._schema_dict = delm_config.to_serialized_schema_spec_dict()
 
     def save_preprocessed_data(self, df: pd.DataFrame) -> str:
         self._preprocessed_data = df.copy()

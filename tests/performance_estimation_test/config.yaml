@@ -2,18 +2,12 @@ llm_extraction:
   provider: openai
   name: gpt-4o-mini
   temperature: 0.0
-  max_retries: 1
-  batch_size: 1
-  max_workers: 1
   base_delay: 0.1
   dotenv_path: .env
-  extract_to_dataframe: false
   track_cost: false
 
 data_preprocessing:
-  record_id_column: record_id
   target_column: text
-  drop_target_column: false
   splitting:
     type: RegexSplit
     pattern: "(?<=[.!?])\\s+"
@@ -22,7 +16,6 @@ data_preprocessing:
     keywords: ["sale", "copies", "author", "price", "book", "title"]
 
 schema:
-  spec_path: simple_schema.yaml  # This will be updated in the test for each schema
-  container_name: data
-  prompt_template: null
-  system_prompt: null 
+  spec_path: null  # This will be updated in the test for each schema
+  # prompt_template: null
+  # system_prompt: null 

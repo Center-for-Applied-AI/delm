@@ -10,9 +10,9 @@ data_preprocessing:
   target_column: text
   drop_target_column: true
   splitting:
-    strategy: ParagraphSplit
+    type: ParagraphSplit
   scoring:
-    scorer: KeywordScorer
+    type: KeywordScorer
     keywords:
       - price
       - prices
@@ -27,5 +27,3 @@ data_preprocessing:
 
 schema:
   spec_path: tests/temperature_comparison_test/schema_spec.yaml
-  container_name: commodities
-  prompt_template: null

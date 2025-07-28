@@ -71,6 +71,9 @@ class DELM:
             auto_checkpoint_and_resume_experiment: Whether to auto-resume experiments.
             use_disk_storage: If True, use disk-based experiment manager; if False, use in-memory manager.
         """
+        # Validate configuration before proceeding
+        config.validate()
+        
         self.config = config
         self.experiment_name = experiment_name
         self.experiment_directory = experiment_directory
@@ -154,9 +157,9 @@ class DELM:
 
         # Print summary
         if self.config.llm_extraction.extract_to_dataframe:
-            print(f"Processed {num_chunks_processed} chunks ({num_chunks_with_errors} with errors) from {num_records_processed} records. Extracted to DataFrame with {len(final_df)} exploded rows.")
+            print(f"Processed {num_chunks_processed} chunks ({num_chunks_with_errors} with errors) from {num_records_processed} records.")
         else:
-            print(f"Processed {num_chunks_processed} chunks ({num_chunks_with_errors} with errors) from {num_records_processed} records. JSON output saved to `{SYSTEM_EXTRACTED_DATA_JSON_COLUMN}` column.")
+            print(f"Processed {num_chunks_processed} chunks ({num_chunks_with_errors} with errors) from {num_records_processed} records.")
         
         return final_df
 
@@ -222,11 +225,8 @@ class DELM:
                 experiment_name=self.experiment_name
             )
         
-        # Initialize experiment with config and schema
-        # Note that config dict contains everything but the schema, which is in schema_dict
-        config_dict = self.config.to_config_dict()
-        schema_dict = self.config.to_schema_dict()
-        self.experiment_manager.initialize_experiment(config_dict, schema_dict)
+        # Initialize experiment with DELMConfig object
+        self.experiment_manager.initialize_experiment(self.config) # type: ignore
         
         # Initialize cost tracker (may be loaded from state if resuming)
         self.cost_tracker = CostTracker(

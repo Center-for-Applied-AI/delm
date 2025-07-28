@@ -1,11 +1,13 @@
 import os
 import pandas as pd
+from pandas.io.common import Path
 import yaml
 from pprint import pprint
 from delm import DELMConfig
 from delm.utils.performance_estimation import estimate_performance
 
 DIR = "tests/performance_estimation_test"
+INPUT_DATA_FILE = "input_data.csv"
 
 SCHEMA_FILES = [
     "simple_schema.yaml",
@@ -41,13 +43,11 @@ def run_performance_test(schema_file, expected_file):
     print(f"="*60)
     print("\n")
     # Load config and update schema path
-    with open(os.path.join(DIR, "config.yaml")) as f:
-        config = yaml.safe_load(f)
-    config["schema"]["spec_path"] = os.path.join(DIR, schema_file)
-    config_obj = DELMConfig.from_any(config)
+    config_obj = DELMConfig.from_yaml(Path(DIR) / "config.yaml")
+    config_obj.schema.spec_path = Path(DIR) / schema_file
     # Load input and expected
-    input_df = pd.read_csv(os.path.join(DIR, "input_data.csv"))
-    expected_df = pd.read_csv(os.path.join(DIR, expected_file))
+    input_df = pd.read_csv(Path(DIR) / INPUT_DATA_FILE)
+    expected_df = pd.read_csv(Path(DIR) / expected_file)
     # Convert expected_dict from string to dict
     expected_df["expected_dict"] = expected_df["expected_dict"].apply(eval)
     # Run performance estimation
@@ -69,9 +69,9 @@ def run_performance_test(schema_file, expected_file):
         print(f"{key:<30} {value['precision']:10.3f} {value['recall']:10.3f}")
     print("-"*40)
     print("Expected:")
-    pprint(merged_df.iloc[:2]["expected_dict"].to_list())
+    pprint(merged_df["expected_dict"].to_list())
     print("Extracted:")
-    pprint(merged_df.iloc[:2]["extracted_dict"].to_list())
+    pprint(merged_df["extracted_dict"].to_list())
     print("")
 
 def test_all():

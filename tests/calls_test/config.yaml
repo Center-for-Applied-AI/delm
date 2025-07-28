@@ -15,7 +15,6 @@ llm_extraction:
 # Data preprocessing configuration
 data_preprocessing:
   target_column: "text"
-  drop_target_column: true
   pandas_score_filter: "delm_score > 0.5"
   
   # Splitting strategy configuration
@@ -32,12 +31,7 @@ data_preprocessing:
       - "estimate"
       # - "expectation"
 
-semantic_cache:
-  backend: "sqlite"
-  path: ".delm_cache"
-
 # Schema configuration
 schema:
   spec_path: "tests/calls_test/schema_spec.yaml"
-  container_name: "commodities"
-  prompt_template: null  # Use default prompt template
+  # prompt_template: null  # Use default prompt template

@@ -9,7 +9,6 @@ import json
 import sys
 
 from delm import DELM, DELMConfig
-from delm.constants import DATA_DIR_NAME, PREPROCESSED_DATA_PREFIX, PREPROCESSED_DATA_SUFFIX, CONSOLIDATED_RESULT_PREFIX, CONSOLIDATED_RESULT_SUFFIX
 
 print(f"="*60)
 print("Earning Report DELM Testing with REAL DATA")
@@ -18,6 +17,7 @@ print("- DELMConfig")
 print("- DELM")
 print("- DELM.prep_data")
 print("- DELM.process_via_llm")
+print("- Budget Halting")
 print("Expected Outputs:")
 print("- Extracted data")
 print("- Cost of Test")
