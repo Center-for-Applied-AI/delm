@@ -109,7 +109,7 @@ def estimate_performance(
         how="inner"
     )
     record_id_extracted_expected_dicts_df.columns = [matching_id_column, "expected_dict", "extracted_dict"]
-    performance_metrics_dict = _aggregate_precision_recall_across_records(
+    performance_metrics_dict = _aggregate_performance_metrics_across_records(
         record_id_extracted_expected_dicts_df["expected_dict"].tolist(),
         record_id_extracted_expected_dicts_df["extracted_dict"].tolist(),
         extraction_schema,
@@ -232,14 +232,14 @@ def _all_levels_precision_recall(
         return results
     return results
 
-def _aggregate_precision_recall_across_records(
+def _aggregate_performance_metrics_across_records(
     expected_list: list[Any],
     predicted_list: list[Any],
     schema: BaseSchema,
 ) -> dict[str, dict[str, float]]:
     required_map = _build_required_map(schema)
     from collections import defaultdict
-    agg = defaultdict(lambda: {"tp": 0.0, "fp": 0.0, "fn": 0.0})
+    agg = defaultdict(lambda: {"tp": 0.0, "fp": 0.0, "fn": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0})
     for y_true, y_pred in zip(expected_list, predicted_list):
         rec_metrics = _all_levels_precision_recall(y_true, y_pred, required_map)
         for field, m in rec_metrics.items():
@@ -250,5 +250,6 @@ def _aggregate_precision_recall_across_records(
         tp, fp, fn = c["tp"], c["fp"], c["fn"]
         c["precision"] = tp / (tp + fp) if tp + fp else 0.0
         c["recall"]    = tp / (tp + fn) if tp + fn else 0.0
+        c["f1"] = 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else 0.0
     return dict(agg)
 

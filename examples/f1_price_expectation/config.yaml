@@ -1,0 +1,53 @@
+# DELM Configuration Example
+# This file shows all available configuration options for DELM
+
+# LLM extraction configuration
+llm_extraction:
+  provider: "openai"                  # LLM provider (openai, anthropic, google, groq, together, fireworks)
+  name: "gpt-4o-mini"                 # LLM model name
+  temperature: 0.0                    # Temperature for generation (0.0-2.0)
+  max_retries: 3                      # Maximum API retries
+  batch_size: 10                      # Batch size for processing
+  max_workers: 1                      # Number of concurrent workers
+  base_delay: 1.0                     # Base delay for retry handler (seconds)
+  dotenv_path: ".env"                 # Path to .env file (optional, can be null)
+  track_cost: true                    # Whether to track cost of API calls
+  max_budget: 0.5                    # Maximum budget for API calls (in dollars). Track cost must be true.
+
+# Data preprocessing configuration
+data_preprocessing:
+  target_column: "text"         # Column containing text to process
+  
+  # Splitting strategy configuration
+  # splitting:
+  #   type: "ParagraphSplit"      # Available: ParagraphSplit, FixedWindowSplit, RegexSplit, None
+    # For FixedWindowSplit, you can also specify:
+    # window: 5                 # Number of sentences per chunk
+    # stride: 5                 # Number of sentences to overlap
+    # For RegexSplit, you can also specify:
+    # pattern: "\n\n"           # Regex pattern to split on
+  
+  # Scoring strategy configuration  
+  # scoring:
+  #   type: "KeywordScorer"       # Available: KeywordScorer, FuzzyScorer, None
+  #   keywords:                   # List of keywords for relevance scoring
+  #     - "price"
+  #     - "forecast"
+  #     - "guidance"
+  #     - "estimate"
+  #     - "expectation"
+  #     - "revenue"
+  #     - "earnings"
+
+# Schema configuration
+schema:
+  spec_path: "examples/f1_price_expectation/schema_spec.yaml" # Path to schema specification file
+  prompt_template: |
+    Extract expected variables for goods mentioned by firm representatives in investor call transcripts.
+
+    Extract the following information from the text:
+
+    {variables}
+
+    Text to analyze:
+    {text}
