@@ -154,10 +154,10 @@ class CostVsCoverageAnalyzer:
             print(f"{i+1:2d}. {word:15s} - {association:20s} (score: {score:.2f}, class1: {mean_1:.4f}, class0: {mean_0:.4f})")
         
         # Save keywords to file
-        with open("top_100_keywords.txt", "w") as f:
+        with open("top_250_keywords.txt", "w") as f:
             for i, keyword in enumerate(self.top_keywords, 1):
                 f.write(f"{i:3d}. {keyword}\n")
-        print("Keywords saved to top_100_keywords.txt")
+        print("Keywords saved to top_250_keywords.txt")
         
         return self.top_keywords
     
@@ -172,11 +172,11 @@ class CostVsCoverageAnalyzer:
             sample_df = self.train_df.sample(n=min(sample_size, len(self.train_df)), random_state=42)
         
         # Break text into paragraphs using the splitting strategy
-        paragraphs = self._split_text_into_paragraphs(sample_df, self.config)
+        paragraphs, labels = self._split_text_into_paragraphs(sample_df, self.config)
         
         # Calculate metrics
         total_paragraphs = len(paragraphs)
-        paragraphs_with_extractions = self._count_paragraphs_with_extractions(paragraphs, sample_df)
+        paragraphs_with_extractions = self._count_expectation_paragraphs(labels)
         
         # Calculate actual cost for all paragraphs
         from delm.utils.cost_estimation import estimate_input_token_cost
@@ -215,25 +215,27 @@ class CostVsCoverageAnalyzer:
             sample_df = self.train_df.sample(n=min(sample_size, len(self.train_df)), random_state=42)
         
         # Break text into paragraphs using the splitting strategy
-        paragraphs = self._split_text_into_paragraphs(sample_df, self.config)
+        paragraphs, labels = self._split_text_into_paragraphs(sample_df, self.config)
         
         # Test keyword scorer on each paragraph
         keyword_scorer = KeywordScorer(keywords)
         selected_paragraphs = []
+        selected_labels = []
         
-        for paragraph in paragraphs:
+        for paragraph, label in zip(paragraphs, labels):
             score = keyword_scorer.score(paragraph)
             if score > 0:  # Paragraph contains keywords
                 selected_paragraphs.append(paragraph)
+                selected_labels.append(label)
         
         # Calculate metrics
         total_paragraphs = len(paragraphs)
         paragraphs_processed = len(selected_paragraphs)
-        paragraphs_with_extractions = self._count_paragraphs_with_extractions(paragraphs, sample_df)
-        selected_with_extractions = self._count_paragraphs_with_extractions(selected_paragraphs, sample_df)
+        total_expectation = self._count_expectation_paragraphs(labels)
+        selected_with_extractions = self._count_expectation_paragraphs(selected_labels)
         
         # Calculate coverage
-        coverage = selected_with_extractions / paragraphs_with_extractions if paragraphs_with_extractions > 0 else 0
+        coverage = selected_with_extractions / total_expectation if total_expectation > 0 else 0
         
         # Calculate actual cost for selected paragraphs
         from delm.utils.cost_estimation import estimate_input_token_cost
@@ -250,7 +252,7 @@ class CostVsCoverageAnalyzer:
         
         metrics = {
             "total_paragraphs": total_paragraphs,
-            "paragraphs_with_extractions": paragraphs_with_extractions,
+            "paragraphs_with_extractions": total_expectation,
             "paragraphs_processed": paragraphs_processed,
             "selected_with_extractions": selected_with_extractions,
             "coverage": coverage,
@@ -262,7 +264,7 @@ class CostVsCoverageAnalyzer:
         
         return metrics
     
-    def _split_text_into_paragraphs(self, df: pd.DataFrame, config: DELMConfig) -> List[str]:
+    def _split_text_into_paragraphs(self, df: pd.DataFrame, config: DELMConfig) -> tuple[list[str], list[bool]]:
         """Split text into paragraphs using the configured splitting strategy."""
         from delm.core.data_processor import DataProcessor
         
@@ -272,25 +274,18 @@ class CostVsCoverageAnalyzer:
         # Process the data to get chunks
         processed_df = data_processor.process_dataframe(df)
         
-        # Extract the chunked text
+        # Extract the chunked text and create expectation labels
+        processed_df["has_expectation"] = (
+            processed_df["price_expectation"].notna() | processed_df["good"].notna()
+        )
         paragraphs = processed_df["delm_text_chunk"].dropna().tolist()
-        return paragraphs
+        labels = processed_df["has_expectation"].tolist()
+        return paragraphs, labels
     
-    def _count_paragraphs_with_extractions(self, paragraphs: List[str], original_df: pd.DataFrame) -> int:
-        """Count how many paragraphs contain text that would yield extractions."""
-        # This is a simplified approach - in practice you'd want more sophisticated matching
-        # For now, we'll count paragraphs that contain any of the extraction-related keywords
-        
-        extraction_keywords = ["price", "cost", "market", "commodity", "oil", "gas", "steel", 
-                             "copper", "aluminum", "gold", "forecast", "expectation", "guidance"]
-        
-        count = 0
-        for paragraph in paragraphs:
-            paragraph_lower = paragraph.lower()
-            if any(keyword in paragraph_lower for keyword in extraction_keywords):
-                count += 1
-        
-        return count
+    @staticmethod
+    def _count_expectation_paragraphs(labels: list[bool]) -> int:
+        """Count how many paragraphs contain actual price expectations."""
+        return sum(labels)
     
     def _create_dataframe_with_selected_paragraphs(self, original_df: pd.DataFrame, selected_paragraphs: List[str], config: DELMConfig) -> pd.DataFrame:
         """Create a DataFrame containing only the selected paragraphs for cost estimation."""
@@ -314,7 +309,7 @@ class CostVsCoverageAnalyzer:
     def run_pareto_analysis(self, keyword_sizes: List[int] = None, sample_size: int = 200) -> pd.DataFrame:
         """Run Pareto analysis with different keyword sizes on both train and test data."""
         if keyword_sizes is None:
-            keyword_sizes = list(range(1, 101))  # 1 to 100 keywords with step=1
+            keyword_sizes = list(range(1, 251))  # 1 to 250 keywords with step=1
         
         print(f"Running Pareto analysis with keyword sizes: {keyword_sizes}")
         
@@ -361,7 +356,7 @@ class CostVsCoverageAnalyzer:
         train_cost_pct = (train_df["filtered_cost"] / train_baseline) * 100
         test_cost_pct = (test_df["filtered_cost"] / test_baseline) * 100
         
-        # Plot both curves
+        # Plot both curves with different colors
         ax.plot(train_cost_pct, train_df["coverage"] * 100, 
                 marker="o", linewidth=2.5, markersize=6, 
                 color="#2E86AB", alpha=0.8, markeredgecolor="white", markeredgewidth=1,
@@ -373,13 +368,13 @@ class CostVsCoverageAnalyzer:
                 label="Test")
         
         # Add annotations for key sizes
-        key_sizes = [1, 5, 10, 20, 50, 100]
+        key_sizes = [5, 10, 20, 100, 200, 250]
         for size in key_sizes:
             # Train annotation
             if size in train_df["keyword_size"].values:
                 row = train_df[train_df["keyword_size"] == size].iloc[0]
                 cost_pct = (row["filtered_cost"] / train_baseline) * 100
-                ax.annotate(f"N={size}", 
+                ax.annotate(f"k={size}", 
                             (cost_pct, row["coverage"] * 100), 
                             xytext=(10, 10), textcoords="offset points", 
                             fontsize=9, fontweight="bold",
@@ -389,7 +384,7 @@ class CostVsCoverageAnalyzer:
             if size in test_df["keyword_size"].values:
                 row = test_df[test_df["keyword_size"] == size].iloc[0]
                 cost_pct = (row["filtered_cost"] / test_baseline) * 100
-                ax.annotate(f"N={size}", 
+                ax.annotate(f"k={size}", 
                             (cost_pct, row["coverage"] * 100), 
                             xytext=(-10, -15), textcoords="offset points", 
                             fontsize=9, fontweight="bold",
@@ -405,7 +400,7 @@ class CostVsCoverageAnalyzer:
         ax.set_axisbelow(True)
         
         ax.set_xlim(0, 100)
-        ax.set_ylim(0, 105)
+        ax.set_ylim(0, 100)
         
         ax.tick_params(axis="both", which="major", labelsize=12)
         
@@ -436,10 +431,10 @@ def main():
     analyzer.load_data()
     
     # Discover keywords on training data
-    analyzer.discover_keywords(top_n=100)
+    analyzer.discover_keywords(top_n=250)
     
     # Run Pareto analysis on test data
-    results_df = analyzer.run_pareto_analysis(keyword_sizes=list(range(1, 101)))
+    results_df = analyzer.run_pareto_analysis(keyword_sizes=list(range(1, 251)))
     
     # Plot results
     analyzer.plot_results(results_df)
@@ -450,7 +445,7 @@ def main():
     print("\nAnalysis complete! Check the generated files:")
     print("- cost_vs_coverage_results.csv: Numerical results")
     print("- cost_vs_coverage_results.pdf/.svg: Pareto curve visualization")
-    print("- top_100_keywords.txt: Top 100 keywords in TF-IDF order")
+    print("- top_250_keywords.txt: Top 250 keywords in TF-IDF order")
 
 
 if __name__ == "__main__":
