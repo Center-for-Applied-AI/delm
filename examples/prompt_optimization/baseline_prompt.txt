@@ -1,0 +1,1 @@
+Extract all numeric market prices for goods mentioned by firm representatives in investor call transcripts. For each, record: good, subtype (if needed), whether it's a price expectation, price bounds, unit, currency, and time horizon. 

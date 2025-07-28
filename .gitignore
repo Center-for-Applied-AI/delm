@@ -12,3 +12,4 @@ experiments/
 .pytest_cache/
 .delm_cache/
 .delm_cache/*
+examples/commodity_data*
