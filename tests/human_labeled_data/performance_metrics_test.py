@@ -46,11 +46,11 @@ performance_metrics_dict, processed_df = estimate_performance(
 print(f"-"*40)
 print("Performance Metrics (Precision and Recall Only)")
 print(f"-"*40)
-header = f"{'Field':<20} {'Precision':>10} {'Recall':>10}"
+header = f"{'Field':<20} {'Precision':>10} {'Recall':>10} {'F1':>10}"
 print(header)
 print("-" * len(header))
 for key, value in performance_metrics_dict.items():
-    print(f"{key:<20} {value['precision']:10.3f} {value['recall']:10.3f}")
+    print(f"{key:<20} {value['precision']:10.3f} {value['recall']:10.3f} {value['f1']:10.3f}")
 
 print(f"-"*40)
 print("Processed Data")
