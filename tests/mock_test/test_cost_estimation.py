@@ -1,6 +1,8 @@
+from copy import deepcopy
 import pandas as pd
 from pathlib import Path
 from delm.config import DELMConfig
+from delm.strategies.splitting_strategies import RegexSplit
 from delm.utils.cost_estimation import estimate_input_token_cost, estimate_total_cost
 import numpy as np
 from datetime import datetime, timedelta
@@ -58,13 +60,12 @@ def main():
     base_config_path = Path("tests/mock_test/config.yaml")
     config = DELMConfig.from_yaml(base_config_path)
     # Second config: RegexSplit by sentence
-    config2_dict = config.to_config_dict()
-    config2_dict["data_preprocessing"]["splitting"] = {
+    config2 = config.to_dict()
+    config2["data_preprocessing"]["splitting"] = {
         "type": "RegexSplit",
         "pattern": r"(?<=[.!?])\s+"
     }
-    config2 = DELMConfig.from_dict(config2_dict)
-    configs = [config, config2]
+    config2 = DELMConfig.from_dict(config2)
 
     # Heuristic estimation
     results_heuristic = [

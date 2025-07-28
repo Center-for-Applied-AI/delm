@@ -67,9 +67,7 @@ class ExtractionManager:
         - Saving batch checkpoints for resuming
         - Consolidating results into final DataFrame
         """
-        from ..constants import BATCH_FILE_DIGITS, SYSTEM_CHUNK_ID_COLUMN
         from tqdm.auto import tqdm
-        import os
 
         # 1. Discover all unverified batch IDs (checkpoint files that exist)
         unverified_batch_ids = experiment_manager.get_all_batch_ids() if auto_checkpoint else set()
@@ -170,8 +168,8 @@ class ExtractionManager:
     def _instructor_extract(self, text_chunk: str) -> BaseModel:
         """Use Instructor + Pydantic schema for structured output."""
         schema = self.extraction_schema.create_pydantic_schema()
-        prompt = self.extraction_schema.create_prompt(text_chunk)
-        system_prompt = self.schema_manager.config.system_prompt
+        prompt = self.extraction_schema.create_prompt(text_chunk, self.schema_manager.prompt_template)
+        system_prompt = self.schema_manager.system_prompt
         provider_and_model = self.model_config.get_provider_string()
 
 

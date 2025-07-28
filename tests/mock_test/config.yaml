@@ -5,29 +5,18 @@
 llm_extraction:
   name: gpt-4o-mini
   provider: openai
-  temperature: 0.0
-  batch_size: 2
-  max_workers: 1
-  max_retries: 2
   dotenv_path: ".env"
-
-semantic_cache:
-  backend: "sqlite"
-  path: ".delm_cache"
 
 data_preprocessing:
   target_column: text
-  drop_target_column: true
   splitting:
     type: ParagraphSplit
   scoring:
     type: KeywordScorer
     keywords: ["revenue", "profit"]
-  pandas_score_filter: null
 
 schema:
   spec_path: tests/mock_test/schema_spec.yaml
-  container_name: data
   system_prompt: "You are a helpful assistant that extracts data from text."
   prompt_template: |
     Extract the following information from the text:

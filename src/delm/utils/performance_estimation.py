@@ -68,7 +68,7 @@ def estimate_performance(
     delm.experiment_manager.save_preprocessed_data(prepped_data)
 
     results = delm.process_via_llm()
-    
+
     if results.empty or SYSTEM_EXTRACTED_DATA_JSON_COLUMN not in results.columns:
         raise ValueError("No results or missing DICT column.")
 

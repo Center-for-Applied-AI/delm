@@ -9,19 +9,22 @@ from typing import Any, Dict
 
 from .schemas import SchemaRegistry, BaseSchema
 from ..exceptions import SchemaError, FileError
+from delm.config import SchemaConfig
 
 
 class SchemaManager:
     """Manages schema loading and validation."""
     
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, config: SchemaConfig):
+        self.spec_path = config.spec_path
+        self.prompt_template: str = config.prompt_template
+        self.system_prompt: str = config.system_prompt
         self.schema_registry = SchemaRegistry()
         self.extraction_schema = self._load_schema()
     
     def _load_schema(self) -> BaseSchema:
         """Load and validate schema from spec file."""
-        schema_config = self._load_schema_spec(self.config.spec_path)
+        schema_config = self._load_schema_spec(self.spec_path) # type: ignore
         
         # Handle both direct extraction config and nested extraction config
         if 'extraction' in schema_config:

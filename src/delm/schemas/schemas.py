@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Sequence, Type
 import pandas as pd
 from pydantic import BaseModel, Field  # <- real Field, returns FieldInfo
 
-from ..constants import DEFAULT_PROMPT_TEMPLATE
+from ..constants import DEFAULT_PROMPT_TEMPLATE, LLM_NULL_WORDS_LOWERCASE
 from ..exceptions import SchemaError
 from ..models import ExtractionVariable
 
@@ -101,7 +101,7 @@ class BaseSchema(ABC):
         ...
 
     @abstractmethod
-    def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
+    def create_prompt(self, text: str, prompt_template: str, context: Dict[str, Any] | None = None) -> str:
         ...
 
     @abstractmethod
@@ -147,7 +147,6 @@ class BaseSchema(ABC):
 class SimpleSchema(BaseSchema):
     def __init__(self, config: Dict[str, Any]):
         self._variables = [ExtractionVariable.from_dict(v) for v in config.get("variables", [])]
-        self.prompt_template = config.get("prompt_template", DEFAULT_PROMPT_TEMPLATE)
 
         # derived – which variables are lists?
         self._list_vars = [v.name for v in self._variables if v.data_type.startswith("[")]
@@ -165,8 +164,8 @@ class SimpleSchema(BaseSchema):
             fields[v.name] = fld
         return type("DynamicExtractSchema", (BaseModel,), {"__annotations__": annotations, **fields})
 
-    def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:
-        return self.prompt_template.format(text=text, variables=self.get_variables_text(), context=context or "")
+    def create_prompt(self, text: str, prompt_template: str, context: Dict[str, Any] | None = None) -> str:
+        return prompt_template.format(text=text, variables=self.get_variables_text(), context=context or "")
 
     # ---- validation helpers ------------------------------------------------
     def _clean(self, response: Any, text_chunk: str) -> Optional[BaseModel]:
@@ -179,6 +178,16 @@ class SimpleSchema(BaseSchema):
             raw = instance_dict.get(v.name)
             items = raw if isinstance(raw, list) else [raw]
             items = [i for i in items if i is not None]
+            
+            if "string" in v.data_type:
+                # Filter out NONE strings from LLM unless they're explicitly allowed
+                if v.allowed_values is None:
+                    nones_to_filter = LLM_NULL_WORDS_LOWERCASE
+                else:
+                    nones_to_filter = [i for i in LLM_NULL_WORDS_LOWERCASE if i not in v.allowed_values]
+                if len(nones_to_filter) > 0:
+                    items = [i for i in items if i.lower() not in nones_to_filter]
+            
             if v.allowed_values:
                 items = [i for i in items if i in v.allowed_values]
             if v.validate_in_text:
@@ -224,7 +233,6 @@ class NestedSchema(BaseSchema):
     def __init__(self, config: Dict[str, Any]):
         self._container_name = config.get("container_name", "instances")
         self._variables = [ExtractionVariable.from_dict(v) for v in config.get("variables", [])]
-        self.prompt_template = config.get("prompt_template", DEFAULT_PROMPT_TEMPLATE)
         self._list_vars = [v.name for v in self._variables if v.data_type.startswith("[")]
 
     # ---- interface ---------------------------------------------------------
@@ -252,9 +260,9 @@ class NestedSchema(BaseSchema):
         return type("DynamicContainer", (BaseModel,), {"__annotations__": ann, **flds})
 
     # ---- prompt ------------------------------------------------------------
-    def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:  # noqa: D401 – simple name
+    def create_prompt(self, text: str, prompt_template: str, context: Dict[str, Any] | None = None) -> str:  # noqa: D401 – simple name
         ctx = "\n".join(f"{k}: {v}" for k, v in (context or {}).items())
-        return self.prompt_template.format(text=text, variables=self.get_variables_text(), context=ctx)
+        return prompt_template.format(text=text, variables=self.get_variables_text(), context=ctx)
 
     # ---- validation --------------------------------------------------------
     def _clean_item(self, raw_item: Dict[str, Any], text_lwr: str) -> Optional[Dict[str, Any]]:
@@ -263,6 +271,16 @@ class NestedSchema(BaseSchema):
             val = raw_item.get(v.name)
             items = val if isinstance(val, list) else [val]
             items = [i for i in items if i is not None]
+            
+            if "string" in v.data_type:
+                # Filter out NONE strings from LLM unless they're explicitly allowed
+                if v.allowed_values is None:
+                    nones_to_filter = LLM_NULL_WORDS_LOWERCASE
+                else:
+                    nones_to_filter = [i for i in LLM_NULL_WORDS_LOWERCASE if i not in v.allowed_values]
+                if len(nones_to_filter) > 0:
+                    items = [i for i in items if i.lower() not in nones_to_filter]
+                
             if v.allowed_values:
                 items = [i for i in items if i in v.allowed_values]
             if v.validate_in_text:
@@ -347,10 +365,10 @@ class MultipleSchema(BaseSchema):
             flds[name] = Field(..., description=f"results for {name}")
         return type("MultipleExtract", (BaseModel,), {"__annotations__": ann, **flds})
 
-    def create_prompt(self, text: str, context: Dict[str, Any] | None = None) -> str:  # noqa: D401
+    def create_prompt(self, text: str, prompt_template: str, context: Dict[str, Any] | None = None) -> str:  # noqa: D401
         parts = []
         for name, sch in self.schemas.items():
-            parts.append(f"## {name.upper()}\n" + sch.create_prompt(text, context))
+            parts.append(f"## {name.upper()}\n" + sch.create_prompt(text, prompt_template, context))
         return "\n\n".join(parts)
 
     # ---- parse -------------------------------------------------------------
