@@ -44,28 +44,48 @@ cp example.env .env
 ### Basic Usage
 
 ```python
-from DELM import DELM, ParagraphSplit, KeywordScorer
+from delm import DELM, DELMConfig, configure_logging
 
-# Initialize DELM with schema specification
+# Configure logging (optional)
+configure_logging(console_level="INFO")
+
+# Create configuration
+config = DELMConfig.from_dict({
+    "llm_extraction": {
+        "provider": "openai",
+        "name": "gpt-4o-mini",
+        "temperature": 0.0,
+        "max_retries": 3,
+        "batch_size": 10,
+        "max_workers": 4,
+    },
+    "data_preprocessing": {
+        "target_column": "text",
+        "splitting": {"type": "ParagraphSplit"},
+        "scoring": {
+            "type": "KeywordScorer", 
+            "keywords": ["price", "forecast", "estimate"]
+        },
+    },
+    "schema": {
+        "spec_path": "example.schema_spec.yaml",
+    },
+    "semantic_cache": {}
+})
+
+# Initialize DELM
 delm = DELM(
-    schema_spec_path="example.schema_spec.yaml",
-    dotenv_path=".env",
-    model_name="gpt-4o-mini",
-    temperature=0.0,
-    max_retries=3,
-    batch_size=10,
-    max_workers=4,
-    split_strategy=ParagraphSplit(),
-    relevance_scorer=KeywordScorer(["price", "forecast", "estimate"]),
+    config=config,
+    experiment_name="my_experiment",
+    experiment_directory=Path("experiments"),
 )
 
 # Load and process data
 df = delm.prep_data("data/input/report.txt")
-processed_df = delm.process_via_llm(df)
+processed_df = delm.process_via_llm()
 
 # Get results
-results_df = delm.parse_to_dataframe(processed_df)
-metrics = delm.evaluate_output_metrics(processed_df)
+results_df = delm.get_extraction_results_df()
 ```
 
 ### Commodity Price Extraction Example
@@ -91,6 +111,80 @@ commodity_data = delm.parse_to_dataframe(results)
 DELM separates configuration into two parts:
 1. **Schema Specification**: YAML file defining the extraction schema
 2. **Runtime Parameters**: Constructor arguments for model and processing settings
+
+## 📝 Logging
+
+DELM provides comprehensive logging support following Python best practices for libraries:
+
+### Automatic Logging Configuration
+
+DELM automatically configures logging when you create an instance:
+
+```python
+from delm import DELM, DELMConfig
+
+# Basic usage - console logging only
+delm = DELM(
+    config=config,
+    experiment_name="my_experiment",
+    experiment_directory=Path("experiments"),
+    use_disk_storage=False,  # In-memory: console only
+)
+
+# Disk experiments automatically create log files
+delm = DELM(
+    config=config,
+    experiment_name="my_experiment", 
+    experiment_directory=Path("experiments"),
+    use_disk_storage=True,  # Creates logs/run.log automatically
+)
+```
+
+### Custom Logging Configuration
+
+You can override the default logging behavior:
+
+```python
+# Custom log file and levels
+delm = DELM(
+    config=config,
+    experiment_name="my_experiment",
+    experiment_directory=Path("experiments"),
+    log_file="custom.log",           # Custom log file
+    console_log_level="WARNING",     # Less verbose console
+    file_log_level="DEBUG",          # More verbose file
+)
+```
+
+### Manual Logging Configuration
+
+For complete control, you can configure logging manually:
+
+```python
+from delm import configure_logging
+
+# Configure before creating DELM instance
+configure_logging(
+    console_level="INFO",
+    file="delm.log",
+    file_level="DEBUG"
+)
+```
+
+### Log Levels
+
+- **DEBUG**: Detailed component initialization and processing steps
+- **INFO**: High-level operations (data loading, processing completion)
+- **WARNING**: Issues that don't stop processing (retries, budget warnings)
+- **ERROR**: Errors that affect processing
+
+### Logging Best Practices
+
+- Library code only adds `NullHandler` by default (no output unless configured)
+- Logging is automatically configured when creating DELM instances
+- Disk experiments automatically create `logs/run.log` with rotating file handlers
+- Users can override logging settings via constructor parameters
+- Supports both automatic and manual configuration
 
 ### Schema Specification
 

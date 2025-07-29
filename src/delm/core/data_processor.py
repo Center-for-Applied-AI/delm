@@ -4,9 +4,13 @@ DELM Data Processor
 Handles data loading, preprocessing, chunking, and scoring.
 """
 
+import logging
 from pathlib import Path
 from typing import Union
 import pandas as pd
+
+# Module-level logger
+log = logging.getLogger(__name__)
 
 from delm.strategies import loader_factory
 from delm.config import DataPreprocessingConfig
@@ -43,6 +47,8 @@ class DataProcessor:
         if isinstance(data_source, (str, Path)):
             # Handle file loading
             path = Path(data_source)
+            log.debug("Loading data from path: %s", path)
+            
             if not path.exists():
                 raise FileError(
                     f"Data Source path does not exist: {path}",
@@ -52,13 +58,17 @@ class DataProcessor:
             try:
                 # Check if file or directory
                 if path.is_file():
+                    log.debug("Loading single file: %s", path)
                     # Load file
                     loaded_df = loader_factory.load_file(path)
                     extension = path.suffix
                 elif path.is_dir():
+                    log.debug("Loading directory: %s", path)
                     # Load directory
                     loaded_df, extension = loader_factory.load_directory(path)
                 self.extension_requires_target_column = loader_factory.requires_target_column(extension)
+                
+                log.debug("Loaded %d records with extension %s", len(loaded_df), extension)
                 
                 if self.extension_requires_target_column and self.target_column == "":
                     raise ValidationError(
@@ -66,7 +76,7 @@ class DataProcessor:
                         {"file_path": str(path), "file_type": path.suffix, "suggestion": "Specify target_column in config"}
                     )
                 if self.target_column not in loaded_df.columns:
-                    print(f'{self.target_column} not in {loaded_df.columns}')
+                    log.error("Target column '%s' not found in columns: %s", self.target_column, loaded_df.columns)
                     if self.target_column == SYSTEM_RAW_DATA_COLUMN:
                         raise ConfigurationError(
                             f"Target column {self.target_column} is not allowed for {extension} files",
@@ -85,6 +95,7 @@ class DataProcessor:
                 )
         else:
             # Handle DataFrame input
+            log.debug("Loading data from DataFrame with %d records", len(data_source))
             if self.target_column not in data_source.columns:
                 raise DataError(
                     f"Target column {self.target_column} not found in data source",
@@ -93,10 +104,12 @@ class DataProcessor:
             
             loaded_df = data_source.copy()
         loaded_df[SYSTEM_RECORD_ID_COLUMN] = range(len(loaded_df))
+        log.debug("Data loading completed. Total records: %d", len(loaded_df))
         return loaded_df
     
     def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply chunking and scoring to DataFrame."""
+        log.debug("Processing DataFrame with %d records", len(df))
         df = df.copy()
 
         # Check for invalid configuration: dropping target column without splitting
@@ -112,10 +125,13 @@ class DataProcessor:
 
         # 1. Chunk the data (or use target column if no splitting)
         if self.splitter is not None:
+            log.debug("Applying splitting strategy: %s", type(self.splitter).__name__)
             # Apply splitting strategy - use system chunk column name
             df.loc[:, SYSTEM_CHUNK_COLUMN] = df[self.target_column].apply(self.splitter.split)
             df = df.explode(SYSTEM_CHUNK_COLUMN).reset_index(drop=True)
+            log.debug("Splitting completed. Generated %d chunks", len(df))
         else:
+            log.debug("No splitting strategy specified, using target column as chunks")
             # No splitting - use target column name as chunk column (no duplication)
             df = df.rename(columns={self.target_column: SYSTEM_CHUNK_COLUMN})
         
@@ -123,6 +139,7 @@ class DataProcessor:
         
         # Drop target column if requested (only when splitting was done)
         if self.drop_target_column and self.splitter is not None:
+            log.debug("Dropping target column: %s", self.target_column)
             df = df.drop(columns=[self.target_column])
         elif self.drop_target_column and self.splitter is None:
             # This case is handled by the error above, but just in case
@@ -130,9 +147,14 @@ class DataProcessor:
 
         # 2. Score and filter the chunks (only if scorer is provided)
         if self.scorer is not None:
+            log.debug("Applying scoring strategy: %s", type(self.scorer).__name__)
             df[SYSTEM_SCORE_COLUMN] = df[SYSTEM_CHUNK_COLUMN].apply(self.scorer.score)
             # TODO: Give warning if scorer is used but filter is none.
             if self.pandas_score_filter is not None:
+                log.debug("Applying score filter: %s", self.pandas_score_filter)
+                original_count = len(df)
                 df = df.query(self.pandas_score_filter)
+                log.debug("Score filtering completed. Filtered from %d to %d chunks", original_count, len(df))
 
+        log.debug("DataFrame processing completed. Final chunks: %d", len(df))
         return df 

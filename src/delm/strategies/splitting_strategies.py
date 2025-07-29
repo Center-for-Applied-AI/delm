@@ -4,9 +4,13 @@ DELM Splitting Strategies
 Pluggable strategies for splitting text into chunks.
 """
 
+import logging
 import re
 from abc import ABC, abstractmethod
 from typing import List, Dict, Type
+
+# Module-level logger
+log = logging.getLogger(__name__)
 
 
 class SplitStrategy(ABC):
@@ -18,12 +22,18 @@ class SplitStrategy(ABC):
 
     @classmethod
     def from_dict(cls, data: dict) -> "SplitStrategy":
+        log.debug(f"Creating SplitStrategy from dict: {data}")
         if "type" not in data:
+            log.error("Splitter config missing 'type' field")
             raise ValueError("Splitter config must include a 'type' field.")
         splitter_type = data["type"]
+        log.debug(f"Splitter type: {splitter_type}")
         if splitter_type not in SPLITTER_REGISTRY:
+            log.error(f"Unknown splitter type: {splitter_type}, available: {list(SPLITTER_REGISTRY.keys())}")
             raise ValueError(f"Unknown splitter type: {splitter_type}")
-        return SPLITTER_REGISTRY[splitter_type].from_dict(data)
+        splitter = SPLITTER_REGISTRY[splitter_type].from_dict(data)
+        log.debug(f"Created splitter: {type(splitter).__name__}")
+        return splitter
 
     @abstractmethod
     def to_dict(self) -> dict:
@@ -36,11 +46,17 @@ class ParagraphSplit(SplitStrategy):
     REGEX = re.compile(r"\r?\n\s*\r?\n")
 
     def split(self, text: str) -> List[str]:
-        return [p.strip() for p in self.REGEX.split(text) if p.strip()]
+        log.debug(f"Splitting text with ParagraphSplit (length: {len(text)})")
+        chunks = [p.strip() for p in self.REGEX.split(text) if p.strip()]
+        log.debug(f"ParagraphSplit created {len(chunks)} chunks")
+        return chunks
 
     @classmethod
     def from_dict(cls, data: dict) -> "ParagraphSplit":
-        return cls()
+        log.debug(f"Creating ParagraphSplit from dict: {data}")
+        splitter = cls()
+        log.debug("ParagraphSplit created")
+        return splitter
 
     def to_dict(self) -> dict:
         return {"type": "ParagraphSplit"}
@@ -50,22 +66,30 @@ class FixedWindowSplit(SplitStrategy):
     """Split text into fixed-size windows of sentences."""
     
     def __init__(self, window: int = 5, stride: int | None = None):
+        log.debug(f"Initializing FixedWindowSplit with window={window}, stride={stride or window}")
         self.window, self.stride = window, stride or window
 
     def split(self, text: str) -> List[str]:
+        log.debug(f"Splitting text with FixedWindowSplit (length: {len(text)}, window={self.window}, stride={self.stride})")
         sentences = re.split(r"(?<=[.!?])\s+", text)
+        log.debug(f"FixedWindowSplit found {len(sentences)} sentences")
         chunks, i = [], 0
         while i < len(sentences):
             chunk = " ".join(sentences[i : i + self.window])
             chunks.append(chunk.strip())
             i += self.stride
-        return [c for c in chunks if c]
+        result = [c for c in chunks if c]
+        log.debug(f"FixedWindowSplit created {len(result)} chunks")
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> "FixedWindowSplit":
+        log.debug(f"Creating FixedWindowSplit from dict: {data}")
         window = data.get("window", 5)
         stride = data.get("stride", None)
-        return cls(window=window, stride=stride)
+        splitter = cls(window=window, stride=stride)
+        log.debug(f"FixedWindowSplit created with window={window}, stride={stride or window}")
+        return splitter
 
     def to_dict(self) -> dict:
         return {"type": "FixedWindowSplit", "window": self.window, "stride": self.stride}
@@ -75,17 +99,25 @@ class RegexSplit(SplitStrategy):
     """Split text using a custom regex pattern."""
     
     def __init__(self, pattern: str):
+        log.debug(f"Initializing RegexSplit with pattern: {pattern}")
         self.pattern = re.compile(pattern)
         self.pattern_str = pattern
 
     def split(self, text: str) -> List[str]:
-        return [p.strip() for p in self.pattern.split(text) if p.strip()]
+        log.debug(f"Splitting text with RegexSplit (length: {len(text)}, pattern: {self.pattern_str})")
+        chunks = [p.strip() for p in self.pattern.split(text) if p.strip()]
+        log.debug(f"RegexSplit created {len(chunks)} chunks")
+        return chunks
 
     @classmethod
     def from_dict(cls, data: dict) -> "RegexSplit":
+        log.debug(f"Creating RegexSplit from dict: {data}")
         if "pattern" not in data:
+            log.error("RegexSplit config missing 'pattern' field")
             raise ValueError("RegexSplit config requires a 'pattern' field.")
-        return cls(data["pattern"])
+        splitter = cls(data["pattern"])
+        log.debug(f"RegexSplit created with pattern: {data['pattern']}")
+        return splitter
 
     def to_dict(self) -> dict:
         return {"type": "RegexSplit", "pattern": self.pattern_str}

@@ -3,9 +3,16 @@ DELM - Data Extraction Language Model
 A pipeline for extracting structured data from text using language models.
 """
 
-from .delm import DELM
-from .config import DELMConfig, LLMExtractionConfig, DataPreprocessingConfig, SchemaConfig, SplittingConfig, ScoringConfig
-from .exceptions import (
+import logging
+
+# Library-local logger
+log = logging.getLogger(__name__)
+log.addHandler(logging.NullHandler())   # avoids spurious warnings
+
+from delm.delm import DELM
+from delm.logging import configure as configure_logging
+from delm.config import DELMConfig, LLMExtractionConfig, DataPreprocessingConfig, SchemaConfig, SplittingConfig, ScoringConfig
+from delm.exceptions import (
     DELMError, ConfigurationError, DataError, ProcessingError, SchemaError,
     ValidationError, FileError, APIError, DependencyError
 )
@@ -160,4 +167,7 @@ __all__ = [
     
     # Utility Constants
     "IGNORE_FILES",
+    
+    # Logging
+    "configure_logging",
 ] 

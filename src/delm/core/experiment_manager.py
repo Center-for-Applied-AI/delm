@@ -7,15 +7,18 @@ Defines the interface for experiment managers and provides disk-based and in-mem
 - InMemoryExperimentManager: Stores all data in memory. Any disk-specific config (e.g., overwrite_experiment, checkpointing) is not supported and will raise an error if used.
 """
 
+import logging
 import shutil
 from pathlib import Path
 from typing import Any, List
 import pandas as pd
 import json
+import time
 from abc import ABC, abstractmethod
 
 import yaml
 
+from delm.config import DELMConfig
 from delm.constants import (
     DATA_DIR_NAME, 
     CACHE_DIR_NAME, 
@@ -30,6 +33,10 @@ from delm.constants import (
     PREPROCESSED_DATA_SUFFIX, 
 )
 from delm.exceptions import ExperimentError, FileError
+from delm.utils.cost_tracker import CostTracker
+
+# Module-level logger
+log = logging.getLogger(__name__)
 
 class BaseExperimentManager(ABC):
     """Abstract base class for DELM experiment managers."""
@@ -37,7 +44,7 @@ class BaseExperimentManager(ABC):
     def get_results(self) -> pd.DataFrame:
         pass
     @abstractmethod
-    def initialize_experiment(self, delm_config):
+    def initialize_experiment(self, delm_config: DELMConfig):
         pass
     @abstractmethod
     def save_preprocessed_data(self, df: pd.DataFrame) -> Path:
@@ -64,7 +71,7 @@ class BaseExperimentManager(ABC):
     def cleanup_batch_checkpoints(self):
         pass
     @abstractmethod
-    def get_all_batch_ids(self) -> set:
+    def get_all_existing_batch_ids(self) -> set:
         pass
     @abstractmethod
     def get_batch_checkpoint_path(self, batch_id: int) -> Path:
@@ -73,10 +80,10 @@ class BaseExperimentManager(ABC):
     def delete_batch_checkpoint(self, batch_id: int) -> bool:
         pass
     @abstractmethod
-    def save_state(self, cost_tracker: Any):
+    def save_state(self, cost_tracker: CostTracker):
         pass
     @abstractmethod
-    def load_state(self):
+    def load_state(self) -> CostTracker | None:
         pass
     @abstractmethod
     def save_extracted_data(self, df: pd.DataFrame) -> Path:
@@ -111,36 +118,51 @@ class DiskExperimentManager(BaseExperimentManager):
         d.mkdir(parents=True, exist_ok=True)
         return d
 
+    def is_experiment_completed(self) -> bool:
+        """Check if the experiment is completed by checking if the consolidated result file exists."""
+        result_file = self.data_dir / f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
+        return result_file.exists()
+
     def get_results(self) -> pd.DataFrame:
         """
         Get the results from the experiment directory.
         """
-        return pd.read_feather(self.data_dir / f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}")
-
-    def initialize_experiment(self, delm_config):
-        """Validate and create experiment directory structure, write config and schema files."""
-        from delm.config import DELMConfig
-        
-        if not isinstance(delm_config, DELMConfig):
-            raise ExperimentError(
-                "initialize_experiment requires a DELMConfig object",
-                {"config_type": type(delm_config).__name__, "suggestion": "Pass a DELMConfig instance"}
+        result_file = self.data_dir / f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
+        if not result_file.exists():
+            log.debug(f"Consolidated result file not found: {result_file}")
+            raise FileError(
+                f"Consolidated result file does not exist: {result_file}",
+                {"file_path": str(result_file)}
             )
-        
+        log.debug(f"Reading consolidated result file: {result_file}")
+        return pd.read_feather(result_file)
+
+    def initialize_experiment(self, delm_config: DELMConfig):
+        """Validate and create experiment directory structure, write config and schema files."""
         experiment_dir_path = self.experiment_dir
         if experiment_dir_path.exists():
+            log.debug(f"Experiment directory already exists: {experiment_dir_path}")
             if self.overwrite_experiment:
+                log.warning(f"Overwriting experiment directory: {experiment_dir_path} in 3 seconds...")
+                time.sleep(3)
                 shutil.rmtree(experiment_dir_path)
+                log.info(f"Deleted and will recreate: {experiment_dir_path}")
             elif self.auto_checkpoint_and_resume_experiment:
                 # Check if experiment already completed
-                if self.get_results().shape[0] > 0:
+                if self.is_experiment_completed():
+                    log.error(f"Experiment already completed: {experiment_dir_path}")
                     raise ExperimentError(
-                        "Experiment exists and is already completed. To proceed, do the following:\n"
-                        "  - Set overwrite_experiment=True to overwrite the existing experiment.\n"
+                        """Experiment exists and is already completed. 
+                        To proceed, set overwrite_experiment=True to 
+                        overwrite the existing experiment, or use a different 
+                        experiment name."""
                     )
                 # Verify config/schema match before resuming
+                log.debug(f"Verifying existing experiment config (from {experiment_dir_path}) matches current config")
                 self.verify_resume_config(delm_config)
+                log.debug(f"Existing experiment config matches current config")
             else:
+                log.error(f"Experiment directory already exists: {experiment_dir_path}")
                 raise ExperimentError(
                     (
                         f"\nExperiment directory already exists. To proceed, choose one of the following:\n"
@@ -149,28 +171,35 @@ class DiskExperimentManager(BaseExperimentManager):
                     ),
                     {
                         "experiment_name": self.experiment_name,
-                        "experiment_dir": str(self.experiment_directory)
+                        "experiment_dir": str(self.experiment_directory),
+                        "overwrite_experiment": self.overwrite_experiment,
+                        "auto_checkpoint_and_resume_experiment": self.auto_checkpoint_and_resume_experiment
                     }
                 )
+        log.debug(f"Creating experiment directory structure: {experiment_dir_path}")
         self.config_dir.mkdir(parents=True, exist_ok=True)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        log.debug(f"Experiment directory structure created: {experiment_dir_path}")
 
         # Save pipeline config and schema spec files to experiment config directory
+        log.debug(f"Saving pipeline config and schema spec files to experiment config directory: {experiment_dir_path}")
         pipeline_config_path = self.config_dir / f"config_{self.experiment_name}.yaml"
         schema_spec_path = self.config_dir / f"schema_spec_{self.experiment_name}.yaml"
-        
         serialized_config_dict = delm_config.to_serialized_config_dict()
         serialized_schema_spec_dict = delm_config.to_serialized_schema_spec_dict()
         with open(pipeline_config_path, 'w') as f:
             yaml.dump(serialized_config_dict, f, default_flow_style=False, sort_keys=False)
         with open(schema_spec_path, 'w') as f:
             yaml.dump(serialized_schema_spec_dict, f, default_flow_style=False, sort_keys=False)
-        
+        log.debug(f"Pipeline config and schema spec files saved to experiment config directory: {experiment_dir_path}")
+
         self.preprocessed_data_path = self.data_dir / f"{PREPROCESSED_DATA_PREFIX}{self.experiment_name}{PREPROCESSED_DATA_SUFFIX}"
+        log.debug(f"Experiment initialized: {experiment_dir_path}")
 
     def _find_config_differences(self, config1: dict, config2: dict, path: str = "") -> list:
         """Recursively find differences between two config dictionaries for error messages."""
+        log.debug("Finding config differences...")
         differences = []
         
         # Get all keys from both configs
@@ -193,24 +222,16 @@ class DiskExperimentManager(BaseExperimentManager):
                 # Compare other values directly
                 elif val1 != val2:
                     differences.append(f"{current_path}: {val1} != {val2}")
-        
+        log.debug(f"Config differences found: {differences}")
         return differences
 
-    def verify_resume_config(self, delm_config):
+    def verify_resume_config(self, delm_config: DELMConfig):
         """Compare config/schema in config/ folder to user-supplied DELMConfig. Abort if they differ."""
-        import yaml
-        from delm.config import DELMConfig
-        
-        if not isinstance(delm_config, DELMConfig):
-            raise ExperimentError(
-                "verify_resume_config requires a DELMConfig object",
-                {"config_type": type(delm_config).__name__}
-            )
-        
         config_yaml = self.config_dir / f"config_{self.experiment_name}.yaml"
         schema_yaml = self.config_dir / f"schema_spec_{self.experiment_name}.yaml"
-        
+        log.debug(f"Verifying resume configs from: {config_yaml} and {schema_yaml}")
         if not config_yaml.exists() or not schema_yaml.exists():
+            log.error(f"Cannot resume experiment: config files not found: {config_yaml} and {schema_yaml}")
             raise ExperimentError(
                 "Cannot resume experiment: config files not found",
                 {"config_dir": str(self.config_dir)}
@@ -235,10 +256,14 @@ class DiskExperimentManager(BaseExperimentManager):
                 {"mismatched_fields": differences}
             )
 
+        log.debug(f"Resume config verified successfully")
+
     # --- Preprocessing Data ---
     def save_preprocessed_data(self, df: pd.DataFrame) -> Path:
         """Save preprocessed data as feather file."""
+        log.debug(f"Saving preprocessed data to: {self.preprocessed_data_path}")
         df.to_feather(self.preprocessed_data_path)
+        log.info(f"Preprocessed data saved to: {self.preprocessed_data_path}")
         return self.preprocessed_data_path
 
     def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
@@ -246,14 +271,18 @@ class DiskExperimentManager(BaseExperimentManager):
         if file_path is None:
             file_path = self.preprocessed_data_path
         if not file_path.exists():
+            log.error(f"Preprocessed data file does not exist: {file_path}")
             raise FileError(
                 f"Preprocessed data file does not exist: {file_path}",
                 {"file_path": str(file_path), "suggestion": "Run preprocessing first, or specify preprocessed_file_path to the preprocessed data path"}
             )
+        log.debug(f"Loading preprocessed data from: {file_path}")
         try:
             df = pd.read_feather(file_path)
+            log.debug(f"Preprocessed data loaded from: {file_path}")
             return df
         except Exception as e:
+            log.error(f"Failed to load preprocessed data from {file_path}: {e}")
             raise FileError(
                 f"Failed to load preprocessed data from {file_path}",
                 {"file_path": str(file_path)}
@@ -264,24 +293,33 @@ class DiskExperimentManager(BaseExperimentManager):
         """Save a batch checkpoint as a feather file."""
         batch_filename = f"{BATCH_FILE_PREFIX}{batch_id:0{BATCH_FILE_DIGITS}d}{BATCH_FILE_SUFFIX}"
         batch_path = self.cache_dir / batch_filename
+        log.debug(f"Saving batch checkpoint to: {batch_path}")
         batch_df.to_feather(batch_path)
+        log.debug(f"Batch checkpoint saved to: {batch_path}")
         return batch_path
 
     def list_batch_checkpoints(self) -> List[Path]:
         """List all batch checkpoint files in the processing cache directory."""
-        return sorted([p for p in self.cache_dir.glob(f"{BATCH_FILE_PREFIX}*{BATCH_FILE_SUFFIX}")])
+        log.debug(f"Listing batch checkpoint files in: {self.cache_dir}")
+        batch_files = sorted([p for p in self.cache_dir.glob(f"{BATCH_FILE_PREFIX}*{BATCH_FILE_SUFFIX}")])
+        log.debug(f"Batch checkpoint files found: {batch_files}")
+        return batch_files
 
     def load_batch_checkpoint(self, batch_path: Path) -> pd.DataFrame:
         """Load a batch checkpoint from a feather file."""
+        log.debug(f"Loading batch checkpoint from: {batch_path}")
         if not batch_path.exists():
+            log.error(f"Batch checkpoint file does not exist: {batch_path}")
             raise FileError(
                 f"Batch checkpoint file does not exist: {batch_path}",
                 {"file_path": str(batch_path), "suggestion": "Check batch processing or rerun experiment."}
             )
         try:
             df = pd.read_feather(batch_path)
+            log.debug(f"Batch checkpoint loaded from: {batch_path}")
             return df
         except Exception as e:
+            log.error(f"Failed to load batch checkpoint: {batch_path}: {e}")
             raise FileError(
                 f"Failed to load batch checkpoint: {batch_path}",
                 {"file_path": str(batch_path)}
@@ -289,33 +327,46 @@ class DiskExperimentManager(BaseExperimentManager):
 
     def load_batch_checkpoint_by_id(self, batch_id: int) -> pd.DataFrame:
         """Load a batch checkpoint by batch ID."""
+        log.debug(f"Loading batch checkpoint by ID: {batch_id}")
         batch_filename = f"{BATCH_FILE_PREFIX}{batch_id:0{BATCH_FILE_DIGITS}d}{BATCH_FILE_SUFFIX}"
         batch_path = self.cache_dir / batch_filename
-        return self.load_batch_checkpoint(batch_path)
+        log.debug(f"Batch checkpoint path: {batch_path}")
+        df = self.load_batch_checkpoint(batch_path)
+        log.debug(f"Batch checkpoint successfully loaded by ID: {batch_id}")
+        return df
 
     def consolidate_batches(self) -> pd.DataFrame:
         """Consolidate all batch files into a single DataFrame and save as final result."""
         batch_files = self.list_batch_checkpoints()
         if not batch_files:
+            log.error(f"No batch files found for consolidation.")
             raise FileError(
                 "No batch files found for consolidation.",
                 {"suggestion": "Check that batch processing completed successfully."}
             )
+        log.debug(f"Consolidating {len(batch_files)} batch files")
+        start_time = time.time()
         dfs = [self.load_batch_checkpoint(p) for p in batch_files]
         consolidated_df = pd.concat(dfs, ignore_index=True)
+        elapsed_time = time.time() - start_time
+        log.debug(f"Consolidated {len(batch_files)} batches ({len(consolidated_df)} rows) in {elapsed_time:.2f}s")
         return consolidated_df
 
     def cleanup_batch_checkpoints(self):
         """Remove all batch checkpoint files after consolidation."""
         batch_files = self.list_batch_checkpoints()
+        log.debug(f"Cleaning up {len(batch_files)} batch files")
         for p in batch_files:
             try:
+                log.debug(f"Deleting batch file: {p}")
                 p.unlink()
+                log.debug(f"Batch file deleted: {p}")
             except Exception as e:
-                print(f"Warning: Failed to delete batch file {p}: {e}")
+                log.error(f"Failed to delete batch file {p}: {e}")
 
-    def get_all_batch_ids(self) -> set:
+    def get_all_existing_batch_ids(self) -> set:
         """Return a set of all batch IDs for which a checkpoint file exists."""
+        log.debug(f"Getting all batch IDs")
         ids = set()
         for p in self.list_batch_checkpoints():
             stem = p.stem
@@ -325,57 +376,78 @@ class DiskExperimentManager(BaseExperimentManager):
                     ids.add(batch_id)
                 except Exception:
                     continue
+        log.debug(f"All existing batch IDs: {ids}")
         return ids
 
     def get_batch_checkpoint_path(self, batch_id: int) -> Path:
         """Return the full path to the batch checkpoint file for a given batch ID."""
+        log.debug(f"Getting batch checkpoint path for batch ID: {batch_id}")
         batch_filename = f"{BATCH_FILE_PREFIX}{batch_id:0{BATCH_FILE_DIGITS}d}{BATCH_FILE_SUFFIX}"
+        log.debug(f"Batch checkpoint path: {batch_filename}")
         return self.cache_dir / batch_filename
 
     def delete_batch_checkpoint(self, batch_id: int) -> bool:
         """Delete the batch checkpoint file for a given batch ID. Returns True if deleted."""
+        log.debug(f"Deleting batch checkpoint for batch ID: {batch_id}")
         path = self.get_batch_checkpoint_path(batch_id)
+        log.debug(f"Batch checkpoint path: {path}")
         if path.exists():
             path.unlink()
+            log.debug(f"Batch checkpoint deleted: {path}")
             return True
+        log.debug(f"Batch checkpoint not found for batch ID: {batch_id}")
         return False
 
     # --- State Management ---
-    def save_state(self, cost_tracker: Any):
+    def save_state(self, cost_tracker: CostTracker):
         """Save experiment state (cost tracker only) to state file as JSON."""
+        log.debug(f"Saving experiment state to: {self.cache_dir / STATE_FILE_NAME}")
         state_path = self.cache_dir / STATE_FILE_NAME
         state = {
             "cost_tracker": cost_tracker.to_dict(),
         }
+        start_time = time.time()
         with open(state_path, "w") as f:
             json.dump(state, f)
+        elapsed_time = time.time() - start_time
+        log.debug(f"Experiment state saved to: {state_path} in {elapsed_time:.2f}s")
         return state_path
 
-    def load_state(self):
+    def load_state(self) -> CostTracker | None:
         """Load experiment state from state file as JSON. Returns dict or None if not found."""
+        log.debug(f"Loading experiment state from: {self.cache_dir / STATE_FILE_NAME}")
         state_path = self.cache_dir / STATE_FILE_NAME
         if not state_path.exists():
+            log.debug(f"Experiment state file not found: {state_path}")
             return None
+        start_time = time.time()
         with open(state_path, "r") as f:
             state = json.load(f)
-        return state
+        elapsed_time = time.time() - start_time
+        log.debug(f"Experiment state loaded from: {state_path} in {elapsed_time:.2f}s")
+        return CostTracker.from_dict(state["cost_tracker"])
 
 
     def save_extracted_data(self, df: pd.DataFrame) -> Path:
+        """Save extracted data as feather file."""
+        log.debug(f"Saving extracted data to: {self.data_dir / CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}")
         result_filename = f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
         result_path = self.data_dir / result_filename
         df.to_feather(result_path)
+        log.info(f"Saved extracted data to: {result_path}")
         return result_path
 
 
     # --- Private helpers ---
     def _get_experiment_dir(self) -> Path:
         """Return the experiment directory path (does not create it)."""
+        log.debug(f"Getting experiment directory path: {self.experiment_directory / self.experiment_name}")
         return self.experiment_directory / self.experiment_name 
 
 class InMemoryExperimentManager(BaseExperimentManager):
     """Stores all experiment data in memory. Disk-specific features are not supported."""
     def __init__(self, experiment_name: str, **kwargs):
+        log.debug(f"Initializing InMemoryExperimentManager: {experiment_name}")
         if kwargs.get('overwrite_experiment', False):
             raise ValueError("overwrite_experiment is not supported for InMemoryExperimentManager.")
         if kwargs.get('auto_checkpoint_and_resume_experiment', False):
@@ -389,19 +461,15 @@ class InMemoryExperimentManager(BaseExperimentManager):
         self._schema_dict = None
 
     def get_results(self) -> pd.DataFrame:
+        log.debug(f"Getting results from InMemoryExperimentManager")
         if self._extracted_data is None:
+            log.error("Attempted to get results but no extracted data is present.")
             raise ValueError("No extracted data available in memory.")
+        log.debug(f"Results available in memory.")
         return self._extracted_data
 
-    def initialize_experiment(self, delm_config):
-        from delm.config import DELMConfig
-        
-        if not isinstance(delm_config, DELMConfig):
-            raise ExperimentError(
-                "initialize_experiment requires a DELMConfig object",
-                {"config_type": type(delm_config).__name__, "suggestion": "Pass a DELMConfig instance"}
-            )
-        
+    def initialize_experiment(self, delm_config: DELMConfig):
+        log.debug(f"Initializing experiment in InMemoryExperimentManager")
         self._config_dict = delm_config.to_serialized_config_dict()
         self._schema_dict = delm_config.to_serialized_schema_spec_dict()
 
@@ -411,8 +479,10 @@ class InMemoryExperimentManager(BaseExperimentManager):
 
     def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
         if file_path is not None:
-            raise NotImplementedError("Loading preprocessed data from a file path is not supported for InMemoryExperimentManager.")
+            log.error("Loading preprocessed data from a file path is not supported for InMemoryExperimentManager YET.")
+            raise NotImplementedError("Loading preprocessed data from a file path is not supported for InMemoryExperimentManager YET.")
         if self._preprocessed_data is None:
+            log.error("Attempted to load preprocessed data but none is available in memory.")
             raise ValueError("No preprocessed data available in memory.")
         return self._preprocessed_data.copy()
 
@@ -436,21 +506,28 @@ class InMemoryExperimentManager(BaseExperimentManager):
     def load_batch_checkpoint_by_id(self, batch_id: int) -> pd.DataFrame:
         """Load a batch checkpoint by batch ID."""
         if batch_id not in self._batches:
+            log.error(f"Attempted to load batch checkpoint {batch_id} but it's not available in memory.")
             raise ValueError(f"No batch checkpoint with id {batch_id} in memory.")
         return self._batches[batch_id].copy()
 
     def consolidate_batches(self) -> pd.DataFrame:
         """Concatenate all batch DataFrames in memory."""
         if not self._batches:
+            log.error("Attempted to consolidate batches but no batch checkpoints are available in memory.")
             raise ValueError("No batch checkpoints in memory to consolidate.")
+        log.debug(f"Consolidating {len(self._batches)} batches in memory")
+        start_time = time.time()
         dfs = [self._batches[bid] for bid in sorted(self._batches.keys())]
-        return pd.concat(dfs, ignore_index=True)
+        consolidated_df = pd.concat(dfs, ignore_index=True)
+        elapsed_time = time.time() - start_time
+        log.debug(f"Consolidated {len(self._batches)} batches ({len(consolidated_df)} rows) in {elapsed_time:.2f}s")
+        return consolidated_df
 
     def cleanup_batch_checkpoints(self):
         """Remove all batch checkpoints from memory."""
         self._batches.clear()
 
-    def get_all_batch_ids(self) -> set:
+    def get_all_existing_batch_ids(self) -> set:
         return set(self._batches.keys())
 
     def get_batch_checkpoint_path(self, batch_id: int) -> str:
@@ -462,10 +539,10 @@ class InMemoryExperimentManager(BaseExperimentManager):
             return True
         return False
 
-    def save_state(self, cost_tracker: Any):
+    def save_state(self, cost_tracker: CostTracker):
         self._state = cost_tracker
 
-    def load_state(self):
+    def load_state(self) -> CostTracker | None:
         return self._state
 
     def save_extracted_data(self, df: pd.DataFrame) -> str:

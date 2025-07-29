@@ -13,3 +13,4 @@ experiments/
 .delm_cache/
 .delm_cache/*
 examples/commodity_data*
+delm_logs/
