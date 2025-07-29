@@ -21,9 +21,6 @@ cd delm
 
 # Install from source
 pip install -e .
-
-# Or install dependencies directly
-pip install -r examples/requirements.txt
 ```
 
 ## Quick Start
@@ -319,18 +316,6 @@ extraction_results = delm.process_via_llm()
 | Excel | `.xlsx` | `openpyxl` |
 | Parquet | `.parquet` | `pyarrow` |
 | Feather | `.feather` | `pyarrow` |
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details.
 
 ## Documentation
 
