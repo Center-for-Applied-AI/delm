@@ -24,18 +24,19 @@ The simplest form of extraction - individual key-value pairs.
 variables:
   - name: "company_names"
     description: "Company names mentioned in the text"
-    data_type: "string"
+    data_type: "[string]"
     required: false
   
   - name: "revenue_numbers"
     description: "Revenue figures mentioned"
-    data_type: "number"
+    data_type: "[number]"
     required: false
   
   - name: "forecast_year"
     description: "Year for which forecast is made"
     data_type: "integer"
     required: true
+    validate_in_text: true
 ```
 
 **Output Format:**
@@ -76,6 +77,11 @@ variables:
     data_type: "number"
     required: false
     validate_in_text: true  # Only extract if explicitly mentioned
+  
+  - name: "products"
+    description: "List of products offered by the company"
+    data_type: "[string]"
+    required: false
 ```
 
 **Output Format:**
@@ -86,13 +92,15 @@ variables:
       "name": "Apple",
       "revenue": 1500000000,
       "sector": "technology",
-      "growth_rate": 12.5
+      "growth_rate": 12.5,
+      "products": ["iPhone", "MacBook", "iPad"]
     },
     {
       "name": "Microsoft",
       "revenue": 2000000000,
       "sector": "technology",
-      "growth_rate": null
+      "growth_rate": null,
+      "products": ["Windows", "Office", "Azure"]
     }
   ]
 }
@@ -100,7 +108,7 @@ variables:
 
 ### Multiple Schemas (Level 3)
 
-Extract multiple independent structured objects simultaneously.
+Extract multiple independent structured objects simultaneously. These can be simple, nested, or even deep mutli-schemas.
 
 ```yaml
 schema_type: "multiple"
@@ -201,12 +209,19 @@ Each variable in your schema can be configured with these options:
 
 ### Supported Data Types
 
-| Type | Description | Example Values |
-|------|-------------|----------------|
-| `string` | Text values | "Apple", "technology" |
-| `number` | Floating point numbers | 1500000000, 12.5 |
-| `integer` | Whole numbers | 2024, 100 |
-| `boolean` | True/false values | true, false |
+| Type           | Description                        | Example Values                |
+|----------------|------------------------------------|-------------------------------|
+| `string`       | Text values                        | "Apple", "technology"         |
+| `number`       | Floating point numbers             | 1500000000, 12.5              |
+| `integer`      | Whole numbers                      | 2024, 100                     |
+| `boolean`      | True/false values                  | true, false                   |
+| `[string]` | List of strings | '["Apple", "Google"]'         |
+| `[number]` | List of numbers | '[12.5, 42, 100]'             |
+| `[integer]`| List of integers     | '[2024, 100, 7]'              |
+| `[boolean]`| List of booleans     | '[true, false, true]'         |
+
+**Note:** List datatypes must be surrounded by quotes in `.yaml` files. For example `"[string]"`, not `[string]`
+
 
 ### Variable Examples
 
@@ -224,7 +239,7 @@ Each variable in your schema can be configured with these options:
   required: false
   validate_in_text: true
 
-# Enum field with allowed values
+# String field with allowed values (essentially an enum)
 - name: "sector"
   description: "Business sector"
   data_type: "string"
@@ -235,6 +250,13 @@ Each variable in your schema can be configured with these options:
 - name: "is_public"
   description: "Whether company is publicly traded"
   data_type: "boolean"
+  required: false
+
+# List of numbers with allowed values
+- name: "quarterly_growth_rates"
+  description: "Quarterly revenue growth rates in percent"
+  data_type: "[number]"
+  allowed_values: [0, 5, 10, 15, 20, 25, 30]
   required: false
 ```
 

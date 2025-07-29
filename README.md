@@ -1,77 +1,41 @@
-# DELM (Data Labeling with Language Models)
-### Last Updated - July 10th 2:00PM
+# DELM (Data Extraction with Language Models)
 
-A comprehensive toolkit for extracting structured data from unstructured text and images using language models. DELM provides a configurable, scalable pipeline for data extraction with built-in evaluation capabilities and cost tracking.
+A comprehensive Python toolkit for extracting structured data from unstructured text using language models. DELM provides a configurable, scalable pipeline with built-in cost tracking, caching, and evaluation capabilities.
 
-## 🚀 Features
+## Features
 
-### Core Pipeline
-- **Multi-format Support**: TXT, HTML, MD, DOCX, PDF, CSV, JSON, images
-- **Pluggable Strategies**: Customizable text splitting and relevance scoring
-- **Unified Schema System**: Progressive complexity from simple to nested to multiple schemas
-- **Structured Extraction**: Instructor + Pydantic schemas 
-- **Batch Processing**: Parallel execution for efficient large-scale processing
+- **Multi-format Support**: TXT, HTML, MD, DOCX, PDF, CSV, Excel, Parquet, Feather
+- **Progressive Schema System**: Simple → Nested → Multiple schemas for any complexity
 - **Multi-Provider Support**: OpenAI, Anthropic, Google, Groq, Together AI, Fireworks AI
+- **Smart Processing**: Configurable text splitting, relevance scoring, and filtering
+- **Cost Optimization**: Built-in cost tracking, caching, and budget management
+- **Batch Processing**: Parallel execution with checkpointing and resume capabilities
+- **Comprehensive Evaluation**: Performance metrics and cost analysis tools
 
-### Advanced Extraction
-- **Progressive Complexity**: Start simple, scale to complex nested structures
-- **Schema Registry**: Extensible system for custom schema types
-- **Context-Aware Processing**: Metadata integration and contextual prompts
-- **Validation & Error Handling**: Robust error recovery and validation
-
-### Evaluation & Monitoring
-- **Comprehensive Metrics**: Accuracy, precision, recall, cost analysis
-- **Real-time Monitoring**: Progress tracking and performance insights
-- **Configurable Thresholds**: Customizable relevance and confidence filters
-
-## 📦 Installation
+## Installation
 
 ```bash
 # Clone the repository
 git clone https://github.com/your-org/delm.git
 cd delm
 
-# Install dependencies
-pip install -r requirements.txt
+# Install from source
+pip install -e .
 
-# Set up environment variables
-cp example.env .env
-# Edit .env with your API keys
+# Or install dependencies directly
+pip install -r examples/requirements.txt
 ```
 
-## 🔧 Quick Start
+## Quick Start
 
 ### Basic Usage
 
 ```python
-from delm import DELM, DELMConfig, configure_logging
+from pathlib import Path
+from delm import DELM, DELMConfig
 
-# Configure logging (optional)
-configure_logging(console_level="INFO")
-
-# Create configuration
-config = DELMConfig.from_dict({
-    "llm_extraction": {
-        "provider": "openai",
-        "name": "gpt-4o-mini",
-        "temperature": 0.0,
-        "max_retries": 3,
-        "batch_size": 10,
-        "max_workers": 4,
-    },
-    "data_preprocessing": {
-        "target_column": "text",
-        "splitting": {"type": "ParagraphSplit"},
-        "scoring": {
-            "type": "KeywordScorer", 
-            "keywords": ["price", "forecast", "estimate"]
-        },
-    },
-    "schema": {
-        "spec_path": "example.schema_spec.yaml",
-    },
-    "semantic_cache": {}
-})
+# Load configuration from YAML
+config = DELMConfig.from_yaml("example.config.yaml")
 
 # Initialize DELM
 delm = DELM(
@@ -80,118 +44,43 @@ delm = DELM(
     experiment_directory=Path("experiments"),
 )
 
-# Load and process data
-df = delm.prep_data("data/input/report.txt")
-processed_df = delm.process_via_llm()
+# Process data
+df = delm.prep_data("data/input.txt")
+results = delm.process_via_llm()
 
 # Get results
-results_df = delm.get_extraction_results_df()
+final_df = delm.get_extraction_results_df()
+cost_summary = delm.get_cost_summary()
 ```
 
-### Commodity Price Extraction Example
+### Configuration Files
 
-```python
-# Use the commodity extraction schema
-delm = DELM(
-    schema_spec_path="commodity_extraction_schema.yaml",
-    dotenv_path=".env",
-    model_name="gpt-4o-mini",
-    temperature=0.0
-)
+DELM uses two configuration files:
 
-# Process earnings call transcripts
-df = delm.prep_data(report_df, target_column="text")
-relevant_chunks = df[df["score"] > 0]
-results = delm.process_via_llm(relevant_chunks, use_batching=True)
-commodity_data = delm.parse_to_dataframe(results)
-```
-
-## 📋 Configuration
-
-DELM separates configuration into two parts:
-1. **Schema Specification**: YAML file defining the extraction schema
-2. **Runtime Parameters**: Constructor arguments for model and processing settings
-
-## 📝 Logging
-
-DELM provides comprehensive logging support following Python best practices for libraries:
-
-### Automatic Logging Configuration
-
-DELM automatically configures logging when you create an instance:
-
-```python
-from delm import DELM, DELMConfig
-
-# Basic usage - console logging only
-delm = DELM(
-    config=config,
-    experiment_name="my_experiment",
-    experiment_directory=Path("experiments"),
-    use_disk_storage=False,  # In-memory: console only
-)
-
-# Disk experiments automatically create log files
-delm = DELM(
-    config=config,
-    experiment_name="my_experiment", 
-    experiment_directory=Path("experiments"),
-    use_disk_storage=True,  # Creates logs/run.log automatically
-)
-```
-
-### Custom Logging Configuration
-
-You can override the default logging behavior:
-
-```python
-# Custom log file and levels
-delm = DELM(
-    config=config,
-    experiment_name="my_experiment",
-    experiment_directory=Path("experiments"),
-    log_file="custom.log",           # Custom log file
-    console_log_level="WARNING",     # Less verbose console
-    file_log_level="DEBUG",          # More verbose file
-)
-```
-
-### Manual Logging Configuration
-
-For complete control, you can configure logging manually:
-
-```python
-from delm import configure_logging
-
-# Configure before creating DELM instance
-configure_logging(
-    console_level="INFO",
-    file="delm.log",
-    file_level="DEBUG"
-)
-```
-
-### Log Levels
-
-- **DEBUG**: Detailed component initialization and processing steps
-- **INFO**: High-level operations (data loading, processing completion)
-- **WARNING**: Issues that don't stop processing (retries, budget warnings)
-- **ERROR**: Errors that affect processing
-
-### Logging Best Practices
-
-- Library code only adds `NullHandler` by default (no output unless configured)
-- Logging is automatically configured when creating DELM instances
-- Disk experiments automatically create `logs/run.log` with rotating file handlers
-- Users can override logging settings via constructor parameters
-- Supports both automatic and manual configuration
-
-### Schema Specification
-
-The schema specification file (e.g., `example.schema_spec.yaml`) defines what data to extract:
-
+**1. Pipeline Configuration (`config.yaml`)**
 ```yaml
-# Schema type: simple, nested, or multiple
+llm_extraction:
+  provider: "openai"
+  name: "gpt-4o-mini"
+  temperature: 0.0
+  batch_size: 10
+  track_cost: true
+  max_budget: 50.0
+
+data_preprocessing:
+  target_column: "text"
+  splitting:
+    type: "ParagraphSplit"
+  scoring:
+    type: "KeywordScorer"
+    keywords: ["price", "forecast", "guidance"]
+
+schema:
+  spec_path: "schema_spec.yaml"
+```
+
+**2. Schema Specification (`schema_spec.yaml`)**
+```yaml
 schema_type: "nested"
 container_name: "commodities"
 
@@ -206,192 +95,54 @@ variables:
     description: "Price mentioned in text"
     data_type: "number"
     required: false
-
-prompt_template: |
-  Extract commodity information from the text:
-  {variables}
-  
-  Text: {text}
 ```
 
-### Runtime Configuration
-
-Model and processing parameters are passed to the constructor:
-
-```python
-# Using YAML configuration (recommended)
-delm = DELM.from_yaml("config.yaml")
-
-# Or using dictionary configuration
-config = {
-    "model": {
-        "provider": "openai",  # Default: "openai"
-        "name": "gpt-4o-mini",  # Default: "gpt-4o-mini"
-        "temperature": 0.0,
-        "max_retries": 3,
-        "batch_size": 10,
-        "max_workers": 4
-    },
-    "data": {"target_column": "text"},
-    "schema": {"spec_path": "schema.yaml"},
-    "experiment": {"name": "test"}
-}
-delm = DELM.from_dict(config)
-```
-
-#### Provider and Model Configuration
-
-DELM separates provider and model name for better user experience:
-
-```yaml
-# Easy to switch models with the same provider
-model:
-  provider: "openai"
-  name: "gpt-4o-mini"      # Easy to change to "gpt-4" or "gpt-3.5-turbo"
-
-# Easy to switch providers
-model:
-  provider: "anthropic"    # Easy to change to "google" or "groq"
-  name: "claude-3-sonnet"
-```
-
-This approach makes it intuitive to:
-- **Switch models**: Just change the `name` field
-- **Switch providers**: Just change the `provider` field  
-- **Compare models**: Easy to test different models with the same provider
-- **Understand configuration**: Clear separation of provider vs model concepts
-
-### Schema Types
+## Schema Types
 
 DELM supports three levels of schema complexity:
 
-- **Simple Schema (Level 1)**: Basic key-value extraction
-- **Nested Schema (Level 2)**: Structured objects with multiple fields  
-- **Multiple Schemas (Level 3)**: Multiple independent structured objects
+### Simple Schema (Level 1)
+Extract key-value pairs from each text chunk:
+```yaml
+schema_type: "simple"
+variables:
+  - name: "price"
+    description: "Price mentioned"
+    data_type: "number"
+  - name: "company"
+    description: "Company name"
+    data_type: "string"
+```
 
-For detailed examples and configuration options, see [SCHEMA_REFERENCE.md](SCHEMA_REFERENCE.md).
+### Nested Schema (Level 2)
+Extract structured objects with multiple fields:
+```yaml
+schema_type: "nested"
+container_name: "commodities"
+variables:
+  - name: "type"
+    description: "Commodity type"
+    data_type: "string"
+  - name: "price"
+    description: "Price value"
+    data_type: "number"
+```
 
-## 🧩 Expected JSON Format for estimate_performance
+### Multiple Schema (Level 3)
+Extract multiple independent schemas simultaneously:
+```yaml
+schema_type: "multiple"
+commodities:
+  schema_type: "nested"
+  container_name: "commodities"
+  variables: [...]
+companies:
+  schema_type: "nested"
+  container_name: "companies"
+  variables: [...]
+```
 
-When using `estimate_performance`, your hand-labeled (expected) data must match the schema type. Here are examples for each:
-
-**Note:**
-- For list data types in YAML (e.g., `[string]`, `[number]`), always use quotes: `"[string]"`. This ensures YAML parses the type as a string, not a list.
-
-### Simple Schema
-- **Schema:**
-  ```yaml
-  schema_type: simple
-  variables:
-    - name: "author"
-      data_type: string
-      required: true
-    - name: "tags"
-      data_type: "[string]"
-      required: false
-  ```
-- **Expected JSON:**
-  ```python
-  {"author": "Alice", "tags": ["fiction", "adventure"]}
-  ```
-
-### Nested Schema
-- **Schema:**
-  ```yaml
-  schema_type: nested
-  container_name: books
-  variables:
-    - name: "title"
-      data_type: string
-      required: true
-    - name: "genres"
-      data_type: "[string]"
-      required: false
-  ```
-- **Expected JSON:**
-  ```python
-  {"books": [
-      {"title": "Book A", "genres": ["fantasy", "epic"]},
-      {"title": "Book B", "genres": ["mystery"]}
-  ]}
-  ```
-
-### Multiple Schema
-- **Schema:**
-  ```yaml
-  schema_type: multiple
-  book:
-    schema_type: simple
-    variables:
-      - name: "author"
-        data_type: string
-        required: true
-      - name: "tags"
-        data_type: "[string]"
-        required: false
-  reviews:
-    schema_type: nested
-    container_name: reviews
-    variables:
-      - name: "reviewer"
-        data_type: string
-        required: true
-      - name: "score"
-        data_type: number
-        required: false
-  ```
-- **Expected JSON:**
-  ```python
-  {
-    "book": {"author": "Alice", "tags": ["fiction", "adventure"]},
-    "reviews": [
-      {"reviewer": "Bob", "score": 4.5},
-      {"reviewer": "Carol", "score": 5.0}
-    ]
-  }
-  ```
-
-**Note:**
-- For simple schemas, use a dict of fields (scalars or lists).
-- For nested schemas, use a dict with the container name as the key and a list of objects as the value.
-- For multiple schemas, use a dict with each sub-schema name as the key. For nested sub-schemas, the value is a list of objects (not a dict with the container name).
-
-See the `example.schema_spec.yaml` for more detailed schema examples.
-
-## 🏗️ Architecture
-
-### Pipeline Components
-
-1. **Data Loading**: Multi-format file loaders with OCR support
-2. **Text Processing**: Configurable chunking and relevance scoring
-3. **LLM Extraction**: Structured extraction with Instructor
-4. **Response Parsing**: Validation and DataFrame conversion
-5. **Evaluation**: Metrics calculation and cost tracking
-
-### Strategy Classes
-
-- **SplitStrategy**: Text chunking strategies (Paragraph, FixedWindow, Regex)
-- **RelevanceScorer**: Content relevance scoring (Keyword, Fuzzy)
-- **SchemaRegistry**: Unified schema system with progressive complexity
-- **BaseSchema**: Abstract interface for all schema types
-- **SimpleSchema**: Basic key-value extraction (Level 1)
-- **NestedSchema**: Complex nested structures (Level 2)
-- **MultipleSchema**: Multiple independent schemas (Level 3)
-
-## 📊 Supported File Formats
-
-| Format | Extension | Requirements |
-|--------|-----------|--------------|
-| Text | `.txt` | Built-in |
-| HTML/Markdown | `.html`, `.md` | `beautifulsoup4` |
-| Word Documents | `.docx` | `python-docx` |
-| PDF | `.pdf` | `marker` |
-| CSV | `.csv` | `pandas` |
-| Excel | `.xlsx` | `openpyxl` |
-| Parquet | `.parquet` | `pyarrow` |
-| Images | `.png`, `.jpg` | OCR support |
-
-## 🔍 Use Cases
+## Use Cases
 
 ### Financial Data Extraction
 - Earnings call transcript analysis
@@ -399,7 +150,7 @@ See the `example.schema_spec.yaml` for more detailed schema examples.
 - Financial report parsing
 - Market sentiment analysis
 
-### Research Data Collection
+### Research & Analysis
 - Academic paper analysis
 - Survey response processing
 - Interview transcript coding
@@ -411,74 +162,165 @@ See the `example.schema_spec.yaml` for more detailed schema examples.
 - Competitor analysis
 - Market research automation
 
-## 📈 Performance & Cost
+## Supported Data Types
 
-### Cost Optimization
-- **Batch Processing**: Reduce API calls with parallel execution
-- **Relevance Filtering**: Only process relevant content
-- **Smart Chunking**: Optimize chunk sizes for accuracy vs cost
-- **Model Selection**: Choose cost-effective models for your use case
+| Type | Description | Example |
+|------|-------------|---------|
+| `string` | Text values | `"Apple Inc."` |
+| `number` | Floating-point numbers | `150.5` |
+| `integer` | Whole numbers | `2024` |
+| `boolean` | True/False values | `true` |
+| `[string]` | List of strings | `["oil", "gas"]` |
+| `[number]` | List of numbers | `[100, 200, 300]` |
+| `[integer]` | List of integers | `[1, 2, 3, 4]` |
+| `[boolean]` | List of booleans | `[true, false, true]` |
 
-### Performance Monitoring
+
+## Advanced Features
+
+### Cost Summary
 ```python
-# Get cost summary
+# Get cost summary after extraction
 cost_summary = delm.get_cost_summary()
 print(f"Total cost: ${cost_summary['total_cost_usd']}")
-print(f"Average cost per request: ${cost_summary['avg_cost_per_request']}")
-
-# Get performance metrics
-metrics = delm.evaluate_output_metrics(processed_df)
-print(f"Success rate: {metrics['valid_json']:.2%}")
 ```
 
-## 🧪 Testing
-
-Run the test suite:
-
-```bash
-# Test basic functionality
-python tests/test_open_ai_key_and_instructor.py
-
-# Test earnings report extraction
-python tests/earning_report_delm_testing.py
-
-# Test commodity extraction
-python tests/commodity_extraction_example.py
+### Semantic Caching
+Reuses api responses from identical calls. Ensures no wasted api credits for certain experiment re-runs.
+```yaml
+semantic_cache:
+  backend: "sqlite"        # sqlite, lmdb, filesystem
+  path: ".delm_cache"
+  max_size_mb: 512
 ```
 
-## 🔧 Customization
+### Relevance Filtering
+```yaml
+data_preprocessing:
+  scoring:
+    type: "KeywordScorer"
+    keywords: ["price", "forecast", "guidance"]
+  pandas_score_filter: "delm_score >= 0.7"
+```
 
-### Adding New Split Strategies
+### Text Splitting Strategies
+```yaml
+data_preprocessing:
+  splitting:
+    type: "ParagraphSplit"      # Split by paragraphs
+    # type: "FixedWindowSplit"  # Split by sentence count
+    # window: 5
+    # stride: 2
+    # type: "RegexSplit"        # Custom regex pattern
+    # pattern: "\n\n"
+```
 
+## Performance & Evaluation
+
+### Cost Estimation
+Estimate total cost of your current configuration setup before running the full extraction.
 ```python
-class CustomSplitStrategy(SplitStrategy):
-    def split(self, text: str) -> List[str]:
-        # Your custom splitting logic
-        return chunks
+from delm.utils.cost_estimation import estimate_input_token_cost, estimate_total_cost
+
+# Estimate input token costs without API calls
+input_cost = estimate_input_token_cost(
+    config="config.yaml",
+    data_source="data.csv"
+)
+print(f"Input token cost: ${input_cost:.2f}")
+
+# Estimate total costs using API calls on a sample
+total_cost = estimate_total_cost(
+    config="config.yaml",
+    data_source="data.csv",
+    sample_size=100
+)
+print(f"Estimated total cost: ${total_cost:.2f}")
 ```
 
-### Adding New Relevance Scorers
-
+### Performance Evaluation
+Estimate the performance of your current configuration before running the full extraction.
 ```python
-class CustomScorer(RelevanceScorer):
-    def score(self, paragraph: str) -> float:
-        # Your custom scoring logic
-        return score
+from delm.utils.performance_estimation import estimate_performance
+
+# Evaluate against human-labeled data
+metrics, expected_and_extracted_df = estimate_performance(
+    config="config.yaml",
+    data_source="test_data.csv",
+    expected_extraction_output_df=human_labeled_df,
+    true_json_column="expected_json",
+    matching_id_column="id",
+    record_sample_size=50  # Optional: limit sample size
+)
+
+# Display performance metrics
+for key, value in metrics.items():
+    precision = value.get("precision", 0)
+    recall = value.get("recall", 0)
+    f1 = value.get("f1", 0)
+    print(f"{key:<30} Precision: {precision:.3f}  Recall: {recall:.3f}  F1: {f1:.3f}")
 ```
 
-### Custom Extraction Schemas
+## Examples
 
+### Commodity Price Extraction
 ```python
-# Define your schema in YAML
-extraction:
-  variables:
-    - name: "custom_field"
-      description: "Your custom field"
-      data_type: "string"
-      allowed_values: ["option1", "option2"]
+# Extract commodity prices from earnings calls
+config = DELMConfig.from_yaml("examples/commodity_schema.yaml")
+delm = DELM(config=config, experiment_name="commodity_extraction")
+
+# Process earnings call transcripts
+df = delm.prep_data("earnings_calls.csv")
+extraction_results = delm.process_via_llm()
 ```
 
-## 🤝 Contributing
+## Configuration Reference
+
+### Required Fields
+- `llm_extraction.provider`: LLM provider (openai, anthropic, google, etc.)
+- `llm_extraction.name`: Model name (gpt-4o-mini, claude-3-sonnet, etc.)
+- `schema.spec_path`: Path to schema specification file
+
+### Optional Fields with Defaults
+- `llm_extraction.temperature`: 0.0 (deterministic)
+- `llm_extraction.batch_size`: 10 (records per batch)
+- `llm_extraction.max_workers`: 1 (concurrent workers)
+- `llm_extraction.track_cost`: true (cost tracking)
+- `semantic_cache.backend`: "sqlite" (cache backend)
+
+## Architecture
+
+### Core Components
+1. **DataProcessor**: Handles loading, splitting, and scoring
+2. **SchemaManager**: Manages schema loading and validation
+3. **ExtractionManager**: Orchestrates LLM extraction
+4. **ExperimentManager**: Handles experiment state and checkpointing
+5. **CostTracker**: Monitors API costs and budgets
+
+### Strategy Classes
+- **SplitStrategy**: Text chunking (Paragraph, FixedWindow, Regex)
+- **RelevanceScorer**: Content scoring (Keyword, Fuzzy)
+- **SchemaRegistry**: Schema type management
+
+### Estimation Functions
+- **estimate_input_token_cost**: Estimate input token costs without API calls
+- **estimate_total_cost**: Estimate total costs using API calls on a sample to
+- **estimate_performance**: Evaluate extraction performance against human-labeled data
+
+## File Format Support
+
+| Format | Extension | Requirements |
+|--------|-----------|--------------|
+| Text | `.txt` | Built-in |
+| HTML/Markdown | `.html`, `.md` | `beautifulsoup4` |
+| Word Documents | `.docx` | `python-docx` |
+| PDF | `.pdf` | `marker` (OCR) |
+| CSV | `.csv` | `pandas` |
+| Excel | `.xlsx` | `openpyxl` |
+| Parquet | `.parquet` | `pyarrow` |
+| Feather | `.feather` | `pyarrow` |
+
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -486,23 +328,22 @@ extraction:
 4. Add tests
 5. Submit a pull request
 
-## 📄 License
+## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE file for details.
 
-## 🙏 Acknowledgments
+## Documentation
 
-- Built on top of [Instructor](https://python.useinstructor.com/) for structured outputs
+- [Schema Reference](SCHEMA_REFERENCE.md) - Detailed schema configuration guide
+- [Configuration Examples](example.config.yaml) - Complete configuration templates
+- [Schema Examples](example.schema_spec.yaml) - Schema specification templates
+
+## Acknowledgments
+
+- Built on [Instructor](https://python.useinstructor.com/) for structured outputs
 - Uses [Marker](https://pypi.org/project/marker-pdf/) for PDF processing
-- Inspired by research practices at the Center for Applied AI
-
-## 📞 Support
-
-For questions and support:
-- Open an issue on GitHub
-- Check the documentation
-- Review example configurations
+- Developed at the Center for Applied AI at Chicago Booth
 
 ---
 
-**DELM v0.2** - Making data extraction with LLMs accessible, reliable, and cost-effective. 
+**DELM v0.2.0** - Making data extraction with LLMs accessible, reliable, and cost-effective. 

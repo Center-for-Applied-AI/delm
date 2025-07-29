@@ -1,97 +1,57 @@
-# DELM Schema Specification Examples
-# ==================================
-#
-# Below are minimal, clear examples for each schema type supported by DELM.
-# Use these as templates for your own extraction tasks.
-#
-# NOTE: For list data types in YAML (e.g., [string], [number]), always use quotes: "[string]". This ensures YAML parses the type as a string, not a list.
-
-# -----------------------------------------------------------------------------
-# Simple Schema Example
-# -----------------------------------------------------------------------------
-# schema_type: simple
-# variables:
-#   - name: "author"
-#     data_type: string
-#     required: true
-#   - name: "tags"
-#     data_type: "[string]"   # <-- Quotes required!
-#     required: false
-#
-# Example expected JSON:
-# {"author": "Alice", "tags": ["fiction", "adventure"]}
-
-# -----------------------------------------------------------------------------
-# Nested Schema Example
-# -----------------------------------------------------------------------------
-# schema_type: nested
-# container_name: books
-# variables:
-#   - name: "title"
-#     data_type: string
-#     required: true
-#   - name: "genres"
-#     data_type: "[string]"   # <-- Quotes required!
-#     required: false
-#
-# Example expected JSON:
-# {"books": [
-#     {"title": "Book A", "genres": ["fantasy", "epic"]},
-#     {"title": "Book B", "genres": ["mystery"]}
-# ]}
-
-# -----------------------------------------------------------------------------
-# Multiple Schema Example
-# -----------------------------------------------------------------------------
-# schema_type: multiple
-# book:
-#   schema_type: simple
-#   variables:
-#     - name: "author"
-#       data_type: string
-#       required: true
-#     - name: "tags"
-#       data_type: "[string]"   # <-- Quotes required!
-#       required: false
-# reviews:
-#   schema_type: nested
-#   container_name: reviews
-#   variables:
-#     - name: "reviewer"
-#       data_type: string
-#       required: true
-#     - name: "score"
-#       data_type: number
-#       required: false
-#
-# Example expected JSON:
-# {
-#   "book": {"author": "Alice", "tags": ["fiction", "adventure"]},
-#   "reviews": [
-#     {"reviewer": "Bob", "score": 4.5},
-#     {"reviewer": "Carol", "score": 5.0}
-#   ]
-# }
-
 # =============================================================================
-# EXTRACTION SCHEMA CONFIGURATION
+# DELM Schema Specification Template
+# =============================================================================
+# 
+# This file defines the structure of data to extract from text using DELM.
+# Copy this file and modify it for your specific extraction task.
+#
+# SCHEMA TYPES:
+# - simple: Extract key-value pairs (e.g., {"price": 100, "company": "Apple"})
+# - nested: Extract a list of objects (e.g., {"commodities": [{"type": "oil", "price": 100}]})
+# - multiple: Extract multiple independent schemas (e.g., {"commodities": [...], "companies": [...]})
+#
+# DATA TYPES:
+# - "string": Text values (default)
+# - "number": Floating-point numbers  
+# - "integer": Whole numbers
+# - "boolean": True/False values
+# - "date": Date strings (YYYY-MM-DD format recommended)
+# - "[string]", "[number]", etc.: Lists of the specified type
+#
+# FIELD PROPERTIES:
+# - name: Unique identifier (REQUIRED)
+# - description: Human-readable description for the LLM (REQUIRED)
+# - data_type: Type of data to extract (REQUIRED)
+# - required: Whether the field must be present (default: false)
+# - allowed_values: List of valid values (optional)
+# - validate_in_text: Whether to validate extracted value appears in text (default: false)
 # =============================================================================
 
-# Schema type determines how data is structured
-# Options: "simple", "nested", "multiple"
-# - simple: Key-value pairs (e.g., {"price": 100, "company": "Apple"})
-# - nested: List of objects (e.g., {"commodities": [{"type": "oil", "price": 100}]})
-# - multiple: Multiple independent schemas in one config (e.g., {"commodities": [{"type": "oil", "price": 100}], "companies": [{"name": "Apple", "sector": "Technology"}]})
-schema_type: "nested"
+# =============================================================================
+# SCHEMA TYPE SELECTION (REQUIRED)
+# =============================================================================
+# Choose ONE of the following schema types:
 
-# Container name for nested schemas (only used when schema_type = "nested")
-# This becomes the key that holds the list of extracted objects
-container_name: "commodities"
+# OPTION 1: Simple Schema (Key-Value Pairs)
+# Use this when you want to extract a single set of properties from each text chunk
+schema_type: "simple"
 
-# Variables to extract from text
-# Each variable defines a field in your extracted data
+# OPTION 2: Nested Schema (List of Objects)  
+# Use this when you want to extract multiple items from each text chunk
+# schema_type: "nested"
+# container_name: "items"  # REQUIRED for nested schemas - the key that holds the list
+
+# OPTION 3: Multiple Schema (Multiple Independent Schemas)
+# Use this when you want to extract different types of data simultaneously
+# schema_type: "multiple"
+# # Then define each sub-schema below (see examples at bottom)
+
+# =============================================================================
+# VARIABLES DEFINITION (REQUIRED)
+# =============================================================================
+# Define the fields you want to extract from the text
 variables:
-  # Example 1: Required string with allowed values
+  # Example 1: Required string field with allowed values
   - name: "commodity_type"
     description: "Type of commodity mentioned in the text"
     data_type: "string"
@@ -99,70 +59,200 @@ variables:
     allowed_values: ["oil", "gas", "copper", "gold", "silver", "steel", "aluminum"]
     validate_in_text: true
   
-  # Example 2: Optional boolean field
-  - name: "price_mention"
-    description: "Whether a specific price is mentioned"
-    data_type: "boolean"
-    required: false
-  
-  # Example 3: Optional numeric field
+  # Example 2: Optional numeric field
   - name: "price_value"
     description: "Numeric price value if mentioned"
     data_type: "number"
     required: false
   
-  # Example 4: Optional string without restrictions
+  # Example 3: Optional string field without restrictions
   - name: "price_unit"
     description: "Unit of the price (e.g., barrel, ton, MMBtu)"
     data_type: "string"
     required: false
   
-  # Example 5: Optional string with allowed values
+  # Example 4: Optional boolean field
+  - name: "price_mention"
+    description: "Whether a specific price is mentioned"
+    data_type: "boolean"
+    required: false
+  
+  # Example 5: Optional list field
+  - name: "companies"
+    description: "Company names mentioned in relation to commodities"
+    data_type: "[string]"
+    required: false
+    validate_in_text: true
+  
+  # Example 6: Optional string with allowed values
   - name: "expectation_type"
     description: "Type of price expectation mentioned"
     data_type: "string"
     required: false
     allowed_values: ["forecast", "guidance", "estimate", "projection", "outlook"]
-  
-  # Example 6: Optional string for company names
-  - name: "company_mention"
-    description: "Company names mentioned in relation to commodities"
-    data_type: "string"
-    required: false
-    validate_in_text: true
 
 # =============================================================================
-# ALTERNATIVE SCHEMA EXAMPLES
+# SCHEMA TYPE EXAMPLES
 # =============================================================================
 
-# Example 1: Simple Schema (Key-Value Pairs)
-# Uncomment and modify this section to use simple extraction
+# =============================================================================
+# SIMPLE SCHEMA EXAMPLE
+# =============================================================================
+# Extracts key-value pairs from each text chunk
+# 
 # schema_type: "simple"
-variables:
-  - name: "price"
-    description: "Price mentioned in the text"
-    data_type: "number"
-    required: false
-  - name: "company"
-    description: "Company name mentioned"
-    data_type: "string"
-    required: false
+# variables:
+#   - name: "price"
+#     description: "Price mentioned in the text"
+#     data_type: "number"
+#     required: false
+#   - name: "company"
+#     description: "Company name mentioned"
+#     data_type: "string"
+#     required: false
+#   - name: "tags"
+#     description: "Tags or categories mentioned"
+#     data_type: "[string]"
+#     required: false
+#
+# Expected JSON output:
+# {"price": 100.5, "company": "Apple Inc.", "tags": ["technology", "hardware"]}
 
 # =============================================================================
-# DATA TYPE REFERENCE
+# NESTED SCHEMA EXAMPLE
+# =============================================================================
+# Extracts a list of objects from each text chunk
+#
+# schema_type: "nested"
+# container_name: "commodities"
+# variables:
+#   - name: "type"
+#     description: "Type of commodity"
+#     data_type: "string"
+#     required: true
+#     allowed_values: ["oil", "gas", "copper", "gold"]
+#   - name: "price"
+#     description: "Price of the commodity"
+#     data_type: "number"
+#     required: false
+#   - name: "unit"
+#     description: "Unit of measurement"
+#     data_type: "string"
+#     required: false
+#
+# Expected JSON output:
+# {"commodities": [
+#     {"type": "oil", "price": 75.50, "unit": "barrel"},
+#     {"type": "gold", "price": 1950.00, "unit": "ounce"}
+# ]}
+
+# =============================================================================
+# MULTIPLE SCHEMA EXAMPLE
+# =============================================================================
+# Extracts multiple independent schemas simultaneously
+#
+# schema_type: "multiple"
+# commodities:
+#   schema_type: "nested"
+#   container_name: "commodities"
+#   variables:
+#     - name: "type"
+#       description: "Type of commodity"
+#       data_type: "string"
+#       required: true
+#     - name: "price"
+#       description: "Price of the commodity"
+#       data_type: "number"
+#       required: false
+# companies:
+#   schema_type: "nested"
+#   container_name: "companies"
+#   variables:
+#     - name: "name"
+#       description: "Company name"
+#       data_type: "string"
+#       required: true
+#     - name: "sector"
+#       description: "Business sector"
+#       data_type: "string"
+#       required: false
+#
+# Expected JSON output:
+# {
+#   "commodities": [
+#     {"type": "oil", "price": 75.50},
+#     {"type": "gold", "price": 1950.00}
+#   ],
+#   "companies": [
+#     {"name": "ExxonMobil", "sector": "energy"},
+#     {"name": "Barrick Gold", "sector": "mining"}
+#   ]
+# }
+
+# =============================================================================
+# FIELD PROPERTY REFERENCE
 # =============================================================================
 
-# Available data types for variables:
-# - "string": Text values (default)
-# - "number": Floating-point numbers
-# - "integer": Whole numbers
-# - "boolean": True/False values
-# - "date": Date strings (YYYY-MM-DD format recommended)
+# REQUIRED PROPERTIES:
+# - name: Unique identifier for the field (used in output)
+# - description: Human-readable description for the LLM (appears in prompt)
+# - data_type: Type of data to extract (see data types above)
 
-# Field properties:
-# - name: Unique identifier for the field (required)
-# - description: Human-readable description for the LLM (required)
-# - data_type: Type of data to extract (required)
+# OPTIONAL PROPERTIES:
 # - required: Whether the field must be present (default: false)
-# - allowed_values: List of valid values for the field (optional)
-# - validate_in_text: Whether to validate the extracted value appears in the text (default: false) 
+#   - If true and field is missing, the entire extraction is considered invalid
+#   - If false, missing fields are set to null/None
+#
+# - allowed_values: List of valid values for the field (default: null)
+#   - If specified, only these values will be accepted
+#   - Useful for categorical data like status, type, category fields
+#   - Example: allowed_values: ["active", "inactive", "pending"]
+#
+# - validate_in_text: Whether to validate extracted value appears in text (default: false)
+#   - If true, extracted values must appear (case-insensitive) in the source text
+#   - Useful for company names, product names, or other specific entities
+#   - Helps prevent hallucination of values not actually mentioned
+
+# =============================================================================
+# DATA TYPE EXAMPLES
+# =============================================================================
+
+# String types:
+# - data_type: "string"     # Single text value
+# - data_type: "[string]"   # List of text values
+
+# Numeric types:
+# - data_type: "number"     # Floating-point number (e.g., 100.5, -25.75)
+# - data_type: "integer"    # Whole number (e.g., 100, -25)
+# - data_type: "[number]"   # List of numbers
+# - data_type: "[integer]"  # List of integers
+
+# Boolean type:
+# - data_type: "boolean"    # True/False value
+
+# Date type:
+# - data_type: "date"       # Date string (recommend YYYY-MM-DD format)
+
+# =============================================================================
+# BEST PRACTICES
+# =============================================================================
+
+# 1. DESCRIPTIONS: Write clear, specific descriptions that tell the LLM exactly 
+#    what to look for and how to interpret the data.
+
+# 2. ALLOWED VALUES: Use allowed_values for categorical data to ensure consistency
+#    and prevent variations in naming (e.g., "oil" vs "crude oil").
+
+# 3. VALIDATION: Use validate_in_text for entity names to prevent hallucination
+#    of companies, products, or other specific names not mentioned in the text.
+
+# 4. REQUIRED FIELDS: Only mark fields as required if they are truly essential
+#    for your analysis. Optional fields allow for more flexible extraction.
+
+# 5. LIST FIELDS: Use list fields ([string], [number], etc.) when you expect
+#    multiple values of the same type (e.g., multiple companies, multiple prices).
+
+# 6. SCHEMA TYPE: Choose the schema type that best matches your data structure:
+#    - Simple: One set of properties per text chunk
+#    - Nested: Multiple items of the same type per text chunk  
+#    - Multiple: Different types of data per text chunk 

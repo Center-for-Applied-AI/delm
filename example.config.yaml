@@ -1,61 +1,118 @@
-# DELM Configuration Example
-# This file shows all available configuration options for DELM
+# =============================================================================
+# DELM Configuration Template
+# =============================================================================
+# 
+# This is a comprehensive template for configuring DELM (Data Extraction with 
+# Language Models). Copy this file and modify it for your specific use case.
+#
+# CONFIGURATION STRUCTURE:
+# - llm_extraction: Settings for LLM API calls and processing
+# - semantic_cache: Settings for caching extracted results
+# - data_preprocessing: Settings for text splitting and filtering
+# - schema: Settings for the extraction schema and prompts
+#
+# REQUIRED FIELDS: Only 'llm_extraction.provider' and 'llm_extraction.name' are 
+#                  strictly required. All other fields have sensible defaults.
+#
+# DEPENDENCIES: 
+# - If max_budget is set, track_cost must be True
+# - If pandas_score_filter is used, scoring must be configured
+# - If preprocessed_data_path is set, other preprocessing settings are ignored
+# =============================================================================
 
-# LLM extraction configuration
+# =============================================================================
+# LLM EXTRACTION CONFIGURATION (REQUIRED)
+# =============================================================================
+# Controls how DELM interacts with language model APIs
 llm_extraction:
-  provider: "openai"                  # LLM provider (openai, anthropic, google, groq, together, fireworks)
-  name: "gpt-4o-mini"                 # LLM model name
-  temperature: 0.0                    # Temperature for generation (0.0-2.0)
-  max_retries: 3                      # Maximum API retries
-  batch_size: 10                      # Batch size for processing
-  max_workers: 1                      # Number of concurrent workers
-  base_delay: 1.0                     # Base delay for retry handler (seconds)
-  dotenv_path: ".env"                 # Path to .env file (optional, can be null)
-  track_cost: true                    # Whether to track cost of API calls
-  max_budget: 1000                    # Maximum budget for API calls (in dollars). Track cost must be true.
+  # REQUIRED: Choose your LLM provider
+  provider: "openai"                  # Options: "openai", "anthropic", "google", "groq", "together", "fireworks"
+  
+  # REQUIRED: Choose your model
+  name: "gpt-4o-mini"                 # Examples: "gpt-4o-mini", "claude-3-sonnet", "gemini-pro"
+  
+  # OPTIONAL: Generation randomness (0.0 = deterministic, 2.0 = very random)
+  temperature: 0.0                    # Default: 0.0, Range: 0.0-2.0
+  
+  # OPTIONAL: API reliability settings
+  max_retries: 3                      # Default: 3, Range: 0+
+  base_delay: 1.0                     # Default: 1.0, Range: 0+ (seconds between retries)
+  
+  # OPTIONAL: Processing performance
+  batch_size: 10                      # Default: 10, Range: 1+ (records per batch)
+  max_workers: 1                      # Default: 1, Range: 1+ (concurrent workers)
+  
+  # OPTIONAL: Environment and secrets
+  dotenv_path: ".env"                 # Default: null, Path to .env file for API keys
+  
+  # OPTIONAL: Cost tracking and budget limits
+  track_cost: true                    # Default: true, Whether to track API costs
+  max_budget: null                    # Default: null, Max budget in dollars (requires track_cost: true)
+  
+  # OPTIONAL: Output format
+  extract_to_dataframe: false         # Default: false, Whether to convert JSON to DataFrame
 
+# =============================================================================
+# SEMANTIC CACHE CONFIGURATION (OPTIONAL)
+# =============================================================================
+# Caches extracted results to avoid re-processing identical text chunks
 semantic_cache:
-  backend: "sqlite"        # sqlite | lmdb | filesystem
-  path: ".delm_cache"
-  max_size_mb: 512
-  synchronous: "normal"    # sqlite only
+  # OPTIONAL: Cache backend type
+  backend: "sqlite"                   # Default: "sqlite", Options: "sqlite", "lmdb", "filesystem"
+  
+  # OPTIONAL: Cache storage location
+  path: ".delm_cache"                 # Default: ".delm_cache", Directory for cache files
+  
+  # OPTIONAL: Cache size management
+  max_size_mb: 512                    # Default: 512, Maximum cache size before pruning
+  
+  # OPTIONAL: SQLite performance (only used when backend = "sqlite")
+  synchronous: "normal"               # Default: "normal", Options: "normal", "full"
 
-# Data preprocessing configuration
+# =============================================================================
+# DATA PREPROCESSING CONFIGURATION (OPTIONAL)
+# =============================================================================
+# Controls how input text is split, scored, and filtered before LLM processing
 data_preprocessing:
-  record_id_column: "record_id" # Column containing unique record IDs, if not provided, will create a new one and return it in the output
-  target_column: "text"         # Column containing text to process
-  drop_target_column: true      # Whether to drop target column after processing
-  pandas_score_filter: "delm_score >= 0.7 and delm_score < 0.95" # Filter via scores in preprocessing step. Uses pandas query syntax. Must use delm_score column name.
+  # OPTIONAL: Input data configuration
+  target_column: "delm_raw_data"      # Default: "delm_raw_data", Column containing text to process
+  drop_target_column: false           # Default: false, Whether to drop target column after processing
   
-  # Splitting strategy configuration
+  # OPTIONAL: Score-based filtering (requires scoring configuration)
+  pandas_score_filter: null           # Default: null, Examples: "delm_score >= 0.7", "delm_score < 0.95"
+  
+  # OPTIONAL: Pre-processed data path (if set, ignores other preprocessing settings)
+  preprocessed_data_path: null        # Default: null, Path to .feather file with pre-processed data
+  
+  # OPTIONAL: Text splitting strategy
   splitting:
-    type: "ParagraphSplit"      # Available: ParagraphSplit, FixedWindowSplit, RegexSplit, None
-    # For FixedWindowSplit, you can also specify:
-    # window: 5                 # Number of sentences per chunk
-    # stride: 5                 # Number of sentences to overlap
-    # For RegexSplit, you can also specify:
-    # pattern: "\n\n"           # Regex pattern to split on
+    type: null                        # Default: null, Options: "ParagraphSplit", "FixedWindowSplit", "RegexSplit", null
+    
+    # For FixedWindowSplit only:
+    # window: 5                       # Number of sentences per chunk
+    # stride: 5                       # Number of sentences to overlap
+    
+    # For RegexSplit only:
+    # pattern: "\n\n"                 # Regex pattern to split on
   
-  # Scoring strategy configuration  
+  # OPTIONAL: Relevance scoring strategy
   scoring:
-    type: "KeywordScorer"       # Available: KeywordScorer, FuzzyScorer, None
-    keywords:                   # List of keywords for relevance scoring
-      - "price"
-      - "forecast"
-      - "guidance"
-      - "estimate"
-      - "expectation"
-      - "revenue"
-      - "earnings"
+    type: null                        # Default: null, Options: "KeywordScorer", "FuzzyScorer", null
+    
+    # For KeywordScorer and FuzzyScorer:
+    keywords: []                      # List of keywords for relevance scoring
 
-# Schema configuration
+# =============================================================================
+# SCHEMA CONFIGURATION (REQUIRED)
+# =============================================================================
+# Defines the extraction schema and prompts for the LLM
 schema:
-  spec_path: "tests/calls_test/schema_spec.yaml" # Path to schema specification file
-  container_name: "data"        # Container name for nested schemas
+  # REQUIRED: Path to schema specification file
+  spec_path: "schema_spec.yaml"       # Path to your schema definition file
+  
+  # OPTIONAL: Custom prompt template (overrides default)
   prompt_template: |
-    You are assisting a finance professor who expects meticulous and reliable results.
-
-    Extract the following information from the text:
+    You are a precise data extraction assistant. Extract the following information from the text:
 
     {variables}
 
@@ -65,23 +122,62 @@ schema:
     CRITICAL INSTRUCTIONS:
     - ONLY extract information that is EXPLICITLY mentioned in the text
     - If NO relevant information is mentioned, return empty lists or null values
-    - Do NOT infer or guess based on context or company names
+    - Do NOT infer or guess based on context
     - Do NOT extract information just because it might be related
     - For each item mentioned, create a separate entry with all relevant details
     - If a field is not mentioned in the text, leave it as null/None rather than guessing
     - Focus on extracting accurate, factual data as stated in the text
 
-    Examples of what NOT to extract:
-    - "1-800 CONTACTS" → NOT oil (even though contacts might use oil-based solutions)
-    - "Apple Inc." → NOT aluminum (even though phones contain aluminum)
-    - "Bank of America" → NOT gold (even though banks might trade gold)
-  # Example of a simpler prompt template:
-  # prompt_template: |
-  #   You are a financial data extraction expert. Extract the following information:
-  #   
-  #   {variables}
-  #   
-  #   Text to analyze:
-  #   {text}
-  #   
-  #   Focus on extracting accurate financial data and return results in the specified format.
+  # OPTIONAL: Custom system prompt (overrides default)
+  system_prompt: "You are a precise data‑extraction assistant."
+
+# =============================================================================
+# CONFIGURATION EXAMPLES
+# =============================================================================
+
+# Example 1: Minimal configuration (only required fields)
+# llm_extraction:
+#   provider: "openai"
+#   name: "gpt-4o-mini"
+# schema:
+#   spec_path: "my_schema.yaml"
+
+# Example 2: High-performance configuration
+# llm_extraction:
+#   provider: "anthropic"
+#   name: "claude-3-sonnet"
+#   batch_size: 50
+#   max_workers: 4
+#   temperature: 0.1
+# semantic_cache:
+#   backend: "sqlite"
+#   max_size_mb: 1024
+# data_preprocessing:
+#   splitting:
+#     type: "ParagraphSplit"
+#   scoring:
+#     type: "KeywordScorer"
+#     keywords: ["price", "forecast", "guidance"]
+
+# Example 3: Budget-conscious configuration
+# llm_extraction:
+#   provider: "openai"
+#   name: "gpt-3.5-turbo"
+#   track_cost: true
+#   max_budget: 50.0
+#   temperature: 0.0
+# data_preprocessing:
+#   pandas_score_filter: "delm_score >= 0.8"
+#   splitting:
+#     type: "FixedWindowSplit"
+#     window: 3
+#     stride: 1
+
+# Example 4: Using pre-processed data
+# llm_extraction:
+#   provider: "openai"
+#   name: "gpt-4o-mini"
+# data_preprocessing:
+#   preprocessed_data_path: "my_preprocessed_data.feather"
+# schema:
+#   spec_path: "my_schema.yaml"
