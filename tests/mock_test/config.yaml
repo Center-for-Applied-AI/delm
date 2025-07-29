@@ -5,6 +5,7 @@
 llm_extraction:
   name: gpt-4o-mini
   provider: openai
+  batch_size: 1
   dotenv_path: ".env"
 
 data_preprocessing:

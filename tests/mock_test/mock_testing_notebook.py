@@ -127,6 +127,7 @@ delm = DELM(
     overwrite_experiment=True,
     auto_checkpoint_and_resume_experiment=True,
     use_disk_storage=True,
+    console_log_level="INFO",
 )
 delm.prep_data(report_text_df.iloc[:3])
 delm.process_via_llm()

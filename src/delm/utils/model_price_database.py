@@ -1,8 +1,11 @@
 # Model pricing database for input/output tokens per million tokens.
 # Add new models and providers as needed.
 
+import logging
 from typing import Tuple
 from delm.exceptions import ConfigurationError
+
+log = logging.getLogger(__name__)
 
 _MODEL_PRICING_DB = {
     # ------------------------------------------------------------------------ #
@@ -100,9 +103,13 @@ def get_model_token_price(provider: str, model: str) -> Tuple[float, float]:
     Returns:
         (input_price, output_price): tuple of floats
     """
+    log.debug("Looking up price for provider='%s', model='%s'", provider, model)
     for (prov, mod), prices in _MODEL_PRICING_DB.items():
         if prov.lower() == provider.lower() and mod.lower() == model.lower():
+            log.debug("Found price for provider='%s', model='%s': input=$%.2f, output=$%.2f",
+                     provider, model, prices["input"], prices["output"])
             return prices["input"], prices["output"]
+    log.error("Model '%s' not found in model price database for provider '%s'", model, provider)
     raise ConfigurationError(
         f"Model {model} not found in model price database for provider {provider}",
         {"provider": provider, "model": model}

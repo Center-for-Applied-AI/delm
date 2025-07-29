@@ -130,6 +130,17 @@ META_DATA_PREFIX = "meta_data_"                                # Prefix for meta
 META_DATA_SUFFIX = ".feather"                                  # Suffix for metadata files
 
 # =============================================================================
+# LOGGING CONSTANTS
+# =============================================================================
+
+# Logging Settings
+DEFAULT_LOG_DIR = "delm_logs"                                  # Default directory for log files
+SYSTEM_LOG_FILE_PREFIX = "delm_"                              # Default prefix for log files
+SYSTEM_LOG_FILE_SUFFIX = ".log"                              # Default suffix for log files
+DEFAULT_CONSOLE_LOG_LEVEL = "INFO"                            # Default console log level
+DEFAULT_FILE_LOG_LEVEL = "DEBUG"                              # Default file log level
+
+# =============================================================================
 # UTILITY CONSTANTS
 # =============================================================================
 

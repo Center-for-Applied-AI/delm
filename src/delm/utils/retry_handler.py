@@ -4,11 +4,15 @@ DELM Retry Handler
 Retry handling with exponential backoff for robust API calls.
 """
 
+import logging
 import time
 from typing import Any, Callable
 import traceback
 
 from delm.exceptions import APIError
+
+# Module-level logger
+log = logging.getLogger(__name__)
 
 
 class RetryHandler:
@@ -24,17 +28,24 @@ class RetryHandler:
         
         for attempt in range(self.max_retries + 1):
             try:
-                return func(*args, **kwargs)
+                start_time = time.time()
+                log.debug("Executing function with retry: %s", func.__name__)
+                result = func(*args, **kwargs)
+                end_time = time.time()
+                log.debug("Function execution completed in %.3fs", end_time - start_time)
+                return result
             except Exception as e:
                 last_exception = e
-                print(f"[RETRY HANDLER] Exception on attempt {attempt + 1}:")
-                traceback.print_exc()
+                log.warning("Exception on attempt %d: %s", attempt + 1, e)
+                if log.isEnabledFor(logging.DEBUG):
+                    traceback.print_exc()
+                    
                 if attempt < self.max_retries:
                     delay = self.base_delay * (2 ** attempt)
-                    print(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay:.1f}s...")
+                    log.info("Attempt %d failed: %s. Retrying in %.1fs...", attempt + 1, e, delay)
                     time.sleep(delay)
                 else:
-                    print(f"All {self.max_retries + 1} attempts failed. Last error: {e}")
+                    log.error("All %d attempts failed. Last error: %s", self.max_retries + 1, e)
         
         if last_exception:
             raise APIError(
