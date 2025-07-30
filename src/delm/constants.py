@@ -36,12 +36,19 @@ DEFAULT_DOTENV_PATH = None            # Path to .env file
 # DATA PROCESSING DEFAULTS
 # =============================================================================
 
+## Splitting Defaults
+# FixedWindowSplit
+DEFAULT_FIXED_WINDOW_SIZE = 5         # Number of sentences per chunk
+DEFAULT_FIXED_WINDOW_STRIDE = 5       # Number of sentences to overlap
+# RegexSplit
+DEFAULT_REGEX_PATTERN = "\n\n"        # Regex pattern to split on
+
 # Column and Data Settings
 DEFAULT_DROP_TARGET_COLUMN = False    # Whether to drop the target column after processing
 DEFAULT_PANDAS_SCORE_FILTER = None    # Pandas query string for filtering by score (None = no filter)
 
 # Extraction Settings
-DEFAULT_EXTRACT_TO_DATAFRAME = False  # Whether to convert extracted JSON to DataFrame
+DEFAULT_EXPLODE_JSON_RESULTS = False  # Whether to convert extracted JSON to DataFrame
 
 # =============================================================================
 # SCHEMA CONFIGURATION DEFAULTS

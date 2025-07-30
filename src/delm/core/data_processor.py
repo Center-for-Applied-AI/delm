@@ -149,12 +149,13 @@ class DataProcessor:
         if self.scorer is not None:
             log.debug("Applying scoring strategy: %s", type(self.scorer).__name__)
             df[SYSTEM_SCORE_COLUMN] = df[SYSTEM_CHUNK_COLUMN].apply(self.scorer.score)
-            # TODO: Give warning if scorer is used but filter is none.
             if self.pandas_score_filter is not None:
                 log.debug("Applying score filter: %s", self.pandas_score_filter)
                 original_count = len(df)
                 df = df.query(self.pandas_score_filter)
                 log.debug("Score filtering completed. Filtered from %d to %d chunks", original_count, len(df))
+            else:
+                log.warning("Scoring strategy is used but filter is not. This means all chunks will be used for extraction.")
 
         log.debug("DataFrame processing completed. Final chunks: %d", len(df))
         return df 

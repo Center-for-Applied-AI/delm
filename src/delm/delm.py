@@ -268,7 +268,7 @@ class DELM:
         
         if not all(col in results_df.columns for col in cols):
             log.error("Required columns not found: %s, available: %s", cols, list(results_df.columns))
-            raise ValueError("Json extraction results are not available. Please set `extract_to_dataframe` to `True` in the configuration or use `get_extraction_results_df` instead.")
+            raise ValueError("Json extraction results are not available. Please set `explode_json_results` to `True` in the configuration or use `get_extraction_results_df` instead.")
         
         json_results = results_df[[SYSTEM_CHUNK_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN]]
         log.debug("JSON results prepared: %d rows", len(json_results))

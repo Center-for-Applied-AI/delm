@@ -48,9 +48,11 @@ llm_extraction:
   # OPTIONAL: Cost tracking and budget limits
   track_cost: true                    # Default: true, Whether to track API costs
   max_budget: null                    # Default: null, Max budget in dollars (requires track_cost: true)
+  model_input_cost_per_1M_tokens: null # Default: will pull from local model price database based on provider and model, Input cost per 1M tokens
+  model_output_cost_per_1M_tokens: null # Default: will pull from local model price database based on provider and model, Output cost per 1M tokens
   
   # OPTIONAL: Output format
-  extract_to_dataframe: false         # Default: false, Whether to convert JSON to DataFrame
+  explode_json_results: false         # Default: false, Whether to explode JSON results into separate rows
 
 # =============================================================================
 # SEMANTIC CACHE CONFIGURATION (OPTIONAL)

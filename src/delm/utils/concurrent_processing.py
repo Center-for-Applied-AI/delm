@@ -51,7 +51,6 @@ class ConcurrentProcessor:
                 results.append(result)
             except Exception as e:
                 # Log error but continue processing other items
-                # TODO: How should we handle errors here?
                 log.error("Error processing item %d: %s", i, e)
                 results.append(None)
         

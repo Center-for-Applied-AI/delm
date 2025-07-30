@@ -14,17 +14,15 @@ class CostTracker:
         model: str,
         max_budget: float | None = None,
         count_cache_hits_towards_cost: bool = False,
-        # TODO: Let user specify input/output cost per 1M tokens
-        # model_input_cost_per_1M_tokens: float,
-        # model_output_cost_per_1M_tokens: float,
-        # TODO: Let user specify tokenizer, 
-        # tokenizer: tiktoken.Encoding = tiktoken.get_encoding("cl100k_base"),
+        model_input_cost_per_1M_tokens: float | None = None,
+        model_output_cost_per_1M_tokens: float | None = None
     ) -> None:
         log.debug("Initializing cost tracker for %s/%s", provider, model)
         self.provider = provider
         self.model = model
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
-        self.model_input_cost_per_1M_tokens, self.model_output_cost_per_1M_tokens = get_model_token_price(provider, model)
+        self.model_input_cost_per_1M_tokens = model_input_cost_per_1M_tokens or get_model_token_price(provider, model)[0]
+        self.model_output_cost_per_1M_tokens = model_output_cost_per_1M_tokens or get_model_token_price(provider, model)[1]
         self.input_tokens = 0
         self.output_tokens = 0
         self.count_cache_hits_towards_cost = count_cache_hits_towards_cost

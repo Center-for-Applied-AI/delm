@@ -32,7 +32,7 @@ from .constants import (
     # Data Processing
     DEFAULT_DROP_TARGET_COLUMN,
     DEFAULT_PANDAS_SCORE_FILTER,
-    DEFAULT_EXTRACT_TO_DATAFRAME,
+    DEFAULT_EXPLODE_JSON_RESULTS,
     
     # Schema Configuration
     DEFAULT_SCHEMA_PATH,
@@ -120,7 +120,7 @@ __all__ = [
     # Data Processing
     "DEFAULT_DROP_TARGET_COLUMN",
     "DEFAULT_PANDAS_SCORE_FILTER",
-    "DEFAULT_EXTRACT_TO_DATAFRAME",
+    "DEFAULT_EXPLODE_JSON_RESULTS",
     
     # Schema Configuration
     "DEFAULT_SCHEMA_PATH",
