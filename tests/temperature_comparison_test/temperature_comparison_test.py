@@ -80,10 +80,10 @@ def run_temperature_comparison():
 
         # Process data
         delm.prep_data(test_data)
-        delm.process_via_llm()
+        result_df = delm.process_via_llm()
 
         # Get the results from the experiment directory
-        results[temp] = delm.get_extraction_results_json()
+        results[temp] = result_df
 
     return results
 

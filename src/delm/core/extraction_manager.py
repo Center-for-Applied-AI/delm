@@ -38,9 +38,8 @@ class ExtractionManager:
         log.debug("Initializing ExtractionManager")
         self.model_config = model_config
         self.temperature = model_config.temperature
-        self.explode_json_results = model_config.explode_json_results
         
-        log.debug(f"Model config: {self.model_config.name}, temperature: {self.temperature}, explode_json_results: {self.explode_json_results}")
+        log.debug(f"Model config: {self.model_config.name}, temperature: {self.temperature}")
         
         # Use Instructor's universal provider interface
         provider_string = self.model_config.get_provider_string()
@@ -181,13 +180,12 @@ class ExtractionManager:
                     lambda p: self._extract_from_text_chunk(p)
                 )
                 log.debug("Concurrent processing completed for batch %d, got %d results", batch_id, len(results))
-                log.debug("Parsing batch %d results. Explode JSON results: %s", batch_id, self.explode_json_results)
+                log.debug("Parsing batch %d results.", batch_id)
                 batch_df = self.parse_results_dataframe(
                     results=results,
                     text_chunks=batch_chunks,
                     text_chunk_ids=batch_chunk_ids,
                     batch_id=batch_id,
-                    explode_json_results=self.explode_json_results
                 )
                 log.debug("Batch %d parsed to DataFrame with %d rows", batch_id, len(batch_df))
                 pbar.update(len(batch_chunks))
@@ -332,16 +330,12 @@ class ExtractionManager:
         text_chunks: List[str],
         text_chunk_ids: List[int],
         batch_id: int = 0,
-        explode_json_results: bool = False
     ) -> pd.DataFrame:
         """
         Parse extraction results into a DataFrame.
-
-        explode_json_results=True: Each extracted item becomes its own row (exploded/structured).
-        explode_json_results=False: All extracted data for a chunk is serialized into a single JSON column.
         """
-        log.debug("Parsing results DataFrame: batch_id=%d, explode_json_results=%s, results_count=%d", 
-                 batch_id, explode_json_results, len(results))
+        log.debug("Parsing results DataFrame: batch_id=%d, results_count=%d", 
+                 batch_id, len(results))
         
         data = []
         for result, text_chunk, chunk_id in zip(results, text_chunks, text_chunk_ids):
@@ -351,51 +345,28 @@ class ExtractionManager:
             log.debug("Processing chunk %d: has_extracted_data=%s, has_errors=%s", 
                      chunk_id, extracted_data is not None, bool(result["errors"]))
             
-            if explode_json_results:
-                if extracted_data is None:
-                    log.debug("Chunk %d: No extracted data, creating error row", chunk_id)
-                    row_df = pd.DataFrame([{ 
-                        SYSTEM_CHUNK_ID_COLUMN: chunk_id,
-                        SYSTEM_BATCH_ID_COLUMN: batch_id,
-                        SYSTEM_CHUNK_COLUMN: text_chunk,
-                        SYSTEM_ERRORS_COLUMN: errors_json
-                    }])
-                    data.append(row_df)
-                else:
-                    log.debug("Chunk %d: Parsing extracted data to exploded DataFrame", chunk_id)
-                    parsed_df = self.extraction_schema.validate_and_parse_response_to_exploded_dataframe(extracted_data, text_chunk)
-                    if not parsed_df.empty:
-                        log.debug("Chunk %d: Adding system columns to parsed DataFrame (%d rows)", chunk_id, len(parsed_df))
-                        parsed_df[SYSTEM_CHUNK_ID_COLUMN] = chunk_id
-                        parsed_df[SYSTEM_BATCH_ID_COLUMN] = batch_id
-                        parsed_df[SYSTEM_CHUNK_COLUMN] = text_chunk
-                        parsed_df[SYSTEM_ERRORS_COLUMN] = errors_json
-                        data.append(parsed_df)
-                    else:
-                        log.debug("Chunk %d: Parsed DataFrame is empty, skipping", chunk_id)
+            if extracted_data is None:
+                log.debug("Chunk %d: No extracted data, creating error row with JSON column", chunk_id)
+                row_df = pd.DataFrame([{
+                    SYSTEM_CHUNK_ID_COLUMN: chunk_id,
+                    SYSTEM_BATCH_ID_COLUMN: batch_id,
+                    SYSTEM_CHUNK_COLUMN: text_chunk,
+                    SYSTEM_EXTRACTED_DATA_JSON_COLUMN: None,
+                    SYSTEM_ERRORS_COLUMN: errors_json
+                }])
+                data.append(row_df)
             else:
-                if extracted_data is None:
-                    log.debug("Chunk %d: No extracted data, creating error row with JSON column", chunk_id)
-                    row_df = pd.DataFrame([{
-                        SYSTEM_CHUNK_ID_COLUMN: chunk_id,
-                        SYSTEM_BATCH_ID_COLUMN: batch_id,
-                        SYSTEM_CHUNK_COLUMN: text_chunk,
-                        SYSTEM_EXTRACTED_DATA_JSON_COLUMN: None,
-                        SYSTEM_ERRORS_COLUMN: errors_json
-                    }])
-                    data.append(row_df)
-                else:
-                    log.debug("Chunk %d: Parsing extracted data to dict for JSON column", chunk_id)
-                    extracted_data_dict = self.extraction_schema.validate_and_parse_response_to_dict(extracted_data, str(text_chunk))
-                    log.debug("Chunk %d: Creating row with JSON data", chunk_id)
-                    row = {
-                        SYSTEM_CHUNK_ID_COLUMN: chunk_id,
-                        SYSTEM_BATCH_ID_COLUMN: batch_id,
-                        SYSTEM_CHUNK_COLUMN: text_chunk,
-                        SYSTEM_EXTRACTED_DATA_JSON_COLUMN: json.dumps(extracted_data_dict), 
-                        SYSTEM_ERRORS_COLUMN: errors_json
-                    }
-                    data.append(pd.DataFrame([row]))
+                log.debug("Chunk %d: Parsing extracted data to dict for JSON column", chunk_id)
+                extracted_data_dict = self.extraction_schema.validate_and_parse_response_to_dict(extracted_data, str(text_chunk))
+                log.debug("Chunk %d: Creating row with JSON data", chunk_id)
+                row = {
+                    SYSTEM_CHUNK_ID_COLUMN: chunk_id,
+                    SYSTEM_BATCH_ID_COLUMN: batch_id,
+                    SYSTEM_CHUNK_COLUMN: text_chunk,
+                    SYSTEM_EXTRACTED_DATA_JSON_COLUMN: json.dumps(extracted_data_dict), 
+                    SYSTEM_ERRORS_COLUMN: errors_json
+                }
+                data.append(pd.DataFrame([row]))
         
         # Outer join to preserve all columns
         log.debug("Concatenating %d DataFrame parts", len(data))

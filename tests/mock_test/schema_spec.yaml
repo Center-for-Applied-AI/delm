@@ -29,6 +29,6 @@ variables:
     allowed_values: ["forecast", "guidance", "estimate", "projection", "outlook"]
   
   - name: "company_mention"
-    description: "Company names mentioned in relation to commodities"
-    data_type: "string"
+    description: "Company names mentioned in relation to the commodity"
+    data_type: "[string]"
     required: false 

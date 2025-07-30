@@ -80,13 +80,11 @@ delm = DELM(
     use_disk_storage=True,
 )
 delm.prep_data(report_text_df)
-delm.process_via_llm()
+result_df = delm.process_via_llm()
 
 print(f"-"*40)
 print("Data finished processing")
 print(f"-"*40)
-
-result_df = delm.get_extraction_results_df()
 
 cost_summary = delm.get_cost_summary()
 print(json.dumps(cost_summary, indent=2))
