@@ -6,7 +6,7 @@ llm_extraction:
   batch_size: 10
   max_workers: 4
   base_delay: 1.0
-  extract_to_dataframe: true
+  explode_json_results: true
   track_cost: true
   max_budget: 50.0
 

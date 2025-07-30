@@ -21,9 +21,14 @@ from delm.constants import (
     DEFAULT_DOTENV_PATH,
     
     # Data Processing
+    # Splitting
+    DEFAULT_FIXED_WINDOW_SIZE,
+    DEFAULT_FIXED_WINDOW_STRIDE,
+    DEFAULT_REGEX_PATTERN,
+
     DEFAULT_DROP_TARGET_COLUMN, 
     DEFAULT_PANDAS_SCORE_FILTER, 
-    DEFAULT_EXTRACT_TO_DATAFRAME,
+    DEFAULT_EXPLODE_JSON_RESULTS,
     
     # Schema Configuration
     DEFAULT_SCHEMA_PATH, 
@@ -38,6 +43,9 @@ from delm.constants import (
     
     # System Constants
     SYSTEM_RAW_DATA_COLUMN,
+    DEFAULT_FIXED_WINDOW_SIZE,
+    DEFAULT_FIXED_WINDOW_STRIDE,
+    DEFAULT_REGEX_PATTERN,
 )
 from delm.exceptions import ConfigurationError
 
@@ -70,9 +78,11 @@ class LLMExtractionConfig(BaseConfig):
     max_workers: int = DEFAULT_MAX_WORKERS
     base_delay: float = DEFAULT_BASE_DELAY
     dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
-    extract_to_dataframe: bool = DEFAULT_EXTRACT_TO_DATAFRAME
+    explode_json_results: bool = DEFAULT_EXPLODE_JSON_RESULTS
     track_cost: bool = DEFAULT_TRACK_COST
     max_budget: Optional[float] = DEFAULT_MAX_BUDGET
+    model_input_cost_per_1M_tokens: float | None = None
+    model_output_cost_per_1M_tokens: float | None = None
 
     def get_provider_string(self) -> str:
         """Get the combined provider string for Instructor."""
@@ -119,10 +129,10 @@ class LLMExtractionConfig(BaseConfig):
                 f"dotenv_path does not exist: {self.dotenv_path}",
                 {"dotenv_path": str(self.dotenv_path), "suggestion": "Check the file path or create the .env file"}
             )
-        if not isinstance(self.extract_to_dataframe, bool):
+        if not isinstance(self.explode_json_results, bool):
             raise ConfigurationError(
-                "extract_to_dataframe must be a boolean.",
-                {"extract_to_dataframe": self.extract_to_dataframe, "suggestion": "Use True or False"}
+                "explode_json_results must be a boolean.",
+                {"explode_json_results": self.explode_json_results, "suggestion": "Use True or False"}
             )
         if not isinstance(self.track_cost, bool):
             raise ConfigurationError(
@@ -151,9 +161,11 @@ class LLMExtractionConfig(BaseConfig):
             "max_workers": self.max_workers,
             "base_delay": self.base_delay,
             "dotenv_path": str(self.dotenv_path) if self.dotenv_path else None,
-            "extract_to_dataframe": self.extract_to_dataframe,
+            "explode_json_results": self.explode_json_results,
             "track_cost": self.track_cost,
             "max_budget": self.max_budget,
+            "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,
+            "model_output_cost_per_1M_tokens": self.model_output_cost_per_1M_tokens,
         }
 
 
@@ -187,10 +199,9 @@ class SplittingConfig(BaseConfig):
         if split_type == "ParagraphSplit":
             return ParagraphSplit()
         elif split_type == "FixedWindowSplit":
-            # TODO: add default constants for window and stride
-            return FixedWindowSplit(cfg.get("window", 5), cfg.get("stride", 5))
+            return FixedWindowSplit(cfg.get("window", DEFAULT_FIXED_WINDOW_SIZE), cfg.get("stride", DEFAULT_FIXED_WINDOW_STRIDE))
         elif split_type == "RegexSplit":
-            return RegexSplit(cfg.get("pattern", "\n\n"))
+            return RegexSplit(cfg.get("pattern", DEFAULT_REGEX_PATTERN))
         elif split_type in ("None", None):
             return None
         else:
@@ -588,17 +599,6 @@ class DELMConfig(BaseConfig):
             ) from e
         except Exception as e:
             raise ConfigurationError(f"Failed to load config file: {path}", {"file_path": str(path)}) from e
-
-    # @classmethod
-    # def from_serialized_files(cls, pipeline_config_path: Path, schema_spec_path: Path) -> "DELMConfig":
-    #     """Create DELMConfig from separate pipeline config and schema spec files."""
-    #     # Load pipeline config
-    #     pipeline_config = cls.from_yaml(pipeline_config_path)
-        
-    #     # Update schema spec path to point to the provided schema file
-    #     pipeline_config.schema.spec_path = schema_spec_path
-        
-    #     return pipeline_config
 
     @staticmethod
     def from_any(config_like) -> "DELMConfig":

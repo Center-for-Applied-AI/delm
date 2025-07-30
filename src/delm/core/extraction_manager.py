@@ -38,9 +38,9 @@ class ExtractionManager:
         log.debug("Initializing ExtractionManager")
         self.model_config = model_config
         self.temperature = model_config.temperature
-        self.extract_to_dataframe = model_config.extract_to_dataframe
+        self.explode_json_results = model_config.explode_json_results
         
-        log.debug(f"Model config: {self.model_config.name}, temperature: {self.temperature}, extract_to_dataframe: {self.extract_to_dataframe}")
+        log.debug(f"Model config: {self.model_config.name}, temperature: {self.temperature}, explode_json_results: {self.explode_json_results}")
         
         # Use Instructor's universal provider interface
         provider_string = self.model_config.get_provider_string()
@@ -181,14 +181,13 @@ class ExtractionManager:
                     lambda p: self._extract_from_text_chunk(p)
                 )
                 log.debug("Concurrent processing completed for batch %d, got %d results", batch_id, len(results))
-                output_type = "exploded" if self.extract_to_dataframe else "json_string_column"
-                log.debug("Parsing batch %d results with output type: %s", batch_id, output_type)
+                log.debug("Parsing batch %d results. Explode JSON results: %s", batch_id, self.explode_json_results)
                 batch_df = self.parse_results_dataframe(
                     results=results,
                     text_chunks=batch_chunks,
                     text_chunk_ids=batch_chunk_ids,
                     batch_id=batch_id,
-                    output=output_type # TODO: rename self.extract_to_dataframe to self.extract_to_exploded_dataframe
+                    explode_json_results=self.explode_json_results
                 )
                 log.debug("Batch %d parsed to DataFrame with %d rows", batch_id, len(batch_df))
                 pbar.update(len(batch_chunks))
@@ -264,7 +263,7 @@ class ExtractionManager:
                 response = self.client.chat.completions.create(
                     model=self.model_config.name,
                     temperature=self.temperature,
-                    response_model=schema, # type: ignore TODO: is there a way to get rid of this type error?
+                    response_model=schema,
                     messages=[
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt},
@@ -333,16 +332,16 @@ class ExtractionManager:
         text_chunks: List[str],
         text_chunk_ids: List[int],
         batch_id: int = 0,
-        output: str = "exploded"  # or "json_string_column"
+        explode_json_results: bool = False
     ) -> pd.DataFrame:
         """
         Parse extraction results into a DataFrame.
 
-        output="exploded": Each extracted item becomes its own row (exploded/structured).
-        output="json_column": All extracted data for a chunk is serialized into a single JSON column.
+        explode_json_results=True: Each extracted item becomes its own row (exploded/structured).
+        explode_json_results=False: All extracted data for a chunk is serialized into a single JSON column.
         """
-        log.debug("Parsing results DataFrame: batch_id=%d, output_type=%s, results_count=%d", 
-                 batch_id, output, len(results))
+        log.debug("Parsing results DataFrame: batch_id=%d, explode_json_results=%s, results_count=%d", 
+                 batch_id, explode_json_results, len(results))
         
         data = []
         for result, text_chunk, chunk_id in zip(results, text_chunks, text_chunk_ids):
@@ -352,7 +351,7 @@ class ExtractionManager:
             log.debug("Processing chunk %d: has_extracted_data=%s, has_errors=%s", 
                      chunk_id, extracted_data is not None, bool(result["errors"]))
             
-            if output == "exploded":
+            if explode_json_results:
                 if extracted_data is None:
                     log.debug("Chunk %d: No extracted data, creating error row", chunk_id)
                     row_df = pd.DataFrame([{ 
@@ -374,7 +373,7 @@ class ExtractionManager:
                         data.append(parsed_df)
                     else:
                         log.debug("Chunk %d: Parsed DataFrame is empty, skipping", chunk_id)
-            elif output == "json_string_column":
+            else:
                 if extracted_data is None:
                     log.debug("Chunk %d: No extracted data, creating error row with JSON column", chunk_id)
                     row_df = pd.DataFrame([{
@@ -397,9 +396,6 @@ class ExtractionManager:
                         SYSTEM_ERRORS_COLUMN: errors_json
                     }
                     data.append(pd.DataFrame([row]))
-            else:
-                log.error("Unknown output type: %s", output)
-                raise ValueError(f"Unknown output type: {output}")
         
         # Outer join to preserve all columns
         log.debug("Concatenating %d DataFrame parts", len(data))
