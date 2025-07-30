@@ -8,8 +8,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict
 
-from .schemas import SchemaRegistry, BaseSchema
-from ..exceptions import SchemaError, FileError
+from delm.schemas import SchemaRegistry, BaseSchema
+from delm.exceptions import SchemaError, FileError
 from delm.config import SchemaConfig
 
 # Module-level logger

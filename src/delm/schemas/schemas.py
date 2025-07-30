@@ -18,12 +18,11 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Any, Dict, List, Optional, Sequence, Type
 
-import pandas as pd
 from pydantic import BaseModel, Field  # <- real Field, returns FieldInfo
 
-from ..constants import DEFAULT_PROMPT_TEMPLATE, LLM_NULL_WORDS_LOWERCASE
-from ..exceptions import SchemaError
-from ..models import ExtractionVariable
+from delm.constants import LLM_NULL_WORDS_LOWERCASE
+from delm.models import ExtractionVariable
+from delm.exceptions import SchemaError
 
 # Module-level logger
 log = logging.getLogger(__name__)
@@ -66,18 +65,6 @@ def _ann_and_field(dtype: str, required: bool, desc: str):
             fld = Field(default=None, description=desc)
     return ann, fld, is_list
 
-def _explode_df(df: pd.DataFrame, list_cols: Sequence[str]) -> pd.DataFrame:
-    """Explode each *present* list column so every row is atomic."""
-    log.debug(f"Exploding DataFrame with {len(list_cols)} list columns: {list_cols}")
-    original_rows = len(df)
-    for col in list_cols:
-        if col in df.columns:
-            log.debug(f"Exploding column '{col}'")
-            df = df.explode(col, ignore_index=True)
-    final_rows = len(df)
-    if final_rows != original_rows:
-        log.debug(f"DataFrame exploded: {original_rows} -> {final_rows} rows")
-    return df
 
 def _validate_type(val, data_type, path):
     log.debug(f"Validating type at {path}: {type(val).__name__} ({val!r}) should be {data_type}")
@@ -120,12 +107,6 @@ class BaseSchema(ABC):
 
     @abstractmethod
     def create_prompt(self, text: str, prompt_template: str, context: Dict[str, Any] | None = None) -> str:
-        ...
-
-    @abstractmethod
-    def validate_and_parse_response_to_exploded_dataframe(
-        self, response: BaseModel, text_chunk: str
-    ) -> pd.DataFrame:
         ...
 
     @abstractmethod
@@ -234,18 +215,6 @@ class SimpleSchema(BaseSchema):
         return Schema(**cleaned)
 
     # ---- public validate/parse --------------------------------------------
-    def validate_and_parse_response_to_exploded_dataframe(self, response: BaseModel, text_chunk: str) -> pd.DataFrame:
-        log.debug("Validating and parsing SimpleSchema response to exploded DataFrame")
-        model = self._clean(response, text_chunk)
-        if model is None:
-            log.debug("SimpleSchema model is None, returning empty DataFrame")
-            return pd.DataFrame()
-        df = pd.DataFrame([model.model_dump()])
-        log.debug(f"SimpleSchema created DataFrame with {len(df)} rows")
-        result_df = _explode_df(df, self._list_vars)
-        log.debug(f"SimpleSchema final exploded DataFrame has {len(result_df)} rows")
-        return result_df
-
     def validate_and_parse_response_to_dict(self, response: Any, text_chunk: str) -> dict:  # noqa: D401 – simple name
         log.debug("Validating and parsing SimpleSchema response to dict")
         model = self._clean(response, text_chunk)
@@ -370,19 +339,6 @@ class NestedSchema(BaseSchema):
         return Schema(**{self.container_name: cleaned_items})
 
     # ---- public parse ------------------------------------------------------
-    def validate_and_parse_response_to_exploded_dataframe(self, response: Any, text_chunk: str) -> pd.DataFrame:
-        log.debug(f"Validating and parsing NestedSchema response to exploded DataFrame with container '{self.container_name}'")
-        model = self._clean(response, text_chunk)
-        if model is None:
-            log.debug("NestedSchema model is None, returning empty DataFrame")
-            return pd.DataFrame()
-        items = getattr(model, self.container_name)
-        df = pd.DataFrame(items)
-        log.debug(f"NestedSchema created DataFrame with {len(df)} rows from container '{self.container_name}'")
-        result_df = _explode_df(df, self._list_vars)
-        log.debug(f"NestedSchema final exploded DataFrame has {len(result_df)} rows")
-        return result_df
-
     def validate_and_parse_response_to_dict(self, response: Any, text_chunk: str) -> dict:
         log.debug(f"Validating and parsing NestedSchema response to dict with container '{self.container_name}'")
         model = self._clean(response, text_chunk)
@@ -472,23 +428,6 @@ class MultipleSchema(BaseSchema):
         return "\n\n".join(parts)
 
     # ---- parse -------------------------------------------------------------
-    def validate_and_parse_response_to_exploded_dataframe(self, response: Any, text_chunk: str) -> pd.DataFrame:
-        log.debug("Validating and parsing MultipleSchema response to exploded DataFrame")
-        frames: List[pd.DataFrame] = []
-        for name, sch in self.schemas.items():
-            log.debug(f"Processing sub-schema '{name}'")
-            sub_resp = getattr(response, name, None) if hasattr(response, name) else None
-            df = sch.validate_and_parse_response_to_exploded_dataframe(sub_resp, text_chunk)
-            if not df.empty:
-                df.insert(0, "schema_type", name)  # prepend column
-                frames.append(df)
-                log.debug(f"Sub-schema '{name}' produced {len(df)} rows")
-            else:
-                log.debug(f"Sub-schema '{name}' produced empty DataFrame")
-        result_df = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-        log.debug(f"MultipleSchema final exploded DataFrame has {len(result_df)} rows from {len(frames)} sub-schemas")
-        return result_df
-
     def validate_and_parse_response_to_dict(self, response: Any, text_chunk: str) -> dict:  # noqa: D401
         log.debug("Validating and parsing MultipleSchema response to dict")
         out: Dict[str, Any] = {}

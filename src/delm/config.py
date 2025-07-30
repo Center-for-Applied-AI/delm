@@ -28,7 +28,6 @@ from delm.constants import (
 
     DEFAULT_DROP_TARGET_COLUMN, 
     DEFAULT_PANDAS_SCORE_FILTER, 
-    DEFAULT_EXPLODE_JSON_RESULTS,
     
     # Schema Configuration
     DEFAULT_SCHEMA_PATH, 
@@ -78,7 +77,6 @@ class LLMExtractionConfig(BaseConfig):
     max_workers: int = DEFAULT_MAX_WORKERS
     base_delay: float = DEFAULT_BASE_DELAY
     dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
-    explode_json_results: bool = DEFAULT_EXPLODE_JSON_RESULTS
     track_cost: bool = DEFAULT_TRACK_COST
     max_budget: Optional[float] = DEFAULT_MAX_BUDGET
     model_input_cost_per_1M_tokens: float | None = None
@@ -129,11 +127,6 @@ class LLMExtractionConfig(BaseConfig):
                 f"dotenv_path does not exist: {self.dotenv_path}",
                 {"dotenv_path": str(self.dotenv_path), "suggestion": "Check the file path or create the .env file"}
             )
-        if not isinstance(self.explode_json_results, bool):
-            raise ConfigurationError(
-                "explode_json_results must be a boolean.",
-                {"explode_json_results": self.explode_json_results, "suggestion": "Use True or False"}
-            )
         if not isinstance(self.track_cost, bool):
             raise ConfigurationError(
                 "track_cost must be a boolean.",
@@ -161,7 +154,6 @@ class LLMExtractionConfig(BaseConfig):
             "max_workers": self.max_workers,
             "base_delay": self.base_delay,
             "dotenv_path": str(self.dotenv_path) if self.dotenv_path else None,
-            "explode_json_results": self.explode_json_results,
             "track_cost": self.track_cost,
             "max_budget": self.max_budget,
             "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,

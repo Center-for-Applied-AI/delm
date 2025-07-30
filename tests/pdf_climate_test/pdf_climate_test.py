@@ -37,9 +37,9 @@ print("-"*100)
 
 print("="*100)
 print("Processing PDF Data")
-delm.process_via_llm()
+result_df = delm.process_via_llm()
 print("-"*100)
-print(delm.get_extraction_results_json())
+print(result_df)
 print("-"*100)
 
 print("="*100)

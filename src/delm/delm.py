@@ -253,26 +253,13 @@ class DELM:
         return df
 
 
-    def get_extraction_results_df(self) -> pd.DataFrame:
+    def get_extraction_results(self) -> pd.DataFrame:
         """Get the results from the experiment manager."""
         log.debug("Retrieving extraction results DataFrame from experiment manager")
-        results = self.experiment_manager.get_results()
-        log.debug("Retrieved results: %d rows", len(results))
-        return results
-
-    def get_extraction_results_json(self):
-        log.debug("Retrieving JSON extraction results")
-        cols = [SYSTEM_CHUNK_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN]
         results_df = self.experiment_manager.get_results()
-        log.debug("Retrieved results: %d rows, columns: %s", len(results_df), list(results_df.columns))
-        
-        if not all(col in results_df.columns for col in cols):
-            log.error("Required columns not found: %s, available: %s", cols, list(results_df.columns))
-            raise ValueError("Json extraction results are not available. Please set `explode_json_results` to `True` in the configuration or use `get_extraction_results_df` instead.")
-        
-        json_results = results_df[[SYSTEM_CHUNK_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN]]
-        log.debug("JSON results prepared: %d rows", len(json_results))
-        return json_results
+        log.debug("Retrieved results: %d rows", len(results_df))
+        return results_df
+    
 
     def get_cost_summary(self) -> dict[str, Any]:
         log.debug("Retrieving cost summary")
