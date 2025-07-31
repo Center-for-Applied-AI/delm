@@ -15,13 +15,28 @@ log = logging.getLogger(__name__)
 
 
 def _is_list_type(var: ExtractionVariable) -> bool:
-    """Return True if the ExtractionVariable describes a list."""
+    """Return True if the ExtractionVariable describes a list.
+    
+    Args:
+        var: The ExtractionVariable to check.
+
+    Returns:
+        True if the ExtractionVariable describes a list, False otherwise.
+    """
     is_list = isinstance(var.data_type, str) and var.data_type.startswith("[")
     log.debug("Checking if variable '%s' is list type: %s (data_type: %s)", var.name, is_list, var.data_type)
     return is_list
 
 
 def _majority_vote(values: List[Any]) -> Any:
+    """Perform a majority vote on a list of values.
+
+    Args:
+        values: A list of values to vote on.
+
+    Returns:
+        The value with the highest count.
+    """
     log.debug("Performing majority vote on %d values", len(values))
     if not values:
         log.debug("No values for majority vote, returning None")
@@ -38,6 +53,7 @@ def _majority_vote(values: List[Any]) -> Any:
     
     log.debug("No clear winner, returning first value: %s", values[0])
     return values[0]
+    # TODO: should return the first value of the top count, not the first value in the list
 
 
 def merge_jsons_for_record(json_list: List[Dict[str, Any]], schema: BaseSchema):
@@ -45,6 +61,16 @@ def merge_jsons_for_record(json_list: List[Dict[str, Any]], schema: BaseSchema):
     Consolidate multiple extraction results for a single record, obeying:
       • Scalars  → majority vote (ties → first encountered)
       • List-types → concatenate, keep duplicates
+
+    Args:
+        json_list: A list of JSON dictionaries to merge.
+        schema: The schema to use for merging.
+
+    Returns:
+        A dictionary of the merged JSONs.
+        
+    Raises:
+        ValueError: If the schema type is unknown.
     """
     log.debug("Merging %d JSON records for schema type: %s", len(json_list), type(schema).__name__)
     

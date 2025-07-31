@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Dict
 
 from delm.schemas import SchemaRegistry, BaseSchema
-from delm.exceptions import SchemaError, FileError
 from delm.config import SchemaConfig
 
 # Module-level logger
@@ -47,39 +46,26 @@ class SchemaManager:
     
     @staticmethod
     def _load_schema_spec(path: Path) -> Dict[str, Any]:
-        """Load schema specification from YAML or JSON file as a dict."""
+        """Load schema specification from YAML file as a dict.
+        
+        Args:
+            path: The path to the schema specification file.
+
+        Returns:
+            A dictionary of the schema specification.
+
+        Raises:
+            ValueError: If the schema file format is not supported.
+        """
         import yaml
-        import json
         
         log.debug(f"Loading schema specification from: {path}")
         log.debug(f"File suffix: {path.suffix}")
+
+        if path.suffix.lower() not in {".yml", ".yaml"}:
+            raise ValueError(f"Unsupported schema file format: {path.suffix}")
         
-        try:
-            if path.suffix.lower() in {".yml", ".yaml"}:
-                log.debug("Loading YAML schema specification")
-                content = yaml.safe_load(path.read_text()) or {}
-                log.debug(f"YAML schema loaded successfully with {len(content)} top-level keys")
-                return content
-            if path.suffix.lower() == ".json":
-                log.debug("Loading JSON schema specification")
-                content = json.loads(path.read_text())
-                log.debug(f"JSON schema loaded successfully with {len(content)} top-level keys")
-                return content
-            log.error(f"Unsupported schema file format: {path.suffix}")
-            raise SchemaError(
-                f"Unsupported schema file format: {path.suffix}",
-                {
-                    "file_path": str(path),
-                    "supported_formats": [".yml", ".yaml", ".json"],
-                    "suggestion": "Use YAML (.yml/.yaml) or JSON (.json) format"
-                }
-            )
-        except (yaml.YAMLError, json.JSONDecodeError) as e:
-            log.error(f"Failed to parse schema specification file: {path}, error: {e}")
-            raise SchemaError(
-                f"Failed to parse schema specification file: {path}",
-                {"file_path": str(path), "parse_error": str(e)}
-            ) from e
-        except Exception as e:
-            log.error(f"Failed to load schema specification: {path}, error: {e}")
-            raise SchemaError(f"Failed to load schema specification: {path}", {"file_path": str(path)}) from e 
+        log.debug("Loading YAML schema specification")
+        content = yaml.safe_load(path.read_text()) or {}
+        log.debug(f"YAML schema loaded successfully with {len(content)} top-level keys")
+        return content

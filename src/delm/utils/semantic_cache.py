@@ -228,38 +228,67 @@ class SQLiteWALCache(SemanticCache):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         log.debug("SQLiteWALCache database directory created/verified: %s", self.path.parent)
         
-        self.db = sqlite3.connect(self.path, check_same_thread=False, timeout=120)
-        self.db.execute("PRAGMA journal_mode=WAL;")
-        self.db.execute(f"PRAGMA synchronous={synchronous};")
-        self.db.execute(self._CREATE_SQL)
-        self.db.commit()
+        # Store configuration for per-thread connections
+        self._synchronous = synchronous
+        self._local = threading.local()  # Thread-local storage for connections and zstd objects
+        
+        # Initialize database schema with a temporary connection
+        temp_db = sqlite3.connect(self.path, check_same_thread=False, timeout=120)
+        temp_db.execute("PRAGMA journal_mode=WAL;")
+        temp_db.execute(f"PRAGMA synchronous={synchronous};")
+        temp_db.execute(self._CREATE_SQL)
+        temp_db.commit()
+        temp_db.close()
         log.debug("SQLiteWALCache database initialized: %s", self.path)
         
-        if zstd is None:
-            log.debug("zstd not available, using no compression")
-            self._c = None
-            self._d = None
+        # Store zstd availability for thread-local initialization
+        self._zstd_available = zstd is not None
+        if self._zstd_available:
+            log.debug("zstd available, will use compression level %d", _ZSTD_LEVEL)
         else:
-            log.debug("zstd available, using compression level %d", _ZSTD_LEVEL)
-            self._c = zstd.ZstdCompressor(level=_ZSTD_LEVEL)
-            self._d = zstd.ZstdDecompressor()
+            log.debug("zstd not available, using no compression")
         
         self._lock = threading.Lock()  # protect writes; many readers ok
         self._hits = 0
         self._miss = 0
         log.debug("SQLiteWALCache initialized successfully")
+    
+    def _get_db(self):
+        """Get thread-local database connection."""
+        if not hasattr(self._local, 'db'):
+            self._local.db = sqlite3.connect(self.path, check_same_thread=False, timeout=120)
+            self._local.db.execute("PRAGMA journal_mode=WAL;")
+            self._local.db.execute(f"PRAGMA synchronous={self._synchronous};")
+        return self._local.db
+    
+    def _get_zstd_objects(self):
+        """Get thread-local zstd compressor and decompressor."""
+        if not hasattr(self._local, 'zstd_compressor'):
+            if self._zstd_available:
+                self._local.zstd_compressor = zstd.ZstdCompressor(level=_ZSTD_LEVEL)
+                self._local.zstd_decompressor = zstd.ZstdDecompressor()
+            else:
+                self._local.zstd_compressor = None
+                self._local.zstd_decompressor = None
+        return self._local.zstd_compressor, self._local.zstd_decompressor
 
     def get(self, key: str) -> Optional[bytes]:
         log.debug("SQLiteWALCache get: key=%s", key[:16] + "...")
-        row = self.db.execute("SELECT v FROM cache WHERE k=?", (key,)).fetchone()
+        db = self._get_db()
+        row = db.execute("SELECT v FROM cache WHERE k=?", (key,)).fetchone()
         if row:
             self._hits += 1
             data = row[0]
-            if self._d:
-                decompressed = self._d.decompress(data)
-                log.debug("SQLiteWALCache hit: key=%s, compressed_size=%d, decompressed_size=%d", 
-                         key[:16] + "...", len(data), len(decompressed))
-                return decompressed
+            _, decompressor = self._get_zstd_objects()
+            if decompressor:
+                try:
+                    decompressed = decompressor.decompress(data)
+                    log.debug("SQLiteWALCache hit: key=%s, compressed_size=%d, decompressed_size=%d", 
+                             key[:16] + "...", len(data), len(decompressed))
+                    return decompressed
+                except Exception as e:
+                    log.error("Cache error decompression error: %s, performing new extraction", e)
+                    return None
             else:
                 log.debug("SQLiteWALCache hit: key=%s, data_size=%d", key[:16] + "...", len(data))
                 return data
@@ -269,22 +298,25 @@ class SQLiteWALCache(SemanticCache):
 
     def set(self, key: str, value: bytes, meta: Mapping[str, Any] | None = None) -> None:
         log.debug("SQLiteWALCache set: key=%s, value_size=%d bytes", key[:16] + "...", len(value))
-        payload = self._c.compress(value) if self._c else value
+        compressor, _ = self._get_zstd_objects()
+        payload = compressor.compress(value) if compressor else value
         meta_json = _canonical_json(meta) if meta else None
         log.debug("SQLiteWALCache compressed: key=%s, original_size=%d, compressed_size=%d", 
                  key[:16] + "...", len(value), len(payload))
         
         with self._lock:
-            self.db.execute(
+            db = self._get_db()
+            db.execute(
                 "INSERT OR REPLACE INTO cache (k, v, meta) VALUES (?, ?, ?)",
                 (key, payload, meta_json),
             )
-            self.db.commit()
+            db.commit()
         log.debug("SQLiteWALCache stored: key=%s", key[:16] + "...")
 
     def stats(self):
         log.debug("SQLiteWALCache calculating stats")
-        rows = self.db.execute("SELECT COUNT(*), IFNULL(SUM(LENGTH(v)),0) FROM cache").fetchone()
+        db = self._get_db()
+        rows = db.execute("SELECT COUNT(*), IFNULL(SUM(LENGTH(v)),0) FROM cache").fetchone()
         stats = {
             "backend": "sqlite",
             "entries": rows[0],
@@ -298,7 +330,8 @@ class SQLiteWALCache(SemanticCache):
 
     def prune(self, *, max_size_bytes: int):
         log.debug("SQLiteWALCache pruning to max_size_bytes=%d", max_size_bytes)
-        cur = self.db.execute("SELECT IFNULL(SUM(LENGTH(v)),0) FROM cache")
+        db = self._get_db()
+        cur = db.execute("SELECT IFNULL(SUM(LENGTH(v)),0) FROM cache")
         size = cur.fetchone()[0]
         log.debug("SQLiteWALCache current size: %d bytes", size)
         
@@ -310,13 +343,24 @@ class SQLiteWALCache(SemanticCache):
         deleted_batches = 0
         with self._lock:
             while size > max_size_bytes:
-                self.db.execute("DELETE FROM cache WHERE k IN (SELECT k FROM cache ORDER BY ts ASC LIMIT 1000)")
-                self.db.commit()
+                db.execute("DELETE FROM cache WHERE k IN (SELECT k FROM cache ORDER BY ts ASC LIMIT 1000)")
+                db.commit()
                 deleted_batches += 1
-                size = self.db.execute("SELECT IFNULL(SUM(LENGTH(v)),0) FROM cache").fetchone()[0]
+                size = db.execute("SELECT IFNULL(SUM(LENGTH(v)),0) FROM cache").fetchone()[0]
                 log.debug("SQLiteWALCache pruning batch %d: size now %d bytes", deleted_batches, size)
         
         log.debug("SQLiteWALCache pruning completed: deleted %d batches, final size %d bytes", deleted_batches, size)
+    
+    def close(self):
+        """Close all thread-local database connections and clean up zstd objects."""
+        if hasattr(self._local, 'db'):
+            self._local.db.close()
+            delattr(self._local, 'db')
+        # Clean up zstd objects (they don't need explicit cleanup, but we can clear them)
+        if hasattr(self._local, 'zstd_compressor'):
+            delattr(self._local, 'zstd_compressor')
+        if hasattr(self._local, 'zstd_decompressor'):
+            delattr(self._local, 'zstd_decompressor')
 
 # --------------------------------------------------------------------------- #
 # LMDB back‑end (fast path)                                                    #
@@ -326,7 +370,7 @@ class LMDBCache(SemanticCache):
         log.debug("Initializing LMDBCache with path: %s, map_size_mb: %d", path, map_size_mb)
         if lmdb is None:
             log.error("lmdb package not installed")
-            raise RuntimeError("lmdb package not installed. `pip install lmdb`.")
+            raise ImportError("lmdb package not installed. `pip install lmdb`.")
         
         self.path = Path(path).expanduser().resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)

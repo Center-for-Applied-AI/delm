@@ -7,7 +7,7 @@ llm_extraction:
   provider: openai
   temperature: 0.0
   batch_size: 8
-  max_workers: 1
+  max_workers: 4
   dotenv_path: ".env"
   track_cost: true
   max_budget: 0.004
@@ -29,7 +29,7 @@ data_preprocessing:
       - "forecast"
       - "guidance"
       - "estimate"
-      # - "expectation"
+      - "expectation"
 
 # Schema configuration
 schema:

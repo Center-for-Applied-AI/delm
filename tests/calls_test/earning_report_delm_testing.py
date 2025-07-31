@@ -98,9 +98,7 @@ import json
 
 for idx, row in result_df.head(3).iterrows():
     # Print all columns except delm_extracted_data
-    for col in result_df.columns:
-        if col != "delm_extracted_data_json":
-            print(f"{col}: {row[col]}")
+    print(row[['delm_record_id', 'delm_chunk_id']])
     print("delm_extracted_data_json:")
     parsed = json.loads(row["delm_extracted_data_json"]) # type: ignore
     print(json.dumps(parsed, indent=2))

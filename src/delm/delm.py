@@ -1,17 +1,6 @@
 from __future__ import annotations
 
 """DELM extraction pipeline core module.
-
-Major upgrades from the Phase‑1 prototype:
-• Multi‑format loaders (.txt, .html/.md, .docx, .pdf*)
-• Pluggable split strategies (ParagraphSplit, FixedWindowSplit, RegexSplit)
-• Relevance scoring abstraction (KeywordScorer, FuzzyScorer)
-• Structured extraction via `Instructor` 
-*PDF uses `marker` OCR if available; else raises NotImplementedError.
-
-The public API and method signatures remain unchanged so downstream code
-continues to work.  Future phases should require **only** new strategy
-classes or loader helpers – no breaking changes.
 """
 from datetime import datetime
 import logging
@@ -181,7 +170,14 @@ class DELM:
     def process_via_llm(
         self, preprocessed_file_path: Path | None = None
     ) -> pd.DataFrame:
-        """Process data through LLM extraction using configuration from constructor, with batch checkpointing and resuming."""
+        """Process data through LLM extraction using configuration from constructor, with batch checkpointing and resuming.
+        
+        Args:
+            preprocessed_file_path: The path to the preprocessed data. If None, the preprocessed data will be loaded from the experiment manager.
+
+        Returns:
+            A DataFrame containing the extracted data.
+        """
         log.debug("Starting LLM processing pipeline")
         
         # Load preprocessed data from the experiment manager
@@ -209,7 +205,7 @@ class DELM:
 
         # left join with meta_data on chunk id
         log.debug("Merging results with metadata")
-        final_df = pd.merge(final_df, meta_data, on=SYSTEM_CHUNK_ID_COLUMN, how="left", )
+        final_df = pd.merge(final_df, meta_data, on=SYSTEM_CHUNK_ID_COLUMN, how="left")
         log.debug("Merge completed: %d final rows", len(final_df))
 
         # get unique record ids
@@ -254,7 +250,11 @@ class DELM:
 
 
     def get_extraction_results(self) -> pd.DataFrame:
-        """Get the results from the experiment manager."""
+        """Get the results from the experiment manager.
+        
+        Returns:
+            A DataFrame containing the extraction results.
+        """
         log.debug("Retrieving extraction results DataFrame from experiment manager")
         results_df = self.experiment_manager.get_results()
         log.debug("Retrieved results: %d rows", len(results_df))
@@ -262,6 +262,14 @@ class DELM:
     
 
     def get_cost_summary(self) -> dict[str, Any]:
+        """Get the cost summary from the cost tracker.
+        
+        Returns:
+            A dictionary containing the cost summary.
+
+        Raises:
+            ValueError: If cost tracking is not enabled in the configuration.
+        """
         log.debug("Retrieving cost summary")
         if not self.config.llm_extraction.track_cost:
             log.error("Cost tracking not enabled in configuration")

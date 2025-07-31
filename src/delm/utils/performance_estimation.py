@@ -23,7 +23,6 @@ from delm.constants import (
     DEFAULT_CONSOLE_LOG_LEVEL,
     DEFAULT_FILE_LOG_LEVEL,
 )
-from delm.exceptions import ProcessingError
 from delm.utils.json_merge import merge_jsons_for_record
 from delm.schemas.schemas import BaseSchema
 
@@ -115,10 +114,10 @@ def estimate_performance(
     
     if matching_id_column not in source_df.columns:
         log.error("Matching ID column '%s' not found in source data columns: %s", matching_id_column, list(source_df.columns))
-        raise ProcessingError(f"Matching ID column `{matching_id_column}` not found in source data columns {source_df.columns}")
+        raise ValueError(f"Matching ID column `{matching_id_column}` not found in source data columns {source_df.columns}")
     if matching_id_column not in sampled_expected_df.columns:
         log.error("Matching ID column '%s' not found in expected data columns: %s", matching_id_column, list(sampled_expected_df.columns))
-        raise ProcessingError(f"Matching ID column `{matching_id_column}` not found in expected data columns {sampled_expected_df.columns}")
+        raise ValueError(f"Matching ID column `{matching_id_column}` not found in expected data columns {sampled_expected_df.columns}")
     
     log.debug("Matching ID column validation passed")
     
@@ -130,7 +129,7 @@ def estimate_performance(
     
     if len(prepped_data) == 0:
         log.error("No data to process. There may be no overlap in '%s' in input data.", matching_id_column)
-        raise ProcessingError(f"No data to process. There may be no overlap in `{matching_id_column}` in input data.")
+        raise ValueError(f"No data to process. There may be no overlap in `{matching_id_column}` in input data.")
     
     delm.experiment_manager.save_preprocessed_data(prepped_data)
     log.debug("Saved preprocessed data for performance estimation")
@@ -154,7 +153,7 @@ def estimate_performance(
     # Verify that that expected_extraction_output is valid against the schema
     log.debug("Validating expected extraction output against schema")
     for i, row in expected_extraction_output_df.iterrows():
-        extraction_schema.validate_json_dict(row[true_json_column], path=f"expected_extraction_output[{i}]") # type: ignore
+        extraction_schema.is_valid_json_dict(row[true_json_column], path=f"expected_extraction_output[{i}]") # type: ignore
     log.debug("Schema validation completed for %d expected records", len(expected_extraction_output_df))
     
     # Group and merge extracted data by record_id using agg to keep dicts as values
@@ -205,7 +204,14 @@ def estimate_performance(
 
 
 def _is_missing(val: Any) -> bool:
-    """Return True when `val` is semantically ‘no information’."""
+    """Return True when `val` is semantically ‘no information’.
+    
+    Args:
+        val: The value to check.
+
+    Returns:
+        True if the value is semantically ‘no information’, False otherwise.
+    """
     return (
         val is None
         or val == ""
@@ -216,6 +222,12 @@ def _make_hashable(val: Any) -> Any:
     """
     Convert lists/dicts to a stable JSON string; return None for missing values
     so they can be filtered out of set calculations.
+    
+    Args:
+        val: The value to convert.
+
+    Returns:
+        A hashable value.
     """
     if _is_missing(val):
         return None
@@ -224,6 +236,15 @@ def _make_hashable(val: Any) -> Any:
     return val
 
 def _build_required_map(schema: BaseSchema, parent: list[str] | None = None) -> dict[str, bool]:
+    """Build a map of required fields.
+    
+    Args:
+        schema: The schema to build the map from.
+        parent: The parent path.
+
+    Returns:
+        A map of required fields.
+    """
     parent = parent or []
     req_map: dict[str, bool] = {}
     stype = getattr(schema, "schema_type", type(schema).__name__).lower()
@@ -240,6 +261,22 @@ def _build_required_map(schema: BaseSchema, parent: list[str] | None = None) -> 
             req_map.update(_build_required_map(sub, parent + [name]))
     return req_map
 
+def _calculate_confusion_matrix_counts(t_set: set, p_set: set) -> dict[str, int]:
+    """Calculate confusion matrix counts from true and predicted sets.
+    
+    Args:
+        t_set: Set of true values.
+        p_set: Set of predicted values.
+        
+    Returns:
+        Dictionary with tp, fp, fn counts.
+    """
+    tp = len(t_set & p_set)
+    fp = len(p_set - t_set)
+    fn = len(t_set - p_set)
+    return {"tp": tp, "fp": fp, "fn": fn}
+
+
 def _all_levels_precision_recall(
     y_true: Any,
     y_pred: Any,
@@ -247,6 +284,18 @@ def _all_levels_precision_recall(
     key: str | None = None,
     path: list[str] | None = None,
 ) -> dict[str, dict[str, int | float]]:
+    """Calculate precision/recall for a given field.
+    
+    Args:
+        y_true: The true value.
+        y_pred: The predicted value.
+        required_map: The map of required fields.
+        key: The key to calculate precision/recall for.
+        path: The path to the field.
+
+    Returns:
+        A dictionary of metrics for the field: ["precision", "recall", "tp", "fp", "fn"].
+    """
     path = path or []
     results: dict[str, dict[str, int | float]] = {}
     if isinstance(y_true, dict) and isinstance(y_pred, dict):
@@ -260,12 +309,7 @@ def _all_levels_precision_recall(
                 if required or not _is_missing(t_val):
                     t_set = {_make_hashable(t_val)} - {None}
                     p_set = {_make_hashable(p_val)} - {None}
-                    tp = len(t_set & p_set)
-                    fp = len(p_set - t_set)
-                    fn = len(t_set - p_set)
-                    prec = tp / (tp + fp) if tp + fp else 0.0
-                    rec  = tp / (tp + fn) if tp + fn else 0.0
-                    results[pstr] = {"precision": prec, "recall": rec, "tp": tp, "fp": fp, "fn": fn}
+                    results[pstr] = _calculate_confusion_matrix_counts(t_set, p_set)
             results.update(
                 _all_levels_precision_recall(t_val, p_val, required_map, k, sub_path)
             )
@@ -279,12 +323,7 @@ def _all_levels_precision_recall(
             if required or true_dicts:
                 t_set = {json.dumps(d, sort_keys=True) for d in true_dicts}
                 p_set = {json.dumps(d, sort_keys=True) for d in pred_dicts}
-                tp = len(t_set & p_set)
-                fp = len(p_set - t_set)
-                fn = len(t_set - p_set)
-                prec = tp / (tp + fp) if tp + fp else 0.0
-                rec  = tp / (tp + fn) if tp + fn else 0.0
-                results[path_str] = {"precision": prec, "recall": rec, "tp": tp, "fp": fp, "fn": fn}
+                results[path_str] = _calculate_confusion_matrix_counts(t_set, p_set)
             key_union = {k for d in true_dicts + pred_dicts for k in d}
             for k in key_union:
                 sub_path = path + [k]
@@ -293,12 +332,7 @@ def _all_levels_precision_recall(
                 t_vals = {_make_hashable(d.get(k)) for d in true_dicts if k in d} - {None}
                 p_vals = {_make_hashable(d.get(k)) for d in pred_dicts if k in d} - {None}
                 if required or t_vals:
-                    tp_f = len(t_vals & p_vals)
-                    fp_f = len(p_vals - t_vals)
-                    fn_f = len(t_vals - p_vals)
-                    prec_f = tp_f / (tp_f + fp_f) if tp_f + fp_f else 0.0
-                    rec_f  = tp_f / (tp_f + fn_f) if tp_f + fn_f else 0.0
-                    results[pstr] = {"precision": prec_f, "recall": rec_f, "tp": tp_f, "fp": fp_f, "fn": fn_f}
+                    results[pstr] = _calculate_confusion_matrix_counts(t_vals, p_vals)
                 t_nested = [d.get(k) for d in true_dicts if k in d]
                 p_nested = [d.get(k) for d in pred_dicts if k in d]
                 if any(isinstance(v, (dict, list)) for v in t_nested + p_nested):
@@ -309,12 +343,7 @@ def _all_levels_precision_recall(
         if required or y_true:
             t_set = {_make_hashable(v) for v in y_true} - {None}
             p_set = {_make_hashable(v) for v in y_pred} - {None}
-            tp = len(t_set & p_set)
-            fp = len(p_set - t_set)
-            fn = len(t_set - p_set)
-            prec = tp / (tp + fp) if tp + fp else 0.0
-            rec  = tp / (tp + fn) if tp + fn else 0.0
-            results[path_str] = {"precision": prec, "recall": rec, "tp": tp, "fp": fp, "fn": fn}
+            results[path_str] = _calculate_confusion_matrix_counts(t_set, p_set)
         return results
     return results
 
@@ -328,7 +357,7 @@ def _aggregate_performance_metrics_across_records(
     log.debug("Built required map with %d fields", len(required_map))
     
     from collections import defaultdict
-    agg = defaultdict(lambda: {"tp": 0.0, "fp": 0.0, "fn": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0})
+    agg = defaultdict(lambda: {"tp": 0, "fp": 0, "fn": 0})
     
     for i, (y_true, y_pred) in enumerate(zip(expected_list, predicted_list)):
         if i % 100 == 0:  # Log progress every 100 records
@@ -340,13 +369,21 @@ def _aggregate_performance_metrics_across_records(
             agg[field]["fn"] += m["fn"]
     
     log.debug("Calculating final metrics for %d fields", len(agg))
-    for field, c in agg.items():
-        tp, fp, fn = c["tp"], c["fp"], c["fn"]
-        c["precision"] = tp / (tp + fp) if tp + fp else 0.0
-        c["recall"]    = tp / (tp + fn) if tp + fn else 0.0
-        c["f1"] = 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else 0.0
+    result = {}
+    for field, counts in agg.items():
+        tp, fp, fn = counts["tp"], counts["fp"], counts["fn"]
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * tp / (2 * tp + fp + fn) if 2 * tp + fp + fn else 0.0
+        result[field] = {
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "tp": tp,
+            "fp": fp,
+            "fn": fn
+        }
     
-    result = dict(agg)
     log.debug("Performance metrics aggregation completed: %d fields", len(result))
     return result
 

@@ -9,8 +9,6 @@ import time
 from typing import Any, Callable
 import traceback
 
-from delm.exceptions import APIError
-
 # Module-level logger
 log = logging.getLogger(__name__)
 
@@ -23,9 +21,20 @@ class RetryHandler:
         self.base_delay = base_delay
     
     def execute_with_retry(self, func: Callable, *args, **kwargs) -> Any:
-        """Execute function with retry logic."""
-        last_exception = None
+        """Execute function with retry logic.
         
+        Args:
+            func: The function to execute.
+            *args: Arguments to pass to the function.
+            **kwargs: Keyword arguments to pass to the function.
+
+        Returns:
+            The result of the function execution.
+
+        Raises:
+            The last exception from the function execution if all attempts fail.
+        """
+        exceptions = []
         for attempt in range(self.max_retries + 1):
             try:
                 start_time = time.time()
@@ -35,7 +44,7 @@ class RetryHandler:
                 log.debug("Function execution completed in %.3fs", end_time - start_time)
                 return result
             except Exception as e:
-                last_exception = e
+                exceptions.append(e)
                 log.warning("Exception on attempt %d: %s", attempt + 1, e)
                 if log.isEnabledFor(logging.DEBUG):
                     traceback.print_exc()
@@ -46,15 +55,4 @@ class RetryHandler:
                     time.sleep(delay)
                 else:
                     log.error("All %d attempts failed. Last error: %s", self.max_retries + 1, e)
-        
-        if last_exception:
-            raise APIError(
-                f"All {self.max_retries + 1} attempts failed. Last error: {last_exception}",
-                {
-                    "max_retries": self.max_retries,
-                    "base_delay": self.base_delay,
-                    "last_exception": str(last_exception)
-                }
-            ) from last_exception
-        else:
-            raise APIError("Unknown error occurred during retry", {"max_retries": self.max_retries}) 
+        raise exceptions[-1]

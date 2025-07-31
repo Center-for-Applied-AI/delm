@@ -22,7 +22,6 @@ from pydantic import BaseModel, Field  # <- real Field, returns FieldInfo
 
 from delm.constants import LLM_NULL_WORDS_LOWERCASE
 from delm.models import ExtractionVariable
-from delm.exceptions import SchemaError
 
 # Module-level logger
 log = logging.getLogger(__name__)
@@ -52,40 +51,40 @@ def _ann_and_field(dtype: str, required: bool, desc: str):
     py_base = _Mapping.get(base_key, str)
 
     ann = List[py_base] if is_list else py_base  # noqa: F821 – Forward ref ok
-    if not required:
-        ann = Optional[ann]
+    # Always make fields Optional in Pydantic schema to accept None from LLM
+    # We'll handle "required" logic in our cleaning phase
+    ann = Optional[ann]
 
     # --- build FieldInfo
-    if required:
-        fld = Field(..., description=desc)
+    # Always allow None values from LLM, handle required logic in cleaning
+    if is_list:
+        fld = Field(default_factory=list, description=desc)
     else:
-        if is_list:
-            fld = Field(default_factory=list, description=desc)
-        else:
-            fld = Field(default=None, description=desc)
+        fld = Field(default=None, description=desc)
     return ann, fld, is_list
 
 
-def _validate_type(val, data_type, path):
+def _validate_type_safe(val, data_type, path) -> bool:
+    """Safe version of _validate_type that returns boolean instead of raising exceptions."""
     log.debug(f"Validating type at {path}: {type(val).__name__} ({val!r}) should be {data_type}")
     if data_type == "number":
         if not isinstance(val, float):
-            log.error(f"Type validation failed at {path}: Expected float (number), got {type(val).__name__} ({val!r})")
-            raise ValueError(f"{path}: Expected float (number), got {type(val).__name__} ({val!r})")
+            log.warning(f"Type validation failed at {path}: Expected float (number), got {type(val).__name__} ({val!r})")
+            return False
     elif data_type == "integer":
         if not isinstance(val, int):
-            log.error(f"Type validation failed at {path}: Expected integer, got {type(val).__name__} ({val!r})")
-            raise ValueError(f"{path}: Expected integer, got {type(val).__name__} ({val!r})")
+            log.warning(f"Type validation failed at {path}: Expected integer, got {type(val).__name__} ({val!r})")
+            return False
     elif data_type == "string":
         if not isinstance(val, str):
-            log.error(f"Type validation failed at {path}: Expected string, got {type(val).__name__} ({val!r})")
-            raise ValueError(f"{path}: Expected string, got {type(val).__name__} ({val!r})")
+            log.warning(f"Type validation failed at {path}: Expected string, got {type(val).__name__} ({val!r})")
+            return False
     elif data_type == "boolean":
         if not isinstance(val, bool):
-            log.error(f"Type validation failed at {path}: Expected boolean, got {type(val).__name__} ({val!r})")
-            raise ValueError(f"{path}: Expected boolean, got {type(val).__name__} ({val!r})")
-    # Add more types as needed
+            log.warning(f"Type validation failed at {path}: Expected boolean, got {type(val).__name__} ({val!r})")
+            return False
     log.debug(f"Type validation passed at {path}")
+    return True
 
 ###############################################################################
 # Abstract base
@@ -99,23 +98,64 @@ class BaseSchema(ABC):
     @property
     @abstractmethod
     def variables(self) -> List[ExtractionVariable]:
+        """Get the variables for the schema.
+        
+        Returns:
+            A list of variables for the schema.
+        """
         ...
 
     @abstractmethod
     def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create a Pydantic schema for the schema.
+        
+        Returns:
+            A Pydantic schema for the schema.
+        """
         ...
 
     @abstractmethod
     def create_prompt(self, text: str, prompt_template: str, context: Dict[str, Any] | None = None) -> str:
+        """Create a prompt for the schema.
+        
+        Args:
+            text: The text to create the prompt from.
+            prompt_template: The prompt template to use.
+            context: The context to inject into the prompt.
+
+        Returns:
+            A prompt for the schema.
+        """
         ...
 
     @abstractmethod
     def validate_and_parse_response_to_dict(self, response: BaseModel, text_chunk: str) -> dict:
+        """Validate and parse the response to a dictionary.
+        
+        Args:
+            response: The response to validate and parse.
+            text_chunk: The text chunk that was used to generate the response.
+
+        Returns:
+            A dictionary containing the extracted data. If the response is None, returns an empty dictionary.
+        """
         ...
 
     @abstractmethod
-    def validate_json_dict(self, data: Dict[str, Any], path: str = "root", override_container_name: str | None = None) -> None:
-        """Raise ValueError if data is invalid, with a clear path."""
+    def is_valid_json_dict(self, data: Dict[str, Any], path: str = "root", override_container_name: str | None = None) -> bool:
+        """Validate JSON data against schema. Returns True if valid, False if invalid.
+        
+        Logs warnings for validation issues but doesn't raise exceptions.
+        Used primarily for validating expected/ground truth data in performance estimation.
+
+        Args:
+            data: The data to validate.
+            path: The path to the data.
+            override_container_name: The name of the container to override.
+
+        Returns:
+            True if the data is valid, False otherwise.
+        """
         ...
 
     # Convenience ------------------------------------------------------------
@@ -129,6 +169,11 @@ class BaseSchema(ABC):
 
     # ---------------------------------------------------------------------
     def get_variables_text(self) -> str:
+        """Get the variables text for the schema.
+        
+        Returns:
+            A string containing the variables text.
+        """
         lines: List[str] = []
         for v in self.variables:
             s = f"- {v.name}: {v.description} ({v.data_type})"
@@ -215,34 +260,37 @@ class SimpleSchema(BaseSchema):
         return Schema(**cleaned)
 
     # ---- public validate/parse --------------------------------------------
-    def validate_and_parse_response_to_dict(self, response: Any, text_chunk: str) -> dict:  # noqa: D401 – simple name
+    def validate_and_parse_response_to_dict(self, response: Any, text_chunk: str) -> dict: 
         log.debug("Validating and parsing SimpleSchema response to dict")
         model = self._clean(response, text_chunk)
         result = {} if model is None else model.model_dump(mode="json")
         log.debug(f"SimpleSchema dict result has {len(result)} keys")
         return result
 
-    def validate_json_dict(self, data: Dict[str, Any], path: str = "root") -> None:
+    def is_valid_json_dict(self, data: Dict[str, Any], path: str = "root") -> bool:
         log.debug(f"Validating SimpleSchema JSON dict at path '{path}' with {len(self.variables)} variables")
         for var in self.variables:
             if var.required and var.name not in data:
-                log.error(f"Required field '{var.name}' missing at {path}")
-                raise ValueError(f"{path}.{var.name}: Required field missing")
+                log.warning(f"Required field '{var.name}' missing at {path}")
+                return False
             if var.name in data:
                 val = data[var.name]
                 log.debug(f"Validating variable '{var.name}' at {path}.{var.name}")
                 if var.data_type.startswith("["):
                     if not isinstance(val, list):
-                        log.error(f"Expected list for '{var.name}' at {path}.{var.name}, got {type(val).__name__}")
-                        raise ValueError(f"{path}.{var.name}: Expected list, got {type(val).__name__}")
+                        log.warning(f"Expected list for '{var.name}' at {path}.{var.name}, got {type(val).__name__}")
+                        return False
                     for i, item in enumerate(val):
-                        _validate_type(item, var.data_type[1:-1], f"{path}.{var.name}[{i}]")
+                        if not _validate_type_safe(item, var.data_type[1:-1], f"{path}.{var.name}[{i}]"):
+                            return False
                 else:
                     if isinstance(val, list):
-                        log.error(f"Expected scalar for '{var.name}' at {path}.{var.name}, got list")
-                        raise ValueError(f"{path}.{var.name}: Expected scalar, got list")
-                    _validate_type(val, var.data_type, f"{path}.{var.name}")
+                        log.warning(f"Expected scalar for '{var.name}' at {path}.{var.name}, got list")
+                        return False
+                    if not _validate_type_safe(val, var.data_type, f"{path}.{var.name}"):
+                        return False
         log.debug(f"SimpleSchema JSON dict validation completed successfully at '{path}'")
+        return True
 
 ###############################################################################
 # Nested schema (container of items)
@@ -350,38 +398,41 @@ class NestedSchema(BaseSchema):
             log.debug("NestedSchema dict result is empty")
         return result
 
-    def validate_json_dict(self, data: Dict[str, Any], path: str = "root", override_container_name: str | None = None) -> None:
+    def is_valid_json_dict(self, data: Dict[str, Any], path: str = "root", override_container_name: str | None = None) -> bool:
         container = override_container_name or self.container_name
         log.debug(f"Validating NestedSchema JSON dict at path '{path}' with container '{container}' and {len(self.variables)} variables")
         if container not in data:
-            log.error(f"Missing container '{container}' in nested schema at {path}")
-            raise ValueError(f"{path}: Missing container '{container}' in nested schema")
+            log.warning(f"Missing container '{container}' in nested schema at {path}")
+            return False
         items = data[container]
         if not isinstance(items, list):
-            log.error(f"Expected list for container '{container}' at {path}.{container}, got {type(items).__name__}")
-            raise ValueError(f"{path}.{container}: Expected list, got {type(items).__name__}")
+            log.warning(f"Expected list for container '{container}' at {path}.{container}, got {type(items).__name__}")
+            return False
         log.debug(f"Validating {len(items)} items in container '{container}'")
         for i, item in enumerate(items):
             log.debug(f"Validating item {i} in container '{container}'")
             for var in self.variables:
                 if var.required and var.name not in item:
-                    log.error(f"Required field '{var.name}' missing at {path}.{container}[{i}]")
-                    raise ValueError(f"{path}.{container}[{i}].{var.name}: Required field missing")
+                    log.warning(f"Required field '{var.name}' missing at {path}.{container}[{i}]")
+                    return False
                 if var.name in item:
                     val = item[var.name]
                     log.debug(f"Validating variable '{var.name}' at {path}.{container}[{i}].{var.name}")
                     if var.data_type.startswith("["):
                         if not isinstance(val, list):
-                            log.error(f"Expected list for '{var.name}' at {path}.{container}[{i}].{var.name}, got {type(val).__name__}")
-                            raise ValueError(f"{path}.{container}[{i}].{var.name}: Expected list, got {type(val).__name__}")
+                            log.warning(f"Expected list for '{var.name}' at {path}.{container}[{i}].{var.name}, got {type(val).__name__}")
+                            return False
                         for j, subitem in enumerate(val):
-                            _validate_type(subitem, var.data_type[1:-1], f"{path}.{container}[{i}].{var.name}[{j}]")
+                            if not _validate_type_safe(subitem, var.data_type[1:-1], f"{path}.{container}[{i}].{var.name}[{j}]"):
+                                return False
                     else:
                         if isinstance(val, list):
-                            log.error(f"Expected scalar for '{var.name}' at {path}.{container}[{i}].{var.name}, got list")
-                            raise ValueError(f"{path}.{container}[{i}].{var.name}: Expected scalar, got list")
-                        _validate_type(val, var.data_type, f"{path}.{container}[{i}].{var.name}")
+                            log.warning(f"Expected scalar for '{var.name}' at {path}.{container}[{i}].{var.name}, got list")
+                            return False
+                        if not _validate_type_safe(val, var.data_type, f"{path}.{container}[{i}].{var.name}"):
+                            return False
         log.debug(f"NestedSchema JSON dict validation completed successfully at '{path}' with container '{container}'")
+        return True
 
 ###############################################################################
 # Multiple schema – orchestrates several sub‑schemas
@@ -398,7 +449,7 @@ class MultipleSchema(BaseSchema):
 
     # ---- interface ---------------------------------------------------------
     @property
-    def schemas(self) -> Dict[str, "BaseSchema"]:  # type: ignore[override]
+    def schemas(self) -> Dict[str, "BaseSchema"]: 
         return self._schemas
 
     @property
@@ -447,24 +498,27 @@ class MultipleSchema(BaseSchema):
         log.debug(f"MultipleSchema dict result has {len(out)} sub-schemas")
         return out
 
-    def validate_json_dict(self, data: Dict[str, Any], path: str = "root") -> None:
+    def is_valid_json_dict(self, data: Dict[str, Any], path: str = "root") -> bool:
         log.debug(f"Validating MultipleSchema JSON dict at path '{path}' with {len(self.schemas)} sub-schemas")
         for name, sub_schema in self.schemas.items():
             log.debug(f"Validating sub-schema '{name}' at {path}.{name}")
             if name not in data:
-                log.error(f"Missing key '{name}' in multiple schema at {path}")
-                raise ValueError(f"{path}: Missing key '{name}' in multiple schema")
+                log.warning(f"Missing key '{name}' in multiple schema at {path}")
+                return False
             if isinstance(sub_schema, NestedSchema):
                 # We need to wrap the data in a dict with the name as the key so 
                 # that the nested schema can validate it. This is so we expect 
                 # the data to look like {books: [...]} and not {books: {entries: [...]}}
                 #  for example.
                 log.debug(f"Sub-schema '{name}' is NestedSchema, wrapping data for validation")
-                sub_schema.validate_json_dict({name: data[name]}, path=f"{path}.{name}", override_container_name=name)
+                if not sub_schema.is_valid_json_dict({name: data[name]}, path=f"{path}.{name}", override_container_name=name):
+                    return False
             else:
                 log.debug(f"Sub-schema '{name}' is {type(sub_schema).__name__}, validating directly")
-                sub_schema.validate_json_dict(data[name], path=f"{path}.{name}")
+                if not sub_schema.is_valid_json_dict(data[name], path=f"{path}.{name}"):
+                    return False
         log.debug(f"MultipleSchema JSON dict validation completed successfully at '{path}'")
+        return True
 
 ###############################################################################
 # Schema registry
@@ -489,10 +543,7 @@ class SchemaRegistry:
         log.debug(f"Creating schema with type '{typ}'")
         if typ not in self._reg:
             log.error(f"Unknown schema_type '{typ}', available types: {list(self._reg.keys())}")
-            raise SchemaError(
-                f"Unknown schema_type {typ}",
-                {"schema_type": typ, "available": list(self._reg.keys())},
-            )
+            raise ValueError(f"Unknown schema_type {typ}, available types: {list(self._reg.keys())}")
         schema = self._reg[typ](cfg)
         log.debug(f"Successfully created schema of type '{typ}'")
         return schema
