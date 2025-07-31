@@ -1,0 +1,23 @@
+schema_type: nested
+container_name: books
+variables:
+  - name: title
+    description: The title of the book
+    data_type: string
+    required: true
+  - name: author
+    description: The author of the book
+    data_type: string
+    required: true
+  - name: year
+    description: Publication year
+    data_type: integer
+    required: false
+  - name: genres
+    description: Book genres
+    data_type: [string]
+    required: false
+  - name: is_fiction
+    description: Whether the book is fiction
+    data_type: boolean
+    required: false 

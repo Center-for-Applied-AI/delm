@@ -1,0 +1,28 @@
+simple_schema:
+  schema_type: simple
+  variables:
+    - name: document_title
+      description: The title of the document
+      data_type: string
+      required: true
+    - name: document_type
+      description: Type of document
+      data_type: string
+      required: false
+
+nested_schema:
+  schema_type: nested
+  container_name: sections
+  variables:
+    - name: section_title
+      description: Title of the section
+      data_type: string
+      required: true
+    - name: content
+      description: Content of the section
+      data_type: string
+      required: false
+    - name: keywords
+      description: Keywords for the section
+      data_type: [string]
+      required: false 

@@ -16,16 +16,7 @@ from delm.constants import SYSTEM_FILE_NAME_COLUMN, SYSTEM_RAW_DATA_COLUMN, IGNO
 log = logging.getLogger(__name__)
 
 
-# Optional dependencies
-try:
-    from bs4 import BeautifulSoup  # type: ignore
-except ImportError:  # pragma: no cover
-    BeautifulSoup = None  # type: ignore
-
-try:
-    import docx  # python‑docx
-except ImportError:  # pragma: no cover
-    docx = None  # type: ignore
+# Optional dependencies - will be imported inside functions as needed
 
 
 class DataLoader(ABC):
@@ -75,7 +66,9 @@ class HtmlLoader(DataLoader):
     
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading HTML/Markdown file: {path}")
-        if BeautifulSoup is None:
+        try:
+            from bs4 import BeautifulSoup  # type: ignore
+        except ImportError:
             raise ImportError(
                 "BeautifulSoup4 not installed but required for .html/.md loading"
             )
@@ -98,7 +91,9 @@ class DocxLoader(DataLoader):
     
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading Word document: {path}")
-        if docx is None:
+        try:
+            import docx  # python‑docx
+        except ImportError:
             raise ImportError(
                 "python-docx not installed but required for .docx loading"
             )

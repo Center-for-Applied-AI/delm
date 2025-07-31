@@ -1,0 +1,22 @@
+schema_type: simple
+variables:
+  - name: title
+    description: The title of the document
+    data_type: string
+    required: true
+  - name: author
+    description: The author of the document
+    data_type: string
+    required: false
+  - name: tags
+    description: Tags associated with the document
+    data_type: [string]
+    required: false
+  - name: word_count
+    description: Number of words in the document
+    data_type: integer
+    required: false
+  - name: is_published
+    description: Whether the document is published
+    data_type: boolean
+    required: false 
