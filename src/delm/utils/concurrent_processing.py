@@ -1,100 +1,117 @@
 """
 DELM Concurrent Processing
 =========================
-Asynchronous concurrent processing utilities for handling I/O-bound operations.
+Run an I/O-bound callable over a collection using threads.
+
+Tailored for DELM's LLM extraction workload:
+* Uses ThreadPoolExecutor exclusively (no process backend switch).
+* Preserves input order.
+* Propagates the first worker exception after all tasks finish.
 """
 
-import logging
-import asyncio
-from typing import Any, Callable, List
+from __future__ import annotations
 
-# Module-level logger
+import logging
+import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Callable, List, Sequence, TypeVar
+
 log = logging.getLogger(__name__)
 
+T = TypeVar("T")  # input  type
+R = TypeVar("R")  # output type
+
+
 class ConcurrentProcessor:
+    """Thin wrapper over ThreadPoolExecutor.
+
+    Parameters
+    ----------
+    max_workers : int | None, optional
+        Number of threads. ``None`` (or <= 0) picks a heuristic default
+        ``min(32, os.cpu_count() + 4)``. A value of 1 forces sequential mode.
     """
-    Handles concurrent processing with asynchronous execution.
-    
-    We use asyncio instead of ThreadPoolExecutor because our primary use case is
-    making API calls to LLM services, which are I/O-bound operations. asyncio is
-    more efficient for I/O-bound tasks as it can handle many concurrent operations
-    with minimal overhead compared to threads. It also provides better control
-    over concurrency limits and more graceful error handling for network requests.
-    """
-    
-    def __init__(self, max_workers: int = 4):
-        log.debug("Initializing ConcurrentProcessor with max_workers: %d", max_workers)
-        self.max_workers = max_workers
-    
-    def process_concurrently(self, items: List[Any], process_func: Callable, **kwargs) -> List[Any]:
-        """Process items concurrently with asynchronous execution."""
+
+    def __init__(self, *, max_workers: int | None = None) -> None:
+        if max_workers is None or max_workers <= 0:
+            max_workers = min(32, (os.cpu_count() or 1) + 4)
+
+        self.max_workers: int = max_workers
+        log.debug("ConcurrentProcessor initialised with ThreadPoolExecutor, max_workers=%d", self.max_workers)
+
+    # ------------------------------------------------------------------ #
+    # Public API
+    # ------------------------------------------------------------------ #
+    def process_concurrently(
+        self,
+        items: Sequence[T],
+        fn: Callable[[T], R],
+    ) -> List[R]:
+        """Apply *fn* to each element of *items* (optionally) in parallel.
+
+        Results are returned in the same order as *items*.
+
+        Args:
+            items: The items to process.
+            fn: The function to apply to each item.
+
+        Returns:
+            A list of results.
+
+        Raises:
+            Exception: If there are any errors during processing.
+        """
+        if not items:
+            log.debug("No items to process, returning empty list")
+            return []
+
         log.debug("Starting concurrent processing of %d items with max_workers: %d", len(items), self.max_workers)
-        
-        try:
-            loop = asyncio.get_running_loop()
-            log.debug("Already in async context, using synchronous fallback")
-            return self._process_concurrently_sync(items, process_func, **kwargs)
-        except RuntimeError:
-            log.debug("No running event loop, creating new async context")
-            return asyncio.run(self._process_concurrently_async(items, process_func, **kwargs))
-    
-    def _process_concurrently_sync(self, items: List[Any], process_func: Callable, **kwargs) -> List[Any]:
-        """Synchronous fallback for when we're already in an async context."""
-        log.debug("Using synchronous fallback for %d items", len(items))
-        # For now, process sequentially to avoid complexity
-        # In a future version, we could implement proper async-aware concurrent processing
-        results = []
-        for i, item in enumerate(items):
-            try:
-                log.debug("Processing item %d/%d", i + 1, len(items))
-                result = process_func(item, **kwargs)
-                results.append(result)
-            except Exception as e:
-                # Log error but continue processing other items
-                log.error("Error processing item %d: %s", i, e)
-                results.append(None)
-        
-        log.debug("Synchronous processing completed: %d results", len(results))
-        return results
-    
-    async def _process_concurrently_async(self, items: List[Any], process_func: Callable, **kwargs) -> List[Any]:
-        """Internal async method to process items."""
-        log.debug("Starting async concurrent processing with semaphore limit: %d", self.max_workers)
-        semaphore = asyncio.Semaphore(self.max_workers)
-        results = [None] * len(items)  # Pre-allocate results list
-        
-        async def _process_with_semaphore(item, index):
-            async with semaphore:
+
+        # Sequential fallback
+        if self.max_workers <= 1:
+            log.debug("max_workers <= 1; running sequentially")
+            results = []
+            for i, item in enumerate(items):
                 try:
-                    log.debug("Processing async item %d/%d", index + 1, len(items))
-                    # Check if the function is async
-                    if asyncio.iscoroutinefunction(process_func):
-                        log.debug("Using async function for item %d", index)
-                        result = await process_func(item, **kwargs)
-                    else:
-                        # Run sync function in thread pool to avoid blocking
-                        log.debug("Using sync function in thread pool for item %d", index)
-                        loop = asyncio.get_event_loop()
-                        result = await loop.run_in_executor(None, process_func, item, **kwargs)
-                    
-                    results[index] = result
-                    log.debug("Item %d processed successfully", index)
-                    return result
+                    log.debug("Processing item %d/%d sequentially", i + 1, len(items))
+                    result = fn(item)
+                    results.append(result)
+                    log.debug("Item %d/%d processed successfully", i + 1, len(items))
                 except Exception as e:
-                    # Log error but continue processing other items
-                    # TODO: How should we handle errors here?
-                    log.error("Error processing async item %d: %s", index, e)
-                    results[index] = None
-                    return None
+                    log.error("Error processing item %d/%d: %s", i + 1, len(items), e, exc_info=True)
+                    raise
+                    # This should never happen as the function is expected to be error safe, but just in case.
+            log.debug("Sequential processing completed: %d results", len(results))
+            return results
+
+        first_exc: BaseException | None = None
+        results: List[R] = [None] * len(items)  # type: ignore[assignment]
+
+        try:
+            log.debug("Creating ThreadPoolExecutor with %d workers", self.max_workers)
+            with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                log.debug("Submitting %d tasks to executor", len(items))
+                future_to_idx = {executor.submit(fn, item): idx for idx, item in enumerate(items)}
+
+                log.debug("Processing %d futures as they complete", len(future_to_idx))
+                for future in as_completed(future_to_idx):
+                    idx = future_to_idx[future]
+                    try:
+                        log.debug("Collecting result for item %d/%d", idx + 1, len(items))
+                        results[idx] = future.result()
+                        log.debug("Item %d/%d processed successfully", idx + 1, len(items))
+                    except BaseException as exc:  # noqa: BLE001
+                        log.error("Worker raised an exception on item %d/%d: %s", idx + 1, len(items), exc, exc_info=True)
+                        if first_exc is None:
+                            first_exc = exc
+        except KeyboardInterrupt:
+            log.warning("Parallel processing interrupted by user; aborting")
+            raise
+
+        log.debug("Concurrent processing completed: %d results", len(results))
         
-        # Create tasks for all items
-        log.debug("Creating %d async tasks", len(items))
-        tasks = [_process_with_semaphore(item, i) for i, item in enumerate(items)]
-        
-        # Process all items concurrently without progress bar
-        # Progress bar will be handled at a higher level
-        log.debug("Starting concurrent execution of %d tasks", len(tasks))
-        await asyncio.gather(*tasks, return_exceptions=True)
-        
-        log.debug("Async concurrent processing completed: %d results", len(results))
+        if first_exc is not None:
+            log.error("Raising first exception encountered during processing: %s", first_exc)
+            raise first_exc
+
         return results 

@@ -21,8 +21,6 @@ from delm.constants import (
     SYSTEM_RECORD_ID_COLUMN,
     SYSTEM_RAW_DATA_COLUMN
 )
-from delm.exceptions import DataError, ValidationError, ConfigurationError, FileError
-
 
 class DataProcessor:
     """Handles data loading, preprocessing, chunking, and scoring."""
@@ -35,71 +33,62 @@ class DataProcessor:
         self.drop_target_column = config.drop_target_column
         self.pandas_score_filter = config.pandas_score_filter
     
-
-    # Did two things so violated single responsibility principle
-    # def load_and_process(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
-    #     """Load data and apply preprocessing pipeline."""
-    #     df = self.load_data(data_source)
-    #     return self.process_dataframe(df)
-    
     def load_data(self, data_source: Union[str,Path, pd.DataFrame]) -> pd.DataFrame:
-        """Load data from various sources."""
+        """Load data from various sources.
+        
+        Args:
+            data_source: The data source to load. Can be a path to a file or directory (str or Path), or a DataFrame.
+
+        Returns:
+            A DataFrame containing the loaded data.
+
+        Raises:
+            FileNotFoundError: If the data source path does not exist.
+            ValueError: If the target column is not found in the data source or if the data source is a directory and contains multiple file types.
+        """
+
         if isinstance(data_source, (str, Path)):
             # Handle file loading
             path = Path(data_source)
             log.debug("Loading data from path: %s", path)
             
             if not path.exists():
-                raise FileError(
-                    f"Data Source path does not exist: {path}",
-                    {"path": str(path), "suggestion": "Check the path"}
-                )
+                raise FileNotFoundError(f"Data Source path does not exist: {path}")
             
-            try:
-                # Check if file or directory
-                if path.is_file():
-                    log.debug("Loading single file: %s", path)
-                    # Load file
-                    loaded_df = loader_factory.load_file(path)
-                    extension = path.suffix
-                elif path.is_dir():
-                    log.debug("Loading directory: %s", path)
-                    # Load directory
-                    loaded_df, extension = loader_factory.load_directory(path)
-                self.extension_requires_target_column = loader_factory.requires_target_column(extension)
-                
-                log.debug("Loaded %d records with extension %s", len(loaded_df), extension)
-                
-                if self.extension_requires_target_column and self.target_column == "":
-                    raise ValidationError(
-                        f"Target column is required for {path.suffix} files",
-                        {"file_path": str(path), "file_type": path.suffix, "suggestion": "Specify target_column in config"}
-                    )
-                if self.target_column not in loaded_df.columns:
-                    log.error("Target column '%s' not found in columns: %s", self.target_column, loaded_df.columns)
-                    if self.target_column == SYSTEM_RAW_DATA_COLUMN:
-                        raise ConfigurationError(
-                            f"Target column {self.target_column} is not allowed for {extension} files",
-                            {"path": str(path), "extension": extension, "suggestion": "Remove target_column from config"}
-                        )
-                    else:
-                        raise DataError(
-                            f"Target column {self.target_column} not found in data columns {loaded_df.columns}",
-                            {"path": str(path), "extension": extension, "suggestion": "Specify target_column in config"}
-                        )
-                        
-            except ValueError:
-                raise DataError(
-                    f"Unsupported file type: {path.suffix}",
-                    {"file_path": str(path), "file_extension": path.suffix, "suggestion": "Use supported file types"}
+            # Check if file or directory
+            if path.is_file():
+                log.debug("Loading single file: %s", path)
+                # Load file
+                loaded_df = loader_factory.load_file(path)
+                extension = path.suffix
+            elif path.is_dir():
+                log.debug("Loading directory: %s", path)
+                # Load directory
+                loaded_df, extension = loader_factory.load_directory(path)
+            self.extension_requires_target_column = loader_factory.requires_target_column(extension)
+            
+            log.debug("Loaded %d records with extension %s", len(loaded_df), extension)
+            
+            if self.extension_requires_target_column and (not self.target_column or self.target_column == ""):
+                raise ValueError(
+                    f"Target column is required for {path.suffix} files, file_path: {str(path)}, file_type: {path.suffix}, suggestion: Specify target_column in config"
                 )
+            if self.target_column not in loaded_df.columns:
+                log.error("Target column '%s' not found in columns: %s", self.target_column, loaded_df.columns)
+                if self.target_column == SYSTEM_RAW_DATA_COLUMN:
+                    raise ValueError(
+                        f"Target column {self.target_column} is not allowed for {extension} files, path: {str(path)}, extension: {extension}, suggestion: Remove target_column from config"
+                    )
+                else:
+                    raise ValueError(
+                        f"Target column {self.target_column} not found in data columns {loaded_df.columns}, path: {str(path)}, extension: {extension}, suggestion: Specify target_column in config"
+                    )
         else:
             # Handle DataFrame input
             log.debug("Loading data from DataFrame with %d records", len(data_source))
             if self.target_column not in data_source.columns:
-                raise DataError(
-                    f"Target column {self.target_column} not found in data source",
-                    {"data_source_columns": data_source.columns, "target_column": self.target_column, "suggestion": "Specify valid target_column in config"}
+                raise ValueError(
+                    f"Target column {self.target_column} not found in data source, data_source_columns: {data_source.columns}, target_column: {self.target_column}, suggestion: Specify valid target_column in config"
                 )
             
             loaded_df = data_source.copy()
@@ -108,19 +97,25 @@ class DataProcessor:
         return loaded_df
     
     def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apply chunking and scoring to DataFrame."""
+        """Apply chunking and scoring to DataFrame.
+        
+        Args:
+            df: The DataFrame to process.
+
+        Returns:
+            A DataFrame containing the processed data.
+
+        Raises:
+            ValueError: If drop_target_column is True and no splitting strategy is specified.
+        """
+        
         log.debug("Processing DataFrame with %d records", len(df))
         df = df.copy()
 
         # Check for invalid configuration: dropping target column without splitting
         if self.drop_target_column and self.splitter is None:
-            raise ConfigurationError(
-                "Cannot drop target column when no splitting strategy is specified",
-                {
-                    "target_column": self.target_column,
-                    "drop_target_column": self.drop_target_column,
-                    "suggestion": "Either specify a splitting strategy or set drop_target_column=False"
-                }
+            raise ValueError(
+                f"Cannot drop target column when no splitting strategy is specified, target_column: {self.target_column}, drop_target_column: {self.drop_target_column}, suggestion: Either specify a splitting strategy or set drop_target_column=False"
             )
 
         # 1. Chunk the data (or use target column if no splitting)

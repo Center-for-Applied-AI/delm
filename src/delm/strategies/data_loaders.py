@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Union, Dict, Any, Callable
 import pandas as pd
 
-from delm.exceptions import DataError, FileError, DependencyError
 from delm.constants import SYSTEM_FILE_NAME_COLUMN, SYSTEM_RAW_DATA_COLUMN, IGNORE_FILES
 
 # Module-level logger
@@ -40,9 +39,18 @@ class DataLoader(ABC):
     
     @abstractmethod
     def load(self, path: Path) -> pd.DataFrame:
-        """Load data from file and return as string or DataFrame."""
-        raise NotImplementedError
+        """Load data from file and return as string or DataFrame.
+        
+        Args:
+            path: The path to the file to load.
 
+        Returns:
+            A DataFrame containing the loaded data.
+
+        Raises:
+            ImportError: If the loader requires a dependency that is not installed.
+        """
+        raise NotImplementedError
 
 class TextLoader(DataLoader):
     """Load plain text files."""
@@ -53,15 +61,9 @@ class TextLoader(DataLoader):
     
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading text file: {path}")
-        try:
-            content = path.read_text(encoding="utf-8", errors="replace")
-            log.debug(f"Text file loaded successfully: {path}, content length: {len(content)} characters")
-            df = pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [content]})
-            log.debug(f"Text file converted to DataFrame with {len(df)} rows")
-            return df
-        except Exception as e:
-            log.error(f"Failed to load text file: {path}, error: {e}")
-            raise
+        content = path.read_text(encoding="utf-8", errors="replace")
+        log.debug(f"Text file loaded successfully: {path}, content length: {len(content)} characters")
+        return pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [content]})
 
 
 class HtmlLoader(DataLoader):
@@ -74,26 +76,17 @@ class HtmlLoader(DataLoader):
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading HTML/Markdown file: {path}")
         if BeautifulSoup is None:
-            log.error(f"BeautifulSoup4 not installed but required for .html/.md loading: {path}")
-            raise DependencyError(
-                "BeautifulSoup4 not installed but required for .html/.md loading",
-                {"file_path": str(path), "file_type": "html/markdown"}
+            raise ImportError(
+                "BeautifulSoup4 not installed but required for .html/.md loading"
             )
-        try:
-            content = path.read_text(encoding="utf-8", errors="replace")
-            log.debug(f"HTML/Markdown file read successfully: {path}, content length: {len(content)} characters")
-            soup = BeautifulSoup(content, "html.parser")
-            text_content = soup.get_text("\n")
-            log.debug(f"HTML/Markdown parsed successfully: {path}, extracted text length: {len(text_content)} characters")
-            df = pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [text_content]})
-            log.debug(f"HTML/Markdown file converted to DataFrame with {len(df)} rows")
-            return df
-        except FileNotFoundError as e:
-            log.error(f"HTML/Markdown file not found: {path}")
-            raise FileError(f"HTML/Markdown file not found: {path}", {"file_path": str(path)}) from e
-        except Exception as e:
-            log.error(f"Failed to load HTML/Markdown file: {path}, error: {e}")
-            raise DataError(f"Failed to load HTML/Markdown file: {path}", {"file_path": str(path)}) from e
+        content = path.read_text(encoding="utf-8", errors="replace")
+        log.debug(f"HTML/Markdown file read successfully: {path}, content length: {len(content)} characters")
+        soup = BeautifulSoup(content, "html.parser")
+        text_content = soup.get_text("\n")
+        log.debug(f"HTML/Markdown parsed successfully: {path}, extracted text length: {len(text_content)} characters")
+        df = pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [text_content]})
+        log.debug(f"HTML/Markdown file converted to DataFrame with {len(df)} rows")
+        return df
 
 
 class DocxLoader(DataLoader):
@@ -106,25 +99,17 @@ class DocxLoader(DataLoader):
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading Word document: {path}")
         if docx is None:
-            log.error(f"python-docx not installed but required for .docx loading: {path}")
-            raise DependencyError(
-                "python-docx not installed but required for .docx loading",
-                {"file_path": str(path), "file_type": "docx"}
+            raise ImportError(
+                "python-docx not installed but required for .docx loading"
             )
-        try:
-            doc = docx.Document(str(path))
-            log.debug(f"Word document opened successfully: {path}")
-            text = self._extract_all_text(doc)
-            log.debug(f"Word document text extracted successfully: {path}, text length: {len(text)} characters")
-            df = pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [text]})
-            log.debug(f"Word document converted to DataFrame with {len(df)} rows")
-            return df
-        except FileNotFoundError as e:
-            log.error(f"Word document not found: {path}")
-            raise FileError(f"Word document not found: {path}", {"file_path": str(path)}) from e
-        except Exception as e:
-            log.error(f"Failed to load Word document: {path}, error: {e}")
-            raise DataError(f"Failed to load Word document: {path}", {"file_path": str(path)}) from e
+        
+        doc = docx.Document(str(path))
+        log.debug(f"Word document opened successfully: {path}")
+        text = self._extract_all_text(doc)
+        log.debug(f"Word document text extracted successfully: {path}, text length: {len(text)} characters")
+        df = pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [text]})
+        log.debug(f"Word document converted to DataFrame with {len(df)} rows")
+        return df
     
     def _extract_all_text(self, doc) -> str:
         log.debug("Extracting text from Word document")
@@ -181,16 +166,9 @@ class CsvLoader(DataLoader):
     
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading CSV file: {path}")
-        try:
-            df = pd.read_csv(path)
-            log.debug(f"CSV file loaded successfully: {path}, shape: {df.shape}")
-            return df
-        except FileNotFoundError as e:
-            log.error(f"CSV file not found: {path}")
-            raise FileError(f"CSV file not found: {path}", {"file_path": str(path)}) from e
-        except Exception as e:
-            log.error(f"Failed to load CSV file: {path}, error: {e}")
-            raise DataError(f"Failed to load CSV file: {path}", {"file_path": str(path)}) from e
+        df = pd.read_csv(path)
+        log.debug(f"CSV file loaded successfully: {path}, shape: {df.shape}")
+        return df
 
 
 class ParquetLoader(DataLoader):
@@ -201,13 +179,9 @@ class ParquetLoader(DataLoader):
     
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading Parquet file: {path}")
-        try:
-            df = pd.read_parquet(path)
-            log.debug(f"Parquet file loaded successfully: {path}, shape: {df.shape}")
-            return df
-        except Exception as e:
-            log.error(f"Failed to load Parquet file: {path}, error: {e}")
-            raise
+        df = pd.read_parquet(path)
+        log.debug(f"Parquet file loaded successfully: {path}, shape: {df.shape}")
+        return df
 
 
 class FeatherLoader(DataLoader):
@@ -218,13 +192,9 @@ class FeatherLoader(DataLoader):
     
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading Feather file: {path}")
-        try:
-            df = pd.read_feather(path)
-            log.debug(f"Feather file loaded successfully: {path}, shape: {df.shape}")
-            return df
-        except Exception as e:
-            log.error(f"Failed to load Feather file: {path}, error: {e}")
-            raise
+        df = pd.read_feather(path)
+        log.debug(f"Feather file loaded successfully: {path}, shape: {df.shape}")
+        return df
 
 
 class PdfLoader(DataLoader):
@@ -242,28 +212,21 @@ class PdfLoader(DataLoader):
             from marker.output import text_from_rendered  # type: ignore[import]
             log.debug(f"Marker PDF dependencies imported successfully")
         except ImportError:
-            log.error(f"marker-pdf not installed but required for .pdf loading: {path}")
-            raise DependencyError(
-                "marker-pdf not installed but required for .pdf loading",
-                {"file_path": str(path), "file_type": "pdf"}
+            raise ImportError(
+                "marker-pdf not installed but required for .pdf loading"
             )
-        try:
-            log.debug(f"Creating PDF converter for: {path}")
-            converter = PdfConverter(artifact_dict=create_model_dict())
-            log.debug(f"Converting PDF to rendered format: {path}")
-            rendered = converter(str(path))
-            log.debug(f"Extracting text from rendered PDF: {path}")
-            text, _, _ = text_from_rendered(rendered)
-            log.debug(f"PDF text extracted successfully: {path}, text length: {len(text)} characters")
-            df = pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [text]})
-            log.debug(f"PDF file converted to DataFrame with {len(df)} rows")
-            return df
-        except FileNotFoundError as e:
-            log.error(f"PDF file not found: {path}")
-            raise FileError(f"PDF file not found: {path}", {"file_path": str(path)}) from e
-        except Exception as e:
-            log.error(f"Failed to load PDF file: {path}, error: {e}")
-            raise DataError(f"Failed to load PDF file: {path}", {"file_path": str(path)}) from e
+        
+        log.debug(f"Creating PDF converter for: {path}")
+        converter = PdfConverter(artifact_dict=create_model_dict())
+        log.debug(f"Converting PDF to rendered format: {path}")
+        rendered = converter(str(path))
+        log.debug(f"Extracting text from rendered PDF: {path}")
+        text, _, _ = text_from_rendered(rendered)
+        
+        log.debug(f"PDF text extracted successfully: {path}, text length: {len(text)} characters")
+        df = pd.DataFrame({SYSTEM_FILE_NAME_COLUMN: [path.name], SYSTEM_RAW_DATA_COLUMN: [text]})
+        log.debug(f"PDF file converted to DataFrame with {len(df)} rows")
+        return df
 
 class ExcelLoader(DataLoader):
     """Load Excel files."""
@@ -273,13 +236,9 @@ class ExcelLoader(DataLoader):
 
     def load(self, path: Path) -> pd.DataFrame:
         log.debug(f"Loading Excel file: {path}")
-        try:
-            df = pd.read_excel(path)
-            log.debug(f"Excel file loaded successfully: {path}, shape: {df.shape}")
-            return df
-        except Exception as e:
-            log.error(f"Failed to load Excel file: {path}, error: {e}")
-            raise
+        df = pd.read_excel(path)
+        log.debug(f"Excel file loaded successfully: {path}, shape: {df.shape}")
+        return df
 
 
 class DataLoaderFactory:
@@ -289,7 +248,7 @@ class DataLoaderFactory:
         log.debug("Initializing DataLoaderFactory")
         self._loaders: Dict[str, DataLoader] = {
             ".txt": TextLoader(),
-            ".md": HtmlLoader(),
+            ".md": TextLoader(),
             ".html": HtmlLoader(),
             ".htm": HtmlLoader(),
             ".docx": DocxLoader(),
@@ -302,19 +261,23 @@ class DataLoaderFactory:
         log.debug(f"DataLoaderFactory initialized with {len(self._loaders)} loaders: {list(self._loaders.keys())}")
     
     def _get_loader(self, extension: str) -> DataLoader:
-        """Get the appropriate loader for a file extension."""
+        """Get the appropriate loader for a file extension.
+        
+        Args:
+            extension: The file extension to get the loader for.
+
+        Returns:
+            A DataLoader instance.
+
+        Raises:
+            ValueError: If the file type is not supported.
+        """
         log.debug(f"Getting loader for extension: {extension}")
         loader = self._loaders.get(extension.lower())
         if loader is None:
             supported = ", ".join(self.get_supported_extensions())
-            log.error(f"Unsupported file type: {extension}, supported: {supported}")
-            raise DataError(
-                f"Unsupported file type: {extension}",
-                {
-                    "file_extension": extension,
-                    "supported_extensions": self.get_supported_extensions(),
-                    "suggestion": f"Supported formats: {supported}"
-                }
+            raise ValueError(
+                f"Unsupported file type: {extension}. Supported formats: {supported}"
             )
         log.debug(f"Found loader for extension '{extension}': {type(loader).__name__}")
         return loader
@@ -331,14 +294,8 @@ class DataLoaderFactory:
         loader = self._loaders.get(extension.lower())
         if loader is None:
             supported = ", ".join(self.get_supported_extensions())
-            log.error(f"Unsupported file type: {extension}, supported: {supported}")
-            raise DataError(
-                f"Unsupported file type: {extension}",
-                {
-                    "file_extension": extension,
-                    "supported_extensions": self.get_supported_extensions(),
-                    "suggestion": f"Supported formats: {supported}"
-                }
+            raise ValueError(
+                f"Unsupported file type: {extension}. Supported formats: {supported}"
             )
         requires = loader.requires_target_column
         log.debug(f"Extension '{extension}' requires target column: {requires}")
@@ -350,20 +307,27 @@ class DataLoaderFactory:
         self._loaders[extension.lower()] = loader
     
     def load_file(self, file_path: Union[str, Path]) -> pd.DataFrame:
-        """Load a file using the appropriate loader."""
+        """Load a file using the appropriate loader.
+        
+        Args:
+            file_path: The path to the file to load.
+
+        Returns:
+            A DataFrame containing the loaded data.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            ValueError: If the file type is not supported.
+            ImportError: If the loader requires a dependency that is not installed.
+        """
         path = Path(file_path)
         log.debug(f"Loading file: {path}")
         
         if not path.exists() or not path.is_file():
-            log.error(f"File does not exist: {path}")
-            raise FileError(f"File does not exist: {path}", {"file_path": str(path)})
+            raise FileNotFoundError(f"File does not exist: {path}")
         
-        try:
-            loader = self._get_loader(path.suffix)
-            log.debug(f"Using loader for file: {path} -> {type(loader).__name__}")
-        except DataError as e:
-            log.error(f"Failed to get loader for file: {path}, error: {e}")
-            raise FileError(f"Failed to load file: {path}", {"file_path": str(path), "error": str(e)}) from e
+        loader = self._get_loader(path.suffix)
+        log.debug(f"Using loader for file: {path} -> {type(loader).__name__}")
         
         result = loader.load(path)
         log.debug(f"File loaded successfully: {path}, result shape: {result.shape}")
@@ -372,41 +336,51 @@ class DataLoaderFactory:
     def load_directory(self, directory_path: Union[str, Path]) -> tuple[pd.DataFrame, str]:
         """Load a directory of files using the appropriate loader.
         
+        Args:
+            directory_path: The path to the directory to load.
+
         Returns:
             tuple[pd.DataFrame, str]: A tuple containing the loaded dataframe and the extension of the loaded files.
+        
         Raises:
-            FileError: If the directory does not exist.
-            FileError: If the directory contains multiple file types.
+            FileNotFoundError: If the directory does not exist.
+            ValueError: If the directory contains multiple file types.
         """
         path = Path(directory_path)
         log.debug(f"Loading directory: {path}")
         
         if not path.exists():
-            log.error(f"Directory does not exist: {path}")
-            raise FileError(f"Directory does not exist: {path}", {"directory_path": str(path)})
+            raise FileNotFoundError(f"Directory does not exist: {path}")
         
         extensions = set()
         data = pd.DataFrame()
         file_count = 0
+        file_loading_errors = []
         
         log.debug(f"Scanning directory for files: {path}")
         for file in path.glob("**/*"):
             if file.is_file() and file.name not in IGNORE_FILES:
                 log.debug(f"Loading file from directory: {file}")
-                file_data = self.load_file(file)
-                data = pd.concat([data, file_data], ignore_index=True)
-                extensions.add(file.suffix)
-                file_count += 1
+                try:
+                    file_data = self.load_file(file)
+                    data = pd.concat([data, file_data], ignore_index=True)
+                    extensions.add(file.suffix)
+                    file_count += 1
+                except Exception as e:
+                    log.warning(f"Error loading file: {file}, error: {e}. Skipping file.")
+                    file_loading_errors.append(e)
+                    continue
             elif file.is_file():
                 log.debug(f"Skipping ignored file: {file}")
 
         log.debug(f"Directory loading completed: {file_count} files loaded, extensions: {list(extensions)}")
 
+        if file_count == 0:
+            raise ValueError(f"No files loaded from directory: {path}")
+        
         if len(extensions) != 1:
-            log.error(f"Directory contains multiple file types: {path}, extensions: {list(extensions)}")
-            raise FileError(
-                f"Directory contains multiple file types: {path}",
-                {"directory_path": str(path), "extensions found": list(extensions)}
+            raise ValueError(
+                f"Directory contains multiple file types: {path}, extensions: {list(extensions)}"
             )
         
         extension = list(extensions)[0]

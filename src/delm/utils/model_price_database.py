@@ -3,7 +3,6 @@
 
 import logging
 from typing import Tuple
-from delm.exceptions import ConfigurationError
 
 log = logging.getLogger(__name__)
 
@@ -100,8 +99,15 @@ def get_model_token_price(provider: str, model: str) -> Tuple[float, float]:
     """
     Look up the price per 1M input/output tokens for a given provider and model.
 
+    Args:
+        provider: The provider of the model.
+        model: The name of the model.
+
     Returns:
         (input_price, output_price): tuple of floats
+
+    Raises:
+        ValueError: If the model is not found in the provider's model price database.
     """
     log.debug("Looking up price for provider='%s', model='%s'", provider, model)
     for (prov, mod), prices in _MODEL_PRICING_DB.items():
@@ -110,7 +116,4 @@ def get_model_token_price(provider: str, model: str) -> Tuple[float, float]:
                      provider, model, prices["input"], prices["output"])
             return prices["input"], prices["output"]
     log.error("Model '%s' not found in model price database for provider '%s'", model, provider)
-    raise ConfigurationError(
-        f"Model {model} not found in model price database for provider {provider}",
-        {"provider": provider, "model": model}
-    )
+    raise ValueError(f"Model {model} not found in model price database for provider {provider}")

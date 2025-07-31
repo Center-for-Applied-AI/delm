@@ -18,7 +18,7 @@ from delm.schemas import SchemaManager
 from delm.utils import RetryHandler, ConcurrentProcessor
 from delm.config import LLMExtractionConfig
 from delm.constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN, SYSTEM_BATCH_ID_COLUMN, SYSTEM_ERRORS_COLUMN, SYSTEM_EXTRACTED_DATA_JSON_COLUMN
-from delm.exceptions import ProcessingError, ValidationError, APIError
+from delm.exceptions import InstructorError
 from delm.utils.cost_tracker import CostTracker
 from delm.core.experiment_manager import BaseExperimentManager
 from delm.utils.type_checks import is_pydantic_model
@@ -26,7 +26,8 @@ from delm.utils.semantic_cache import SemanticCache, make_cache_key
 
 
 class ExtractionManager:
-    """Handles LLM extraction and result parsing."""
+    """Handles LLM extraction and result parsing.
+    """
     
     def __init__(
         self,
@@ -35,6 +36,15 @@ class ExtractionManager:
         cost_tracker: 'CostTracker',
         semantic_cache: 'SemanticCache',
     ):
+        """Initialize the ExtractionManager.
+        
+        Args:
+            model_config: The model configuration.
+            schema_manager: The schema manager.
+            cost_tracker: The cost tracker.
+            semantic_cache: The semantic cache.
+        """
+
         log.debug("Initializing ExtractionManager")
         self.model_config = model_config
         self.temperature = model_config.temperature
@@ -81,6 +91,16 @@ class ExtractionManager:
         - Processing batches with concurrent execution
         - Saving batch checkpoints for resuming
         - Consolidating results into final DataFrame
+
+        Args:
+            text_chunks: The text chunks to process.
+            text_chunk_ids: The IDs of the text chunks.
+            batch_size: The size of each batch.
+            experiment_manager: The experiment manager.
+            auto_checkpoint: Whether to auto-checkpoint.
+
+        Returns:
+            A DataFrame containing the extracted data.
         """
         from tqdm.auto import tqdm
 
@@ -175,10 +195,15 @@ class ExtractionManager:
                     break
                 
                 log.debug("Starting concurrent processing for batch %d", batch_id)
-                results = self.concurrent_processor.process_concurrently(
-                    batch_chunks,
-                    lambda p: self._extract_from_text_chunk(p)
-                )
+                try:
+                    results = self.concurrent_processor.process_concurrently(
+                        batch_chunks,
+                        lambda p: self._extract_from_text_chunk(p)
+                    )
+                except Exception as e:
+                    log.error("Concurrent processing failed for batch %d: %s", batch_id, e)
+                    continue
+                
                 log.debug("Concurrent processing completed for batch %d, got %d results", batch_id, len(results))
                 log.debug("Parsing batch %d results.", batch_id)
                 batch_df = self.parse_results_dataframe(
@@ -220,7 +245,14 @@ class ExtractionManager:
         self, 
         text_chunk: str, 
     ) -> Dict[str, Any]:
-        """Extract data from a single text chunk."""
+        """Extract data from a single text chunk. Error safe extraction. Does not raise any errors.
+        
+        Args:
+            text_chunk: The text chunk to extract data from.
+
+        Returns:
+            A dictionary containing the extracted data and errors.
+        """
         log.debug("Extracting from text chunk (length: %d)", len(text_chunk))
         
         if self.track_cost and self.cost_tracker.is_over_budget():
@@ -229,15 +261,26 @@ class ExtractionManager:
         
         try:
             log.debug("Starting Instructor extraction for text chunk")
-            result = self._instructor_extract(text_chunk)
+            result = self._instructor_extract_with_retry(text_chunk)
             log.debug("Instructor extraction completed successfully")
             return {"extracted_data": result, "errors": []}
         except Exception as llm_error:
             log.error("Extraction failed for text chunk: %s", llm_error)
             return {"extracted_data": None, "errors": str(llm_error)}
     
-    def _instructor_extract(self, text_chunk: str) -> BaseModel:
-        """Use Instructor + Pydantic schema for structured output."""
+    def _instructor_extract_with_retry(self, text_chunk: str) -> BaseModel:
+        """Use Instructor + Pydantic schema for structured output.
+        
+        Args:
+            text_chunk: The text chunk to extract data from.
+
+        Returns:
+            The extracted data as a Pydantic model.
+
+        Raises:
+            InstructorError: If the LLM API call fails.
+            ValueError: If the response is not a Pydantic model.
+        """
         log.debug("Creating Pydantic schema for extraction")
         schema = self.extraction_schema.create_pydantic_schema()
         
@@ -250,7 +293,7 @@ class ExtractionManager:
                  provider_and_model, len(prompt), len(system_prompt))
 
 
-        def _extract_with_schema():
+        def _instructor_extract():
             log.debug("Starting LLM extraction with schema")
             if self.track_cost:
                 log.debug("Tracking input text for cost calculation")
@@ -266,21 +309,19 @@ class ExtractionManager:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": prompt},
                     ],
-                    # max_retries=0,
+                    max_retries=0,
                 )
                 log.debug("LLM API call completed successfully")
             except Exception as e:
                 log.error("LLM API call failed: %s", e)
-                raise APIError(
-                    f"Failed to extract data from text chunk with Instructor: {e}",
-                    {"text_length": len(text_chunk), "model_name": self.model_config.name}
+                raise InstructorError(
+                    f"Failed to extract data from text chunk with Instructor: {e}"
                 ) from e
             
             if not is_pydantic_model(response):
                 log.error("Invalid response type: %s", type(response))
-                raise ProcessingError(
-                    f"Unsupported response type: {type(response)}",
-                    {"response_type": type(response), "text_chunk": text_chunk[:10]}
+                raise ValueError(
+                    f"Unsupported response type: {type(response)}"
                 )
             
             if self.track_cost:
@@ -289,8 +330,9 @@ class ExtractionManager:
             
             log.debug("Extraction with schema completed successfully")
             return response
+
+        log.debug("Checking semantic cache for existing extraction")
         try:
-            log.debug("Checking semantic cache for existing extraction")
             key = make_cache_key(
                 prompt_text=prompt,
                 system_prompt=system_prompt,
@@ -310,19 +352,20 @@ class ExtractionManager:
                 return pydantic_result
             
             log.debug("Cache miss, performing new extraction")
-            response = self.retry_handler.execute_with_retry(_extract_with_schema)
-            log.debug("Extraction completed, caching result")
-            # Convert to dict to save to semantic cache
-            response_dict = response.model_dump(mode="json")
+        except Exception as e:
+            log.error(f"Cache error {e}, performing new extraction")
+
+        response = self.retry_handler.execute_with_retry(_instructor_extract)
+        response_dict = response.model_dump(mode="json")
+        log.debug("Extraction completed, caching result")
+        # Convert to dict to save to semantic cache
+        try:
             self.semantic_cache.set(key, json.dumps(response_dict).encode("utf-8"))
             log.debug("Result cached successfully")
-            return response
         except Exception as e:
-            log.error("Extraction failed with exception: %s", e)
-            raise ProcessingError(
-                f"Failed to extract data from text chunk: {e}",
-                {"text_length": len(text_chunk), "model_name": self.model_config.name}
-            )
+            log.error(f"Cache error {e}, did not cache result")
+            pass
+        return response
     
     def parse_results_dataframe(
         self,
@@ -332,12 +375,21 @@ class ExtractionManager:
         batch_id: int = 0,
     ) -> pd.DataFrame:
         """
-        Parse extraction results into a DataFrame.
+        Parse extraction results into a DataFrame. Also cleans the results to remove any invalid items according to the schema.
+
+        Args:
+            results: The results to parse.
+            text_chunks: The text chunks that were used to generate the results.
+            text_chunk_ids: The IDs of the text chunks that were used to generate the results.
+            batch_id: The ID of the batch that the results belong to.
+
+        Returns:
+            A DataFrame containing the parsed results.
         """
         log.debug("Parsing results DataFrame: batch_id=%d, results_count=%d", 
                  batch_id, len(results))
         
-        data = []
+        data: List[pd.DataFrame] = []
         for result, text_chunk, chunk_id in zip(results, text_chunks, text_chunk_ids):
             errors_json = json.dumps(result["errors"]) if result["errors"] else None
             extracted_data: BaseModel | None = result["extracted_data"]
@@ -368,7 +420,7 @@ class ExtractionManager:
                 }
                 data.append(pd.DataFrame([row]))
         
-        # Outer join to preserve all columns
+        # Outer join to preserve all columns in case there is a mismatch in the column sets.
         log.debug("Concatenating %d DataFrame parts", len(data))
         result_df = pd.concat(data, ignore_index=True, join="outer") if data else pd.DataFrame()
         log.debug("Final DataFrame created with %d rows", len(result_df))

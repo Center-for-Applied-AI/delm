@@ -13,8 +13,9 @@ from delm.delm import DELM
 from delm.logging import configure as configure_logging
 from delm.config import DELMConfig, LLMExtractionConfig, DataPreprocessingConfig, SchemaConfig, SplittingConfig, ScoringConfig
 from delm.exceptions import (
-    DELMError, ConfigurationError, DataError, ProcessingError, SchemaError,
-    ValidationError, FileError, APIError, DependencyError
+    DELMError, 
+    ExperimentManagementError, 
+    InstructorError
 )
 from .constants import (
     # LLM/API Configuration
@@ -95,14 +96,8 @@ __all__ = [
     
     # Exceptions
     "DELMError",
-    "ConfigurationError",
-    "DataError",
-    "ProcessingError",
-    "SchemaError",
-    "ValidationError",
-    "FileError",
-    "APIError",
-    "DependencyError",
+    "ExperimentManagementError",
+    "InstructorError",
     
     # LLM/API Configuration
     "DEFAULT_PROVIDER",

@@ -22,10 +22,21 @@ class SplitStrategy(ABC):
 
     @classmethod
     def from_dict(cls, data: dict) -> "SplitStrategy":
+        """Create a SplitStrategy from a dictionary.
+        
+        Args:
+            data: A dictionary containing the splitter configuration.
+
+        Returns:
+            A SplitStrategy instance.
+        
+        Raises:
+            ValueError: If the splitter config is missing the 'type' field or the type is unknown or the splitter config is invalid.
+        """
         log.debug(f"Creating SplitStrategy from dict: {data}")
         if "type" not in data:
-            log.error("Splitter config missing 'type' field")
-            raise ValueError("Splitter config must include a 'type' field.")
+            log.error("Splitter config missing 'type' field, available types: %s", list(SPLITTER_REGISTRY.keys()))
+            raise ValueError("Splitter config must include a 'type' field, available types: %s" % list(SPLITTER_REGISTRY.keys()))
         splitter_type = data["type"]
         log.debug(f"Splitter type: {splitter_type}")
         if splitter_type not in SPLITTER_REGISTRY:
@@ -37,6 +48,8 @@ class SplitStrategy(ABC):
 
     @abstractmethod
     def to_dict(self) -> dict:
+        """Return a dictionary representation of the splitter.
+        """
         raise NotImplementedError
 
 

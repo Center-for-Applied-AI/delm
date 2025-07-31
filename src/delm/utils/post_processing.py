@@ -27,6 +27,9 @@ def explode_json_results(input_df: pd.DataFrame, schema: Union[BaseSchema, str, 
         
     Returns:
         DataFrame with exploded results where each extracted item gets its own row
+
+    Raises:
+        ValueError: If the JSON column is not found in the input DataFrame.
     """
     log.debug("Exploding JSON column: %s of %d rows", json_column, len(input_df))
     
@@ -128,12 +131,6 @@ def _explode_simple_schema_row(data: Dict[str, Any], system_cols: Dict[str, Any]
         row[col_name] = data.get(var.name)
     
     return [row]
-
-def explode_json_results_in_place(input_df: pd.DataFrame, json_column: str) -> pd.DataFrame:
-    """
-    Simple explode of JSON column (deprecated - use explode_json_results with schema instead).
-    """
-    return input_df.explode(json_column, ignore_index=True)
 
 if __name__ == "__main__":
     print("=== JSON EXPLOSION TESTING ===")

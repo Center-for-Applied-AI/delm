@@ -46,7 +46,6 @@ from delm.constants import (
     DEFAULT_FIXED_WINDOW_STRIDE,
     DEFAULT_REGEX_PATTERN,
 )
-from delm.exceptions import ConfigurationError
 
 
 class BaseConfig:
@@ -88,60 +87,49 @@ class LLMExtractionConfig(BaseConfig):
 
     def validate(self):
         if not isinstance(self.provider, str) or not self.provider:
-            raise ConfigurationError(
-                "Provider must be a non-empty string.",
-                {"provider": self.provider, "suggestion": "Use e.g. 'openai', 'anthropic', 'google', etc."}
+            raise ValueError(
+                f"Provider must be a non-empty string. provider: {self.provider}, Suggestion: Use e.g. 'openai', 'anthropic', 'google', etc."
             )
         if not isinstance(self.name, str) or not self.name:
-            raise ConfigurationError(
-                "Model name must be a non-empty string.",
-                {"name": self.name, "suggestion": "Use e.g. 'gpt-4o-mini', 'claude-3-sonnet', etc."}
+            raise ValueError(
+                f"Model name must be a non-empty string. name: {self.name}, Suggestion: Use e.g. 'gpt-4o-mini', 'claude-3-sonnet', etc."
             )
         if not (0.0 <= self.temperature <= 2.0):
-            raise ConfigurationError(
-                "Temperature must be between 0.0 and 2.0.",
-                {"temperature": self.temperature, "suggestion": "Use a value between 0.0 and 2.0"}
+            raise ValueError(
+                f"Temperature must be between 0.0 and 2.0. temperature: {self.temperature}, Suggestion: Use a value between 0.0 and 2.0"
             )
         if self.max_retries < 0:
-            raise ConfigurationError(
-                "max_retries must be non-negative.",
-                {"max_retries": self.max_retries, "suggestion": "Use a non-negative integer"}
+            raise ValueError(
+                f"max_retries must be non-negative. max_retries: {self.max_retries}, Suggestion: Use a non-negative integer"
             )
         if self.batch_size <= 0:
-            raise ConfigurationError(
-                "batch_size must be positive.",
-                {"batch_size": self.batch_size, "suggestion": "Use a positive integer"}
+            raise ValueError(
+                f"batch_size must be positive. batch_size: {self.batch_size}, Suggestion: Use a positive integer"
             )
         if self.max_workers <= 0:
-            raise ConfigurationError(
-                "max_workers must be positive.",
-                {"max_workers": self.max_workers, "suggestion": "Use a positive integer"}
+            raise ValueError(
+                f"max_workers must be positive. max_workers: {self.max_workers}, Suggestion: Use a positive integer"
             )
         if self.base_delay < 0:
-            raise ConfigurationError(
-                "base_delay must be non-negative.",
-                {"base_delay": self.base_delay, "suggestion": "Use a non-negative float"}
+            raise ValueError(
+                f"base_delay must be non-negative. base_delay: {self.base_delay}, Suggestion: Use a non-negative float"
             )
         if self.dotenv_path is not None and not Path(self.dotenv_path).exists():
-            raise ConfigurationError(
-                f"dotenv_path does not exist: {self.dotenv_path}",
-                {"dotenv_path": str(self.dotenv_path), "suggestion": "Check the file path or create the .env file"}
+            raise ValueError(
+                f"dotenv_path does not exist: {self.dotenv_path}, Suggestion: Check the file path or create the .env file"
             )
         if not isinstance(self.track_cost, bool):
-            raise ConfigurationError(
-                "track_cost must be a boolean.",
-                {"track_cost": self.track_cost, "suggestion": "Use True or False"}
+            raise ValueError(
+                f"track_cost must be a boolean. track_cost: {self.track_cost}, Suggestion: Use True or False"
             )
         if self.max_budget is not None:
             if not self.track_cost:
-                raise ConfigurationError(
-                    "track_cost must be True if max_budget is specified.",
-                    {"track_cost": self.track_cost}
+                raise ValueError(
+                    f"track_cost must be True if max_budget is specified. track_cost: {self.track_cost}"
                 )
             if not isinstance(self.max_budget, (int, float)):
-                raise ConfigurationError(
-                    "max_budget must be a number.",
-                    {"max_budget": self.max_budget, "suggestion": "Use a number"}
+                raise ValueError(
+                    f"max_budget must be a number. max_budget: {self.max_budget}, Suggestion: Use a number"
                 )
 
     def to_dict(self) -> dict:
@@ -168,9 +156,8 @@ class SplittingConfig(BaseConfig):
 
     def validate(self):
         if self.strategy is not None and not isinstance(self.strategy, SplitStrategy):
-            raise ConfigurationError(
-                "strategy must be a SplitStrategy instance or None.",
-                {"strategy_type": type(self.strategy).__name__, "suggestion": "Use a valid SplitStrategy subclass or None for no splitting"}
+            raise ValueError(
+                f"strategy must be a SplitStrategy instance or None. strategy_type: {type(self.strategy).__name__}, Suggestion: Use a valid SplitStrategy subclass or None for no splitting"
             )
 
     def to_dict(self) -> dict:
@@ -197,7 +184,7 @@ class SplittingConfig(BaseConfig):
         elif split_type in ("None", None):
             return None
         else:
-            raise ConfigurationError(
+            raise ValueError(
                 f"Unknown split strategy: {split_type}",
                 {"split_type": split_type, "suggestion": "Use 'ParagraphSplit', 'FixedWindowSplit', 'RegexSplit', or 'None'"}
             )
@@ -210,9 +197,8 @@ class ScoringConfig(BaseConfig):
 
     def validate(self):
         if self.scorer is not None and not isinstance(self.scorer, RelevanceScorer):
-            raise ConfigurationError(
-                "scorer must be a RelevanceScorer instance or None.",
-                {"scorer_type": type(self.scorer).__name__, "suggestion": "Use a valid RelevanceScorer subclass or None for no scoring"}
+            raise ValueError(
+                f"scorer must be a RelevanceScorer instance or None. scorer_type: {type(self.scorer).__name__}, Suggestion: Use a valid RelevanceScorer subclass or None for no scoring"
             )
 
     def to_dict(self) -> dict:
@@ -233,25 +219,22 @@ class ScoringConfig(BaseConfig):
         if scorer_type == "KeywordScorer":
             keywords = cfg.get("keywords", [])
             if not keywords:
-                raise ConfigurationError(
-                    "KeywordScorer requires a non-empty keywords list",
-                    {"scorer_type": scorer_type, "suggestion": "Provide keywords list or use 'None' for no scoring"}
+                raise ValueError(
+                    f"KeywordScorer requires a non-empty keywords list. scorer_type: {scorer_type}, Suggestion: Provide keywords list or use 'None' for no scoring"
                 )
             return KeywordScorer(keywords)
         elif scorer_type == "FuzzyScorer":
             keywords = cfg.get("keywords", [])
             if not keywords:
-                raise ConfigurationError(
-                    "FuzzyScorer requires a non-empty keywords list",
-                    {"scorer_type": scorer_type, "suggestion": "Provide keywords list or use 'None' for no scoring"}
+                raise ValueError(
+                    f"FuzzyScorer requires a non-empty keywords list. scorer_type: {scorer_type}, Suggestion: Provide keywords list or use 'None' for no scoring"
                 )
             return FuzzyScorer(keywords)
         elif scorer_type in ("None", None):
             return None
         else:
-            raise ConfigurationError(
-                f"Unknown scorer type: {scorer_type}",
-                {"scorer_type": scorer_type, "suggestion": "Use 'KeywordScorer', 'FuzzyScorer', or 'None'"}
+            raise ValueError(
+                f"Unknown scorer type: {scorer_type}. scorer_type: {scorer_type}, Suggestion: Use 'KeywordScorer', 'FuzzyScorer', or 'None'"
             )
 
 
@@ -282,9 +265,8 @@ class DataPreprocessingConfig(BaseConfig):
             return
             
         if not self.preprocessed_data_path.endswith(".feather"):
-            raise ConfigurationError(
-                "preprocessed_data_path must be a feather file.",
-                {"preprocessed_data_path": self.preprocessed_data_path, "suggestion": "Provide a valid feather file path"}
+            raise ValueError(
+                f"preprocessed_data_path must be a feather file. preprocessed_data_path: {self.preprocessed_data_path}, Suggestion: Provide a valid feather file path"
             )
         
         # Verify file has correct columns
@@ -293,15 +275,13 @@ class DataPreprocessingConfig(BaseConfig):
         try:
             df = pd.read_feather(self.preprocessed_data_path)
             if not all(col in df.columns for col in [SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN]):
-                raise ConfigurationError(
-                    "preprocessed_data_path must have the correct columns.",
-                    {"preprocessed_data_path": self.preprocessed_data_path, "suggestion": "Provide a valid feather file path with the correct columns"}
+                raise ValueError(
+                    f"preprocessed_data_path must have the correct columns. preprocessed_data_path: {self.preprocessed_data_path}, Suggestion: Provide a valid feather file path with the correct columns"
                 )
         except Exception as e:
-            raise ConfigurationError(
-                f"Failed to read preprocessed data file: {e}",
-                {"preprocessed_data_path": self.preprocessed_data_path}
-            )
+            raise ValueError(
+                f"Failed to read preprocessed data file. preprocessed_data_path: {self.preprocessed_data_path}"
+            ) from e
 
     def _validate_no_conflicts_with_preprocessed_data(self):
         """Validate no conflicting fields when using preprocessed data."""
@@ -318,28 +298,24 @@ class DataPreprocessingConfig(BaseConfig):
             conflicting.append("scoring")
         
         if conflicting:
-            raise ConfigurationError(
-                f"Cannot specify {', '.join(conflicting)} when preprocessed_data_path is set.",
-                {"preprocessed_data_path": self.preprocessed_data_path, "conflicting_fields": conflicting, "suggestion": "Remove other data fields when using preprocessed_data_path."}
+            raise ValueError(
+                f"Cannot specify {', '.join(conflicting)} when preprocessed_data_path is set. preprocessed_data_path: {self.preprocessed_data_path}, Suggestion: Remove other data fields when using preprocessed_data_path."
             )
 
     def _validate_basic_fields(self):
         """Validate basic configuration fields."""
         if not isinstance(self.target_column, str) or not self.target_column:
-            raise ConfigurationError(
-                "target_column must be a non-empty string.",
-                {"target_column": self.target_column, "suggestion": "Provide a valid column name"}
+            raise ValueError(
+                f"target_column must be a non-empty string. target_column: {self.target_column}, Suggestion: Provide a valid column name"
             )
         if not isinstance(self.drop_target_column, bool):
-            raise ConfigurationError(
-                "drop_target_column must be a boolean.",
-                {"drop_target_column": self.drop_target_column, "suggestion": "Use True or False"}
+            raise ValueError(
+                f"drop_target_column must be a boolean. drop_target_column: {self.drop_target_column}, Suggestion: Use True or False"
             )
         if self.pandas_score_filter is not None:
             if not isinstance(self.pandas_score_filter, str):
-                raise ConfigurationError(
-                    "pandas_score_filter must be a string or None.",
-                    {"pandas_score_filter": self.pandas_score_filter, "suggestion": "Provide a valid pandas query string or None"}
+                raise ValueError(
+                    f"pandas_score_filter must be a string or None. pandas_score_filter: {self.pandas_score_filter}, Suggestion: Provide a valid pandas query string or None"
                 )
             # Validate pandas query syntax
             import pandas as pd
@@ -347,9 +323,8 @@ class DataPreprocessingConfig(BaseConfig):
             try:
                 pd.DataFrame({SYSTEM_SCORE_COLUMN: [1]}).query(self.pandas_score_filter)
             except Exception as e:
-                raise ConfigurationError(
-                    f"pandas_score_filter is not a valid pandas query: {e}",
-                    {"pandas_score_filter": self.pandas_score_filter, "suggestion": f"Provide a valid pandas query string. Make sure to use the {SYSTEM_SCORE_COLUMN} column name."}
+                raise ValueError(
+                    f"pandas_score_filter is not a valid pandas query: {e}. pandas_score_filter: {self.pandas_score_filter}, Suggestion: Provide a valid pandas query string. Make sure to use the {SYSTEM_SCORE_COLUMN} column name."
                 )
 
     def to_dict(self) -> dict:
@@ -397,28 +372,24 @@ class SchemaConfig(BaseConfig):
 
     def validate(self):
         if not isinstance(self.spec_path, (Path, str)) or not self.spec_path:
-            raise ConfigurationError(
-                "spec_path must be a valid Path or string.",
-                {"spec_path": str(self.spec_path), "suggestion": "Provide a valid file path"}
+            raise ValueError(
+                f"spec_path must be a valid Path or string. spec_path: {str(self.spec_path)}, Suggestion: Provide a valid file path"
             )
         if isinstance(self.spec_path, str):
             spec_path = Path(self.spec_path)
         else:
             spec_path = self.spec_path
         if not spec_path.exists():
-            raise ConfigurationError(
-                f"Schema spec file does not exist: {spec_path}",
-                {"spec_path": str(spec_path), "suggestion": "Check the file path or create the schema file"}
+            raise ValueError(
+                f"Schema spec file does not exist: {spec_path}, Suggestion: Check the file path or create the schema file"
             )
         if not isinstance(self.prompt_template, str):
-            raise ConfigurationError(
-                "prompt_template must be a string.",
-                {"prompt_template": self.prompt_template, "suggestion": "Provide a valid string for the prompt template or omit to use the default prompt template."}
+            raise ValueError(
+                f"prompt_template must be a string. prompt_template: {self.prompt_template}, Suggestion: Provide a valid string for the prompt template or omit to use the default prompt template."
             )
         if not isinstance(self.system_prompt, str):
-            raise ConfigurationError(
-                "system_prompt must be a string.",
-                {"system_prompt": self.system_prompt, "suggestion": "Provide a valid string for the system prompt or omit to use the default system prompt."}
+            raise ValueError(
+                f"system_prompt must be a string. system_prompt: {self.system_prompt}, Suggestion: Provide a valid string for the system prompt or omit to use the default system prompt."
             )
 
     def to_dict(self) -> dict:
@@ -458,19 +429,16 @@ class SemanticCacheConfig(BaseConfig):
 
     def validate(self):
         if self.backend not in {"sqlite", "lmdb", "filesystem"}:
-            raise ConfigurationError(
-                "cache.backend must be 'sqlite', 'lmdb', or 'filesystem'",
-                {"backend": self.backend}
+            raise ValueError(
+                f"cache.backend must be 'sqlite', 'lmdb', or 'filesystem'. backend: {self.backend}"
             )
         if not isinstance(self.max_size_mb, int) or self.max_size_mb <= 0:
-            raise ConfigurationError(
-                "cache.max_size_mb must be a positive integer",
-                {"max_size_mb": self.max_size_mb}
+            raise ValueError(
+                f"cache.max_size_mb must be a positive integer. max_size_mb: {self.max_size_mb}"
             )
         if self.backend == "sqlite" and self.synchronous not in {"normal", "full"}:
-            raise ConfigurationError(
-                "cache.synchronous must be 'normal' or 'full' for SQLite",
-                {"synchronous": self.synchronous}
+            raise ValueError(
+                f"cache.synchronous must be 'normal' or 'full' for SQLite. synchronous: {self.synchronous}"
             )
 
     def to_dict(self) -> dict:
@@ -533,7 +501,7 @@ class DELMConfig(BaseConfig):
         
         path = self.schema.spec_path
         if path is None:
-            raise FileNotFoundError("Schema spec path is None")
+            raise ValueError("Schema spec path is None")
         
         if isinstance(path, str):
             path = Path(path)
@@ -561,36 +529,25 @@ class DELMConfig(BaseConfig):
         if data is None:
             data = {}
         
-        try:
-            return cls(
-                llm_extraction=LLMExtractionConfig.from_dict(data.get("llm_extraction", {})),
-                data_preprocessing=DataPreprocessingConfig.from_dict(data.get("data_preprocessing", {})),
-                schema=SchemaConfig.from_dict(data.get("schema", {})),
-                semantic_cache=SemanticCacheConfig.from_dict(data.get("semantic_cache", {})),
-            )
-        except Exception as e:
-            raise ConfigurationError(f"Failed to load DELMConfig from dict: {e}", {"error": str(e)})
+        return cls(
+            llm_extraction=LLMExtractionConfig.from_dict(data.get("llm_extraction", {})),
+            data_preprocessing=DataPreprocessingConfig.from_dict(data.get("data_preprocessing", {})),
+            schema=SchemaConfig.from_dict(data.get("schema", {})),
+            semantic_cache=SemanticCacheConfig.from_dict(data.get("semantic_cache", {})),
+        )
 
     @classmethod
     def from_yaml(cls, path: Path) -> "DELMConfig":
         """Create DELMConfig from pipeline config YAML file."""
         if not path.exists():
-            raise ConfigurationError(
-                f"YAML config file does not exist: {path}",
-                {"file_path": str(path), "suggestion": "Check the file path or create the config file"}
+            raise FileNotFoundError(
+                f"YAML config file does not exist: {path}"
             )
         
-        try:
-            with open(path, "r") as f:
-                data = yaml.safe_load(f)
-            return cls.from_dict(data)
-        except yaml.YAMLError as e:
-            raise ConfigurationError(
-                f"Failed to parse YAML config file: {path}",
-                {"file_path": str(path), "parse_error": str(e)}
-            ) from e
-        except Exception as e:
-            raise ConfigurationError(f"Failed to load config file: {path}", {"file_path": str(path)}) from e
+        with open(path, "r") as f:
+            data = yaml.safe_load(f)
+        
+        return cls.from_dict(data)
 
     @staticmethod
     def from_any(config_like) -> "DELMConfig":
@@ -602,4 +559,4 @@ class DELMConfig(BaseConfig):
         elif isinstance(config_like, dict):
             return DELMConfig.from_dict(config_like)
         else:
-            raise ValueError("config must be a DELMConfig, dict, or path to YAML.") 
+            raise ValueError(f"config must be a DELMConfig, dict, or path to YAML. config_type: {type(config_like).__name__}") 
