@@ -22,11 +22,24 @@ class ExtractionVariable:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'ExtractionVariable':
         """Create ExtractionVariable from dictionary."""
+        # Handle case where data_type is a list (e.g., [string]) - convert to string format
+        data_type = data['data_type']
+        if isinstance(data_type, list):
+            data_type = f"[{data_type[0]}]"  # Convert [string] to "[string]"
+        
         return cls(
             name=data['name'],
             description=data['description'],
-            data_type=data['data_type'],
+            data_type=data_type,
             required=data.get('required', False),
             allowed_values=data.get('allowed_values'),
             validate_in_text=data.get('validate_in_text', False)
         ) 
+    
+    def is_list(self) -> bool:
+        """Return True if the ExtractionVariable describes a list.
+        
+        Returns:
+            True if the ExtractionVariable describes a list, False otherwise.
+        """
+        return self.data_type.startswith("[") and self.data_type.endswith("]")

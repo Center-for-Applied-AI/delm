@@ -1,3 +1,4 @@
+schema_type: multiple
 simple_schema:
   schema_type: simple
   variables:
