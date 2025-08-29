@@ -23,7 +23,7 @@ from delm.constants import (
     DEFAULT_CONSOLE_LOG_LEVEL,
     DEFAULT_FILE_LOG_LEVEL,
 )
-from delm.utils.json_merge import merge_jsons_for_record
+from delm.utils.post_processing import merge_jsons_for_record
 from delm.schemas.schemas import BaseSchema
 
 # Module-level logger

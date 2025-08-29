@@ -1,0 +1,9 @@
+This is a sample text file for testing the DELM data loaders.
+
+It contains multiple lines of text with various content including:
+- Bullet points
+- Numbers: 123, 456, 789
+- Special characters: @#$%^&*()
+- Unicode characters: café, naïve, résumé
+
+The file should be loaded correctly by the TextLoader class. 

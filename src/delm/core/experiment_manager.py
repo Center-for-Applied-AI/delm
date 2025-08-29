@@ -366,6 +366,8 @@ class DiskExperimentManager(BaseExperimentManager):
     def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
         """Load preprocessed data from feather file."""
         if file_path is None:
+            if not hasattr(self, 'preprocessed_data_path'):
+                raise ValueError("Experiment not initialized. Call initialize_experiment() first.")
             file_path = self.preprocessed_data_path
         if not file_path.exists():
             log.error(f"Preprocessed data file does not exist: {file_path}")
@@ -580,7 +582,12 @@ class InMemoryExperimentManager(BaseExperimentManager):
 
     def load_batch_checkpoint(self, batch_path: str) -> pd.DataFrame:
         """Load a batch checkpoint by a string path (expects 'in-memory-batch-{id}')."""
-        batch_id = int(batch_path.split('-')[-1])
+        if not batch_path.startswith("in-memory-batch-"):
+            raise ValueError(f"Invalid batch path format: {batch_path}. Expected format: 'in-memory-batch-{{id}}'")
+        try:
+            batch_id = int(batch_path.split('-')[-1])
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"Invalid batch path format: {batch_path}. Expected format: 'in-memory-batch-{{id}}'") from e
         return self.load_batch_checkpoint_by_id(batch_id)
 
     def load_batch_checkpoint_by_id(self, batch_id: int) -> pd.DataFrame:

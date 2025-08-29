@@ -1,0 +1,6 @@
+id,extracted_json
+sample_1,"{""book"":[{""author"":""Alice Munro"",""title"":""Fictions of the North""},{""author"":""Elisa Wu"",""title"":""Small Kingdoms""},{""author"":""David Tran"",""title"":""The Mindful Cook""}]}"
+sample_2,"{""book"":[{""author"":""James B. Liao"",""title"":""The Atomic Public""},{""author"":""Nora Chase"",""title"":""The Forgotten Valley""},{""author"":""Talia Rami"",""title"":""Becoming Visible""}],""sales_event"":{""event_name"":""spotlight author""}}"
+sample_3,"{""book"":[{""author"":""L.J. Grier"",""title"":""Echoes in the Fog""},{""author"":""Minh Dinh"",""title"":""Built to Breathe""},{""author"":""Carla Singh"",""title"":""The Climate Equation""}],""sales_event"":{""event_name"":""top 3 books""}}"
+sample_4,"{""book"":[{""author"":""Arjun Mehta"",""title"":""Parenting in Motion""},{""author"":""Mei Zhao"",""title"":""City of Dust""},{""author"":""Lani Pham"",""title"":""Ghosts of Saigon""}],""sales_event"":{""event_name"":""season\u2019s highlight"",""season"":""season""}}"
+sample_5,"{""book"":[{""author"":""Selina Roth"",""title"":""Midnight Archive""},{""author"":""Marcus Juno"",""title"":""The Colorless Eye""},{""author"":""Clare Mendez"",""title"":""Thinking Fast on a Budget""}],""sales_event"":{""event_name"":""Book news""}}"

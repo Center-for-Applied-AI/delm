@@ -21,8 +21,8 @@ class CostTracker:
         self.provider = provider
         self.model = model
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
-        self.model_input_cost_per_1M_tokens = model_input_cost_per_1M_tokens or get_model_token_price(provider, model)[0]
-        self.model_output_cost_per_1M_tokens = model_output_cost_per_1M_tokens or get_model_token_price(provider, model)[1]
+        self.model_input_cost_per_1M_tokens = model_input_cost_per_1M_tokens if model_input_cost_per_1M_tokens is not None else get_model_token_price(provider, model)[0]
+        self.model_output_cost_per_1M_tokens = model_output_cost_per_1M_tokens if model_output_cost_per_1M_tokens is not None else get_model_token_price(provider, model)[1]
         self.input_tokens = 0
         self.output_tokens = 0
         self.count_cache_hits_towards_cost = count_cache_hits_towards_cost
@@ -119,12 +119,17 @@ class CostTracker:
     @classmethod
     def from_dict(cls, d: dict) -> "CostTracker":
         log.debug("Creating CostTracker from dict: %s", d)
-        obj = cls(d["provider"], d["model"])
-        obj.max_budget = d.get("max_budget", None)
-        obj.input_tokens = d.get("input_tokens", 0)
-        obj.output_tokens = d.get("output_tokens", 0)
+        # Create object without calling __init__ to avoid database lookup
+        obj = cls.__new__(cls)
+        obj.provider = d["provider"]
+        obj.model = d["model"]
+        obj.tokenizer = tiktoken.get_encoding("cl100k_base")
         obj.model_input_cost_per_1M_tokens = d.get("model_input_cost_per_1M_tokens", 0.0)
         obj.model_output_cost_per_1M_tokens = d.get("model_output_cost_per_1M_tokens", 0.0)
+        obj.input_tokens = d.get("input_tokens", 0)
+        obj.output_tokens = d.get("output_tokens", 0)
+        obj.count_cache_hits_towards_cost = False  # Default value
+        obj.max_budget = d.get("max_budget", None)
         log.debug("CostTracker restored from dict: provider=%s, model=%s, input_tokens=%d, output_tokens=%d", 
                  obj.provider, obj.model, obj.input_tokens, obj.output_tokens)
         return obj

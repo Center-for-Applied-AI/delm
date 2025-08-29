@@ -1,0 +1,32 @@
+schema_type: simple
+variables:
+  - name: best_selling_author
+    description: Main author of the book
+    data_type: string
+    required: false
+  - name: authors
+    description: Authors of the books
+    data_type: "[string]"
+    required: false
+  - name: book_titles
+    description: Titles of the books
+    data_type: "[string]"
+    required: false
+  - name: book_genres
+    description: Genre of books
+    data_type: string
+    required: false
+    allowed_values: ["fiction", "non-fiction", "biography", "self-help", "other"]
+  - name: book_prices
+    description: Price of the book
+    data_type: "[number]"
+    required: false
+  - name: book_ratings
+    description: Ratings of the books from 1 to 5
+    data_type: "[number]"
+    required: false
+    allowed_values: [1, 2, 3, 4, 5]
+  - name: book_is_available
+    description: Whether any of the books are available
+    data_type: "boolean"
+    required: false

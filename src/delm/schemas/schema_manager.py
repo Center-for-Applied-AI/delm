@@ -20,7 +20,11 @@ class SchemaManager:
     
     def __init__(self, config: SchemaConfig):
         log.debug("Initializing SchemaManager")
-        self.spec_path = config.spec_path
+        # Ensure spec_path is always a Path object
+        if isinstance(config.spec_path, str):
+            self.spec_path = Path(config.spec_path)
+        else:
+            self.spec_path = config.spec_path
         self.prompt_template: str = config.prompt_template
         self.system_prompt: str = config.system_prompt
         log.debug(f"SchemaManager config: spec_path={self.spec_path}, prompt_template_length={len(self.prompt_template)}, system_prompt_length={len(self.system_prompt)}")
