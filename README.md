@@ -315,10 +315,9 @@ If using providers not present in the built-in pricing DB, set both `model_input
 
 ### Local MkDocs Site
 1. Install the documentation dependencies: `pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python`
-2. Serve the docs locally: `mkdocs serve`
-3. Open `http://127.0.0.1:8000/` in your browser to explore the site.
+2. Serve the docs locally to `http://127.0.0.1:8000/`: `mkdocs serve`
 
-Use `mkdocs build` to generate a static site in the `site/` directory when you need a distributable bundle.
+Use `mkdocs build` to generate a static site in the `site/` directory.
 
 ### Reference Materials
 - [Schema Reference](SCHEMA_REFERENCE.md) - Detailed schema configuration guide
