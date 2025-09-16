@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "delm"
-version = "0.1.1"
+version = "0.1.2"
 description = "Data Extraction Language Model - A pipeline for extracting structured data from text using language models"
 readme = "README.md"
 license = { text = "MIT" }
@@ -83,7 +83,7 @@ extend-exclude = '''
 '''
 
 [tool.mypy]
-python_version = "0.1.1"
+python_version = "0.1.2"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
