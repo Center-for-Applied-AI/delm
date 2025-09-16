@@ -108,7 +108,7 @@ variables:
 
 ### Multiple Schemas (Level 3)
 
-Extract multiple independent structured objects simultaneously. These can be simple, nested, or even deep mutli-schemas.
+Extract multiple independent structured objects simultaneously. These can be simple, nested, or even deep multi-schemas.
 
 ```yaml
 schema_type: "multiple"
@@ -215,12 +215,37 @@ Each variable in your schema can be configured with these options:
 | `number`       | Floating point numbers             | 1500000000, 12.5              |
 | `integer`      | Whole numbers                      | 2024, 100                     |
 | `boolean`      | True/false values                  | true, false                   |
+| `date`         | Date strings                       | "2025-09-15"                  |
 | `[string]` | List of strings | '["Apple", "Google"]'         |
 | `[number]` | List of numbers | '[12.5, 42, 100]'             |
 | `[integer]`| List of integers     | '[2024, 100, 7]'              |
 | `[boolean]`| List of booleans     | '[true, false, true]'         |
 
 **Note:** List datatypes must be surrounded by quotes in `.yaml` files. For example `"[string]"`, not `[string]`
+
+Schema spec files are YAML (`.yml`/`.yaml`).
+
+## Prompt Customization
+
+DELM renders the prompt using two configurable strings from your pipeline config:
+
+- `schema.system_prompt`: Injected as the system role message
+- `schema.prompt_template`: A Python `str.format`-style template rendered per chunk, with placeholders:
+  - `{variables}`: A human-readable list of variables with types and allowed values
+  - `{text}`: The current text chunk
+  - `{context}`: Optional extra key-values (if provided by advanced flows)
+
+Examples:
+
+```text
+System: {schema.system_prompt}
+User: {schema.prompt_template.format(variables=..., text=..., context=...)}
+```
+
+Notes:
+- For Multiple schemas, the prompt is built by concatenating sub‑schema prompts under headings.
+- Token estimation uses these same prompts, so edits affect cost estimates.
+
 
 
 ### Variable Examples
@@ -271,6 +296,15 @@ Each variable in your schema can be configured with these options:
 ```
 
 #### Allowed Values
+#### Cleaning & Validation Semantics
+
+- Required fields: If a required field has no valid value, the item is dropped.
+  - Simple schema: the whole response for a chunk is discarded.
+  - Nested schema: the specific object is discarded; the chunk may still yield other objects.
+- Null-like strings in string fields (e.g., "none", "null", "unknown", "n/a", "") are filtered unless explicitly listed in `allowed_values`.
+- `validate_in_text: true` keeps only string values that literally appear in the source text (case-insensitive).
+- For Multiple schemas, nested sub-schemas are unwrapped in outputs (e.g., `books: [...]`, not `books: {books: [...]}`).
+- For Nested schemas, if `container_name` is omitted, it defaults to `"instances"`.
 ```yaml
 - name: "sentiment"
   description: "Overall sentiment"

@@ -61,7 +61,7 @@ class DELM:
         auto_checkpoint_and_resume_experiment: bool = True,
         use_disk_storage: bool = True,
         save_file_log: bool = True,
-        log_dir: str | Path | None = None,
+        log_dir: Union[str, Optional][Path] = None,
         console_log_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
         file_log_level: str = DEFAULT_FILE_LOG_LEVEL,
         override_logging: bool = True,
@@ -174,7 +174,7 @@ class DELM:
 
 
     def process_via_llm(
-        self, preprocessed_file_path: Path | None = None
+        self, preprocessed_file_path: Optional[Path] = None
     ) -> pd.DataFrame:
         """Process data through LLM extraction using configuration from constructor, with batch checkpointing and resuming.
         
@@ -225,8 +225,13 @@ class DELM:
         return final_df
 
     
+<<<<<<< HEAD
     def prep_data(self, data: str | Path | pd.DataFrame, sample_size: int = -1) -> pd.DataFrame:
         """Preprocess data using the instance config and save to the experiment manager.
+=======
+    def prep_data(self, data: Union[str, Path] | pd.DataFrame, sample_size: int = -1) -> pd.DataFrame:
+        """Preprocess data using the instance config and always save to the experiment manager.
+>>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
 
         Args:
             data: Input data as a string path, ``Path``, or ``DataFrame``.

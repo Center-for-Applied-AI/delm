@@ -1,0 +1,71 @@
+site_name: DELM Documentation
+site_description: Documentation for the DELM (Data Extraction with Language Models) toolkit.
+repo_url: https://github.com/Center-for-Applied-AI/delm
+repo_name: Center-for-Applied-AI/delm
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.integrate
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep orange
+    - scheme: slate
+      primary: indigo
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          setup_commands:
+            - import sys
+            - sys.path.insert(0, "src")
+          paths:
+            - src
+          options:
+            show_root_heading: true
+            show_object_full_path: false
+            show_signature_annotations: true
+            separate_signature: true
+            docstring_style: google
+            heading_level: 2
+            members_order: alphabetical
+
+nav:
+  - Overview: index.md
+  - Getting Started: getting-started.md
+  - Usage:
+      - Pipeline Configuration: usage/pipeline-configuration.md
+  - Schema Reference: schema/reference.md
+  - Reference:
+      - API Overview: reference/index.md
+      - Pipeline API: reference/pipeline.md
+      - Configuration Objects: reference/config.md
+      - Core Managers: reference/managers.md
+      - Utilities: reference/utilities.md

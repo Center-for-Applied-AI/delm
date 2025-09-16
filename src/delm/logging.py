@@ -24,8 +24,8 @@ _configured = False
 def configure(
     *,
     console_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
-    file_dir: str | Path | None = DEFAULT_LOG_DIR,
-    file_name: str | None = None, # if None, no file handler is will be added
+    file_dir: Union[str, Optional][Path] = DEFAULT_LOG_DIR,
+    file_name: Optional[str] = None, # if None, no file handler is will be added
     file_level: str = DEFAULT_FILE_LOG_LEVEL,
     fmt: str = "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     disable_existing: bool = False,
@@ -33,6 +33,7 @@ def configure(
 ) -> None:
     """Configure logging for the ``delm`` package and its children.
 
+<<<<<<< HEAD
     This configures a console handler and, optionally, a rotating file handler.
     The function is idempotent unless ``force`` is True.
 
@@ -47,6 +48,22 @@ def configure(
 
     Returns:
         None
+=======
+    Parameters
+    ----------
+    console_level : str
+        Level for stderr (default INFO).
+    file : Union[str, Optional][Path]
+        Path to a log file. ``None`` = no file handler.
+    file_level : str
+        Level for the file handler (default DEBUG).
+    fmt : str
+        Log‑record format.
+    disable_existing : bool
+        If True, wipe out any handlers the application has already set up.
+    force : bool
+        If True, force re-configuration even if already configured (default False).
+>>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
     """
     global _configured
     

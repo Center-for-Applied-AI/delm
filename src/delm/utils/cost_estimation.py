@@ -34,9 +34,9 @@ log = logging.getLogger(__name__)
 
 def estimate_input_token_cost(
     config: Union[str, Dict[str, Any], DELMConfig],
-    data_source: str | Path | pd.DataFrame,
+    data_source: Union[str, Path] | pd.DataFrame,
     save_file_log: bool = True,
-    log_dir: str | Path | None = Path(DEFAULT_LOG_DIR) / "cost_estimation",
+    log_dir: Union[str, Optional][Path] = Path(DEFAULT_LOG_DIR) / "cost_estimation",
     console_log_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
     file_log_level: str = DEFAULT_FILE_LOG_LEVEL,
 ) -> float:
@@ -119,10 +119,10 @@ def estimate_input_token_cost(
 
 def estimate_total_cost(
     config: Union[str, Dict[str, Any], DELMConfig],
-    data_source: str | Path | pd.DataFrame,
+    data_source: Union[str, Path] | pd.DataFrame,
     sample_size: int = 10,
     save_file_log: bool = True,
-    log_dir: str | Path | None = Path(DEFAULT_LOG_DIR) / "cost_estimation",
+    log_dir: Union[str, Optional][Path] = Path(DEFAULT_LOG_DIR) / "cost_estimation",
     console_log_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
     file_log_level: str = DEFAULT_FILE_LOG_LEVEL,
 ) -> float:

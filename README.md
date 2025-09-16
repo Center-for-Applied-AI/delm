@@ -29,14 +29,11 @@ pip install -e .
 
 ```python
 from pathlib import Path
-from delm import DELM, DELMConfig
+from delm import DELM
 
-# Load configuration from YAML
-config = DELMConfig.from_yaml("example.config.yaml")
-
-# Initialize DELM
-delm = DELM(
-    config=config,
+# Initialize DELM from a pipeline config YAML
+delm = DELM.from_yaml(
+    config_path="example.config.yaml",
     experiment_name="my_experiment",
     experiment_directory=Path("experiments"),
 )
@@ -46,7 +43,7 @@ df = delm.prep_data("data/input.txt")
 results = delm.process_via_llm()
 
 # Get results
-final_df = delm.get_extraction_results_df()
+final_df = delm.get_extraction_results()
 cost_summary = delm.get_cost_summary()
 ```
 
@@ -139,26 +136,6 @@ companies:
   variables: [...]
 ```
 
-## Use Cases
-
-### Financial Data Extraction
-- Earnings call transcript analysis
-- Commodity price forecasting
-- Financial report parsing
-- Market sentiment analysis
-
-### Research & Analysis
-- Academic paper analysis
-- Survey response processing
-- Interview transcript coding
-- Literature review automation
-
-### Business Intelligence
-- Customer feedback analysis
-- Product review extraction
-- Competitor analysis
-- Market research automation
-
 ## Supported Data Types
 
 | Type | Description | Example |
@@ -179,7 +156,7 @@ companies:
 ```python
 # Get cost summary after extraction
 cost_summary = delm.get_cost_summary()
-print(f"Total cost: ${cost_summary['total_cost_usd']}")
+print(f"Total cost: ${cost_summary['total_cost']}")
 ```
 
 ### Semantic Caching
@@ -189,6 +166,7 @@ semantic_cache:
   backend: "sqlite"        # sqlite, lmdb, filesystem
   path: ".delm_cache"
   max_size_mb: 512
+  synchronous: "normal"    # sqlite only: "normal" or "full"
 ```
 
 ### Relevance Filtering
@@ -199,6 +177,7 @@ data_preprocessing:
     keywords: ["price", "forecast", "guidance"]
   pandas_score_filter: "delm_score >= 0.7"
 ```
+If a scorer is configured but no `pandas_score_filter` is provided, all chunks are kept (a warning is logged).
 
 ### Text Splitting Strategies
 ```yaml
@@ -258,19 +237,6 @@ for key, value in metrics.items():
     print(f"{key:<30} Precision: {precision:.3f}  Recall: {recall:.3f}  F1: {f1:.3f}")
 ```
 
-## Examples
-
-### Commodity Price Extraction
-```python
-# Extract commodity prices from earnings calls
-config = DELMConfig.from_yaml("examples/commodity_schema.yaml")
-delm = DELM(config=config, experiment_name="commodity_extraction")
-
-# Process earnings call transcripts
-df = delm.prep_data("earnings_calls.csv")
-extraction_results = delm.process_via_llm()
-```
-
 ## Configuration Reference
 
 ### Required Fields
@@ -284,6 +250,34 @@ extraction_results = delm.process_via_llm()
 - `llm_extraction.max_workers`: 1 (concurrent workers)
 - `llm_extraction.track_cost`: true (cost tracking)
 - `semantic_cache.backend`: "sqlite" (cache backend)
+
+### Additional LLM Fields
+- `llm_extraction.max_retries`: 3 (retry attempts)
+- `llm_extraction.base_delay`: 1.0 (seconds, exponential backoff base)
+- `llm_extraction.dotenv_path`: null (path to “.env” for credentials)
+- `llm_extraction.model_input_cost_per_1M_tokens`: null (override pricing)
+- `llm_extraction.model_output_cost_per_1M_tokens`: null (override pricing)
+
+If using providers not present in the built-in pricing DB, set both `model_input_cost_per_1M_tokens` and `model_output_cost_per_1M_tokens`, or set `track_cost: false`.
+
+### Data Preprocessing Fields
+- `data_preprocessing.drop_target_column`: false
+- `data_preprocessing.pandas_score_filter`: null (e.g., "delm_score >= 0.7")
+- `data_preprocessing.preprocessed_data_path`: null (path to “.feather” with `delm_text_chunk` and `delm_chunk_id`; when set, omit splitting/scoring/filter fields)
+
+### Semantic Cache Fields
+- `semantic_cache.backend`: "sqlite" | "lmdb" | "filesystem"
+- `semantic_cache.path`: ".delm_cache"
+- `semantic_cache.max_size_mb`: 512
+- `semantic_cache.synchronous`: "normal" | "full" (sqlite only)
+
+## Experiment Storage & Logging
+
+- Disk storage (default): checkpointing, resume, and results persisted under `delm_experiments/<experiment_name>/`.
+- In-memory storage: `use_disk_storage=False` for fast prototyping (no persistence, no resume).
+- Logging: by default, rotating file logs under `delm_logs/<experiment_name>/` when `save_file_log=True`.
+  - Tunables: `save_file_log`, `log_dir`, `console_log_level`, `file_log_level`, `override_logging`.
+  - Or call `delm.logging.configure(...)` directly.
 
 ## Architecture
 
@@ -301,7 +295,7 @@ extraction_results = delm.process_via_llm()
 
 ### Estimation Functions
 - **estimate_input_token_cost**: Estimate input token costs without API calls
-- **estimate_total_cost**: Estimate total costs using API calls on a sample to
+- **estimate_total_cost**: Estimate total costs using API calls on a sample
 - **estimate_performance**: Evaluate extraction performance against human-labeled data
 
 ## File Format Support
@@ -309,7 +303,7 @@ extraction_results = delm.process_via_llm()
 | Format | Extension | Requirements |
 |--------|-----------|--------------|
 | Text | `.txt` | Built-in |
-| HTML/Markdown | `.html`, `.md` | `beautifulsoup4` |
+| HTML/Markdown | `.html`, `.htm`, `.md` | `beautifulsoup4` |
 | Word Documents | `.docx` | `python-docx` |
 | PDF | `.pdf` | `marker` (OCR) |
 | CSV | `.csv` | `pandas` |
@@ -319,6 +313,14 @@ extraction_results = delm.process_via_llm()
 
 ## Documentation
 
+### Local MkDocs Site
+1. Install the documentation dependencies: `pip install -e .[docs]`
+2. Serve the docs locally: `mkdocs serve`
+3. Open `http://127.0.0.1:8000/` in your browser to explore the site.
+
+Use `mkdocs build` to generate a static site in the `site/` directory when you need a distributable bundle.
+
+### Reference Materials
 - [Schema Reference](SCHEMA_REFERENCE.md) - Detailed schema configuration guide
 - [Configuration Examples](example.config.yaml) - Complete configuration templates
 - [Schema Examples](example.schema_spec.yaml) - Schema specification templates
@@ -328,7 +330,3 @@ extraction_results = delm.process_via_llm()
 - Built on [Instructor](https://python.useinstructor.com/) for structured outputs
 - Uses [Marker](https://pypi.org/project/marker-pdf/) for PDF processing
 - Developed at the Center for Applied AI at Chicago Booth
-
----
-
-**DELM v0.2.0** - Making data extraction with LLMs accessible, reliable, and cost-effective. 

@@ -8,6 +8,7 @@ llm_extraction:
   base_delay: 1.0
   track_cost: true
   max_budget: 50.0
+  dotenv_path: ".env"
 
 data_preprocessing:
   target_column: "text"
