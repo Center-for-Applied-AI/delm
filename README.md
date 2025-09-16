@@ -16,7 +16,7 @@ A comprehensive Python toolkit for extracting structured data from unstructured 
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/delm.git
+git clone https://github.com/Center-for-Applied-AI/delm.git
 cd delm
 
 # Install from source
@@ -160,7 +160,7 @@ print(f"Total cost: ${cost_summary['total_cost']}")
 ```
 
 ### Semantic Caching
-Reuses api responses from identical calls. Ensures no wasted api credits for certain experiment re-runs.
+Reuses API responses from identical calls. Ensures no wasted API credits for certain experiment re‑runs.
 ```yaml
 semantic_cache:
   backend: "sqlite"        # sqlite, lmdb, filesystem
@@ -305,7 +305,7 @@ If using providers not present in the built-in pricing DB, set both `model_input
 | Text | `.txt` | Built-in |
 | HTML/Markdown | `.html`, `.htm`, `.md` | `beautifulsoup4` |
 | Word Documents | `.docx` | `python-docx` |
-| PDF | `.pdf` | `marker` (OCR) |
+| PDF | `.pdf` | `marker-pdf` (OCR) |
 | CSV | `.csv` | `pandas` |
 | Excel | `.xlsx` | `openpyxl` |
 | Parquet | `.parquet` | `pyarrow` |
@@ -314,7 +314,7 @@ If using providers not present in the built-in pricing DB, set both `model_input
 ## Documentation
 
 ### Local MkDocs Site
-1. Install the documentation dependencies: `pip install -e .[docs]`
+1. Install the documentation dependencies: `pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python`
 2. Serve the docs locally: `mkdocs serve`
 3. Open `http://127.0.0.1:8000/` in your browser to explore the site.
 
