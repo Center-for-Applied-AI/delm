@@ -44,11 +44,7 @@ class BaseExperimentManager(ABC):
 
     @abstractmethod
     def get_results(self) -> pd.DataFrame:
-<<<<<<< HEAD
-        """Get the results produced by the experiment.
-=======
         """Get the results from the experiment directory.
->>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
 
         Returns:
             A DataFrame containing the results.
@@ -57,11 +53,7 @@ class BaseExperimentManager(ABC):
 
     @abstractmethod
     def initialize_experiment(self, delm_config: DELMConfig):
-<<<<<<< HEAD
-        """Initialize the experiment state and directories.
-=======
         """Initialize the experiment.
->>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
 
         Args:
             delm_config: The DELM configuration.
@@ -81,13 +73,8 @@ class BaseExperimentManager(ABC):
         pass
 
     @abstractmethod
-<<<<<<< HEAD
-    def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
-        """Load preprocessed data from the experiment directory.
-=======
     def load_preprocessed_data(self, file_path: Optional[Path] = None) -> pd.DataFrame:
         """Load the preprocessed data from the experiment directory.
->>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
 
         Args:
             file_path: Optional explicit path to a feather file; when omitted,
@@ -451,25 +438,8 @@ class DiskExperimentManager(BaseExperimentManager):
         log.info(f"Preprocessed data saved to: {self.preprocessed_data_path}")
         return self.preprocessed_data_path
 
-<<<<<<< HEAD
-    def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
-        """Load preprocessed data from a feather file.
-
-        Args:
-            file_path: Optional path to a feather file. If None, uses the manager's
-                default preprocessed data path.
-
-        Returns:
-            The loaded DataFrame.
-
-        Raises:
-            ValueError: If the experiment was not initialized or the file is not a feather file.
-            FileNotFoundError: If the file does not exist.
-        """
-=======
     def load_preprocessed_data(self, file_path: Optional[Path] = None) -> pd.DataFrame:
         """Load preprocessed data from feather file."""
->>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
         if file_path is None:
             if not hasattr(self, "preprocessed_data_path"):
                 raise ValueError(
@@ -730,23 +700,7 @@ class InMemoryExperimentManager(BaseExperimentManager):
         self._preprocessed_data = df.copy()
         return "in-memory"
 
-<<<<<<< HEAD
-    def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
-        """Load preprocessed data from memory.
-
-        Args:
-            file_path: Must be None for in-memory manager.
-
-        Returns:
-            A copy of the stored preprocessed DataFrame.
-
-        Raises:
-            NotImplementedError: If a file path is provided.
-            ValueError: If no preprocessed data is available.
-        """
-=======
     def load_preprocessed_data(self, file_path: Optional[Path] = None) -> pd.DataFrame:
->>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
         if file_path is not None:
             log.error(
                 "Loading preprocessed data from a file path is not supported for InMemoryExperimentManager YET."
@@ -868,12 +822,7 @@ class InMemoryExperimentManager(BaseExperimentManager):
         """Save the cost tracker in memory."""
         self._state = cost_tracker
 
-<<<<<<< HEAD
-    def load_state(self) -> CostTracker | None:
-        """Load the cost tracker from memory."""
-=======
     def load_state(self) -> Optional[CostTracker]:
->>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
         return self._state
 
     def save_extracted_data(self, df: pd.DataFrame) -> str:
@@ -883,8 +832,4 @@ class InMemoryExperimentManager(BaseExperimentManager):
             The literal string "in-memory".
         """
         self._extracted_data = df.copy()
-<<<<<<< HEAD
         return "in-memory"
-=======
-        return "in-memory"
->>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
