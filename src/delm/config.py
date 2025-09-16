@@ -78,8 +78,8 @@ class LLMExtractionConfig(BaseConfig):
     dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
     track_cost: bool = DEFAULT_TRACK_COST
     max_budget: Optional[float] = DEFAULT_MAX_BUDGET
-    model_input_cost_per_1M_tokens: float | None = None
-    model_output_cost_per_1M_tokens: float | None = None
+    model_input_cost_per_1M_tokens: Optional[float] = None
+    model_output_cost_per_1M_tokens: Optional[float] = None
 
     def get_provider_string(self) -> str:
         """Get the combined provider string for Instructor."""

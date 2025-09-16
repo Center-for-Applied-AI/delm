@@ -2,34 +2,46 @@ import logging
 import tiktoken
 import json
 from delm.utils.model_price_database import get_model_token_price
-from typing import List, Any
+from typing import List, Any, Union, Optional
 
 # Module-level logger
 log = logging.getLogger(__name__)
 
+
 class CostTracker:
     def __init__(
-        self, 
+        self,
         provider: str,
         model: str,
-        max_budget: float | None = None,
+        max_budget: Optional[float] = None,
         count_cache_hits_towards_cost: bool = False,
-        model_input_cost_per_1M_tokens: float | None = None,
-        model_output_cost_per_1M_tokens: float | None = None
+        model_input_cost_per_1M_tokens: Optional[float] = None,
+        model_output_cost_per_1M_tokens: Optional[float] = None,
     ) -> None:
         log.debug("Initializing cost tracker for %s/%s", provider, model)
         self.provider = provider
         self.model = model
         self.tokenizer = tiktoken.get_encoding("cl100k_base")
-        self.model_input_cost_per_1M_tokens = model_input_cost_per_1M_tokens if model_input_cost_per_1M_tokens is not None else get_model_token_price(provider, model)[0]
-        self.model_output_cost_per_1M_tokens = model_output_cost_per_1M_tokens if model_output_cost_per_1M_tokens is not None else get_model_token_price(provider, model)[1]
+        self.model_input_cost_per_1M_tokens = (
+            model_input_cost_per_1M_tokens
+            if model_input_cost_per_1M_tokens is not None
+            else get_model_token_price(provider, model)[0]
+        )
+        self.model_output_cost_per_1M_tokens = (
+            model_output_cost_per_1M_tokens
+            if model_output_cost_per_1M_tokens is not None
+            else get_model_token_price(provider, model)[1]
+        )
         self.input_tokens = 0
         self.output_tokens = 0
         self.count_cache_hits_towards_cost = count_cache_hits_towards_cost
         self.max_budget = max_budget
-        
-        log.debug("Cost tracker initialized - input: $%.6f/1M tokens, output: $%.6f/1M tokens", 
-                 self.model_input_cost_per_1M_tokens, self.model_output_cost_per_1M_tokens)
+
+        log.debug(
+            "Cost tracker initialized - input: $%.6f/1M tokens, output: $%.6f/1M tokens",
+            self.model_input_cost_per_1M_tokens,
+            self.model_output_cost_per_1M_tokens,
+        )
 
     def is_over_budget(self) -> bool:
         current_cost = self.get_current_cost()
@@ -43,18 +55,24 @@ class CostTracker:
     def track_input_text(self, text: str):
         tokens = self.count_tokens(text)
         self.input_tokens += tokens
-        log.debug("Tracked input text: %d tokens (total: %d)", tokens, self.input_tokens)
+        log.debug(
+            "Tracked input text: %d tokens (total: %d)", tokens, self.input_tokens
+        )
 
     def track_output_text(self, text: str):
         tokens = self.count_tokens(text)
         self.output_tokens += tokens
-        log.debug("Tracked output text: %d tokens (total: %d)", tokens, self.output_tokens)
-    
+        log.debug(
+            "Tracked output text: %d tokens (total: %d)", tokens, self.output_tokens
+        )
+
     def track_output_pydantic(self, response: Any) -> None:
         response_json = json.dumps(response.model_dump(mode="json"))
         tokens = self.count_tokens(response_json)
         self.output_tokens += tokens
-        log.debug("Tracked Pydantic output: %d tokens (total: %d)", tokens, self.output_tokens)
+        log.debug(
+            "Tracked Pydantic output: %d tokens (total: %d)", tokens, self.output_tokens
+        )
 
     def count_tokens(self, text: str) -> int:
         tokens = len(self.tokenizer.encode(text))
@@ -63,15 +81,23 @@ class CostTracker:
 
     def count_tokens_batch(self, texts: List[str]) -> int:
         total_tokens = sum(self.count_tokens(t) for t in texts)
-        log.debug("Counted batch tokens: %d total for %d texts", total_tokens, len(texts))
+        log.debug(
+            "Counted batch tokens: %d total for %d texts", total_tokens, len(texts)
+        )
         return total_tokens
 
     def estimate_cost(self, input_tokens: int, output_tokens: int) -> float:
         input_cost = input_tokens * self.model_input_cost_per_1M_tokens / 1_000_000
         output_cost = output_tokens * self.model_output_cost_per_1M_tokens / 1_000_000
         total_cost = input_cost + output_cost
-        log.debug("Estimated cost: input=%d tokens ($%.6f), output=%d tokens ($%.6f), total=$%.6f", 
-                 input_tokens, input_cost, output_tokens, output_cost, total_cost)
+        log.debug(
+            "Estimated cost: input=%d tokens ($%.6f), output=%d tokens ($%.6f), total=$%.6f",
+            input_tokens,
+            input_cost,
+            output_tokens,
+            output_cost,
+            total_cost,
+        )
         return total_cost
 
     def get_cost_summary_dict(self) -> dict[str, Any]:
@@ -86,7 +112,7 @@ class CostTracker:
         }
         log.debug("Cost summary: %s", summary)
         return summary
-    
+
     def print_cost_summary(self) -> None:
         print("=" * 50)
         print("Cost Summary (ESTIMATED)")
@@ -95,7 +121,9 @@ class CostTracker:
         print(f"Input tokens: {self.input_tokens}")
         print(f"Output tokens: {self.output_tokens}")
         print(f"Input price per 1M tokens: ${self.model_input_cost_per_1M_tokens:.3f}")
-        print(f"Output price per 1M tokens: ${self.model_output_cost_per_1M_tokens:.3f}")
+        print(
+            f"Output price per 1M tokens: ${self.model_output_cost_per_1M_tokens:.3f}"
+        )
         print(f"Total cost of extraction: ${self.get_current_cost():.3f}")
 
     def get_current_cost(self) -> float:
@@ -124,12 +152,21 @@ class CostTracker:
         obj.provider = d["provider"]
         obj.model = d["model"]
         obj.tokenizer = tiktoken.get_encoding("cl100k_base")
-        obj.model_input_cost_per_1M_tokens = d.get("model_input_cost_per_1M_tokens", 0.0)
-        obj.model_output_cost_per_1M_tokens = d.get("model_output_cost_per_1M_tokens", 0.0)
+        obj.model_input_cost_per_1M_tokens = d.get(
+            "model_input_cost_per_1M_tokens", 0.0
+        )
+        obj.model_output_cost_per_1M_tokens = d.get(
+            "model_output_cost_per_1M_tokens", 0.0
+        )
         obj.input_tokens = d.get("input_tokens", 0)
         obj.output_tokens = d.get("output_tokens", 0)
         obj.count_cache_hits_towards_cost = False  # Default value
         obj.max_budget = d.get("max_budget", None)
-        log.debug("CostTracker restored from dict: provider=%s, model=%s, input_tokens=%d, output_tokens=%d", 
-                 obj.provider, obj.model, obj.input_tokens, obj.output_tokens)
+        log.debug(
+            "CostTracker restored from dict: provider=%s, model=%s, input_tokens=%d, output_tokens=%d",
+            obj.provider,
+            obj.model,
+            obj.input_tokens,
+            obj.output_tokens,
+        )
         return obj
