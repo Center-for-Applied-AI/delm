@@ -25,11 +25,10 @@ R = TypeVar("R")  # output type
 class ConcurrentProcessor:
     """Thin wrapper over ThreadPoolExecutor.
 
-    Parameters
-    ----------
-    max_workers : int | None, optional
-        Number of threads. ``None`` (or <= 0) picks a heuristic default
-        ``min(32, os.cpu_count() + 4)``. A value of 1 forces sequential mode.
+    Args:
+        max_workers: Number of threads. ``None`` (or <= 0) picks a heuristic
+            default ``min(32, os.cpu_count() + 4)``. A value of 1 forces
+            sequential execution.
     """
 
     def __init__(self, *, max_workers: int | None = None) -> None:
@@ -47,19 +46,19 @@ class ConcurrentProcessor:
         items: Sequence[T],
         fn: Callable[[T], R],
     ) -> List[R]:
-        """Apply *fn* to each element of *items* (optionally) in parallel.
+        """Apply ``fn`` to each element of ``items`` (optionally) in parallel.
 
-        Results are returned in the same order as *items*.
+        Results are returned in the same order as ``items``.
 
         Args:
             items: The items to process.
             fn: The function to apply to each item.
 
         Returns:
-            A list of results.
+            A list of results corresponding to each input item.
 
         Raises:
-            Exception: If there are any errors during processing.
+            Exception: If a worker raises, the first exception is re‑raised after all futures complete.
         """
         if not items:
             log.debug("No items to process, returning empty list")

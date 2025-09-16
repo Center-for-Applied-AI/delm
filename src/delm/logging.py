@@ -31,26 +31,22 @@ def configure(
     disable_existing: bool = False,
     force: bool = False,
 ) -> None:
-    """
-    Configure logging for the *delm* package and its children.
-    
-    This function can only be called once unless force=True is specified.
-    Subsequent calls without force=True will be ignored.
+    """Configure logging for the ``delm`` package and its children.
 
-    Parameters
-    ----------
-    console_level : str
-        Level for stderr (default INFO).
-    file : str | Path | None
-        Path to a log file. ``None`` = no file handler.
-    file_level : str
-        Level for the file handler (default DEBUG).
-    fmt : str
-        Log‑record format.
-    disable_existing : bool
-        If True, wipe out any handlers the application has already set up.
-    force : bool
-        If True, force re-configuration even if already configured (default False).
+    This configures a console handler and, optionally, a rotating file handler.
+    The function is idempotent unless ``force`` is True.
+
+    Args:
+        console_level: Log level for stderr output (e.g., "INFO").
+        file_dir: Directory for the log file; used only if ``file_name`` is provided.
+        file_name: If provided, a rotating file handler is added at ``file_dir/file_name``.
+        file_level: Log level for the file handler (default "DEBUG").
+        fmt: Log record format string.
+        disable_existing: If True, disable existing loggers during configuration.
+        force: If True, reconfigure even if logging was already configured.
+
+    Returns:
+        None
     """
     global _configured
     

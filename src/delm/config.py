@@ -1,3 +1,12 @@
+"""Configuration objects for DELM.
+
+Defines typed, serializable, and validatable configuration classes used across
+the DELM pipeline: LLM extraction, splitting/scoring, schema, semantic cache,
+and the top‑level ``DELMConfig`` aggregator.
+
+Docstrings follow Google style.
+"""
+
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, TypeVar
@@ -49,19 +58,26 @@ from delm.constants import (
 
 
 class BaseConfig:
-    """Base class for all configuration objects with consistent validation and serialization."""
+    """Base class for configuration objects.
+
+    Subclasses should implement ``validate`` and ``to_dict`` to provide strict
+    validation and stable serialization.
+    """
     
     def validate(self):
-        """Validate configuration. Override in subclasses."""
+        """Validate configuration.
+
+        Subclasses should raise ``ValueError`` when fields are invalid.
+        """
         pass
     
     def to_dict(self) -> dict:
-        """Convert configuration to dictionary. Override in subclasses."""
+        """Convert configuration to a serializable dictionary."""
         return {}
     
     @classmethod
     def from_dict(cls: type[T], data: Dict[str, Any]) -> T:
-        """Create configuration from dictionary. Override in subclasses."""
+        """Create configuration instance from a dictionary."""
         return cls(**data)
 
 
@@ -82,10 +98,19 @@ class LLMExtractionConfig(BaseConfig):
     model_output_cost_per_1M_tokens: float | None = None
 
     def get_provider_string(self) -> str:
-        """Get the combined provider string for Instructor."""
+        """Return the combined provider string for Instructor.
+
+        Returns:
+            Provider string in the form ``"<provider>/<model>"``.
+        """
         return f"{self.provider}/{self.name}"
 
     def validate(self):
+        """Validate all LLM extraction fields.
+
+        Raises:
+            ValueError: If any field has an invalid value.
+        """
         if not isinstance(self.provider, str) or not self.provider:
             raise ValueError(
                 f"Provider must be a non-empty string. provider: {self.provider}, Suggestion: Use e.g. 'openai', 'anthropic', 'google', etc."
@@ -155,22 +180,50 @@ class SplittingConfig(BaseConfig):
     strategy: Optional[SplitStrategy] = field(default=None)
 
     def validate(self):
+        """Validate the configured split strategy.
+
+        Raises:
+            ValueError: If ``strategy`` is provided but not a ``SplitStrategy``.
+        """
         if self.strategy is not None and not isinstance(self.strategy, SplitStrategy):
             raise ValueError(
                 f"strategy must be a SplitStrategy instance or None. strategy_type: {type(self.strategy).__name__}, Suggestion: Use a valid SplitStrategy subclass or None for no splitting"
             )
 
     def to_dict(self) -> dict:
+        """Serialize the strategy configuration to a dictionary.
+
+        Returns:
+            A dictionary with the strategy configuration or ``{"type": "None"}``.
+        """
         return self.strategy.to_dict() if self.strategy else {"type": "None"}
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SplittingConfig":
+        """Construct a ``SplittingConfig`` from a mapping.
+
+        Args:
+            data: Mapping with a ``type`` key and optional parameters.
+
+        Returns:
+            A configured ``SplittingConfig`` instance.
+        """
         strategy = cls._create_strategy(data)
         return cls(strategy=strategy)
 
     @staticmethod
     def _create_strategy(cfg: Dict[str, Any]) -> Optional[SplitStrategy]:
-        """Create split strategy from configuration."""
+        """Create a split strategy from a mapping.
+
+        Args:
+            cfg: Mapping with a ``type`` key and optional parameters.
+
+        Returns:
+            A ``SplitStrategy`` instance or ``None``.
+
+        Raises:
+            ValueError: If the ``type`` is unknown or invalid.
+        """
         if cfg == {} or cfg is None:
             return None
         
@@ -196,22 +249,46 @@ class ScoringConfig(BaseConfig):
     scorer: Optional[RelevanceScorer] = field(default=None)
 
     def validate(self):
+        """Validate the configured scorer.
+
+        Raises:
+            ValueError: If ``scorer`` is provided but not a ``RelevanceScorer``.
+        """
         if self.scorer is not None and not isinstance(self.scorer, RelevanceScorer):
             raise ValueError(
                 f"scorer must be a RelevanceScorer instance or None. scorer_type: {type(self.scorer).__name__}, Suggestion: Use a valid RelevanceScorer subclass or None for no scoring"
             )
 
     def to_dict(self) -> dict:
+        """Serialize the scoring configuration to a dictionary."""
         return self.scorer.to_dict() if self.scorer else {"type": "None"}
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ScoringConfig":
+        """Construct a ``ScoringConfig`` from a mapping.
+
+        Args:
+            data: Mapping with a ``type`` key and optional parameters.
+
+        Returns:
+            A configured ``ScoringConfig`` instance.
+        """
         scorer = cls._create_scorer(data)
         return cls(scorer=scorer)
 
     @staticmethod
     def _create_scorer(cfg: Dict[str, Any]) -> Optional[RelevanceScorer]:
-        """Create scorer from configuration."""
+        """Create a scorer from a mapping.
+
+        Args:
+            cfg: Mapping with a ``type`` key and optional parameters.
+
+        Returns:
+            A ``RelevanceScorer`` instance or ``None``.
+
+        Raises:
+            ValueError: If the ``type`` is unknown or invalid.
+        """
         if cfg == {} or cfg is None:
             return None
         
@@ -240,7 +317,7 @@ class ScoringConfig(BaseConfig):
 
 @dataclass
 class DataPreprocessingConfig(BaseConfig):
-    """Configuration for data preprocessing pipeline."""
+    """Configuration for the data preprocessing pipeline."""
     target_column: str = SYSTEM_RAW_DATA_COLUMN
     drop_target_column: bool = DEFAULT_DROP_TARGET_COLUMN
     splitting: SplittingConfig = field(default_factory=SplittingConfig) # use default factory because these types are mutable
@@ -250,6 +327,12 @@ class DataPreprocessingConfig(BaseConfig):
     _explicitly_set_fields: set = field(default_factory=set, init=False)
 
     def validate(self):
+        """Validate the preprocessing configuration.
+
+        Raises:
+            ValueError: If any field is invalid or conflicts are found when
+                ``preprocessed_data_path`` is provided.
+        """
         if self.preprocessed_data_path:
             self._validate_preprocessed_data_path()
             self._validate_no_conflicts_with_preprocessed_data()
@@ -260,7 +343,11 @@ class DataPreprocessingConfig(BaseConfig):
         self.scoring.validate()
 
     def _validate_preprocessed_data_path(self):
-        """Validate preprocessed data path configuration."""
+        """Validate ``preprocessed_data_path`` when provided.
+
+        Raises:
+            ValueError: If the file is not a feather file or lacks required columns.
+        """
         if self.preprocessed_data_path is None:
             return
             
@@ -284,7 +371,11 @@ class DataPreprocessingConfig(BaseConfig):
             ) from e
 
     def _validate_no_conflicts_with_preprocessed_data(self):
-        """Validate no conflicting fields when using preprocessed data."""
+        """Ensure no conflicting fields are set when using preprocessed data.
+
+        Raises:
+            ValueError: If mutually exclusive fields are provided.
+        """
         conflicting = []
         if "target_column" in self._explicitly_set_fields:
             conflicting.append("target_column")
@@ -303,7 +394,11 @@ class DataPreprocessingConfig(BaseConfig):
             )
 
     def _validate_basic_fields(self):
-        """Validate basic configuration fields."""
+        """Validate basic preprocessing fields.
+
+        Raises:
+            ValueError: If individual fields are malformed.
+        """
         if not isinstance(self.target_column, str) or not self.target_column:
             raise ValueError(
                 f"target_column must be a non-empty string. target_column: {self.target_column}, Suggestion: Provide a valid column name"
@@ -328,6 +423,11 @@ class DataPreprocessingConfig(BaseConfig):
                 )
 
     def to_dict(self) -> dict:
+        """Serialize preprocessing configuration.
+
+        Returns:
+            A dictionary representation suitable for YAML serialization.
+        """
         if self.preprocessed_data_path:
             return {"preprocessed_data_path": self.preprocessed_data_path}
         
@@ -341,6 +441,17 @@ class DataPreprocessingConfig(BaseConfig):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DataPreprocessingConfig":
+        """Construct a ``DataPreprocessingConfig`` from a mapping.
+
+        Tracks which fields were explicitly set to detect conflicts when
+        ``preprocessed_data_path`` is used.
+
+        Args:
+            data: Mapping of preprocessing options.
+
+        Returns:
+            A configured ``DataPreprocessingConfig`` instance.
+        """
         # Track explicitly set fields
         explicitly_set_fields = set(data.keys())
         
@@ -359,18 +470,24 @@ class DataPreprocessingConfig(BaseConfig):
 @dataclass
 class SchemaConfig(BaseConfig):
     """Configuration for extraction schema reference and settings.
-    
+
     This config contains:
     - Path to the schema specification file (schema_spec.yaml)
-    - Schema-specific settings (prompts)
-    
-    The actual schema definition (including container_name) is stored in the separate schema_spec.yaml file.
+    - Schema‑specific settings (prompts)
+
+    The actual schema definition (including container_name) is stored in the
+    separate schema_spec.yaml file.
     """
     spec_path: Optional[Union[str, Path]] = DEFAULT_SCHEMA_PATH
     prompt_template: str = DEFAULT_PROMPT_TEMPLATE
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
 
     def validate(self):
+        """Validate schema configuration.
+
+        Raises:
+            ValueError: If the spec path does not exist or fields are malformed.
+        """
         if not isinstance(self.spec_path, (Path, str)) or not self.spec_path:
             raise ValueError(
                 f"spec_path must be a valid Path or string. spec_path: {str(self.spec_path)}, Suggestion: Provide a valid file path"
@@ -393,6 +510,7 @@ class SchemaConfig(BaseConfig):
             )
 
     def to_dict(self) -> dict:
+        """Serialize schema configuration to a dictionary."""
         return {
             "spec_path": str(self.spec_path) if self.spec_path else None,
             "prompt_template": self.prompt_template,
@@ -401,6 +519,7 @@ class SchemaConfig(BaseConfig):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SchemaConfig":
+        """Construct a ``SchemaConfig`` from a mapping."""
         if data is None:
             data = {}
         
@@ -417,7 +536,7 @@ class SchemaConfig(BaseConfig):
 
 @dataclass
 class SemanticCacheConfig(BaseConfig):
-    """Persistent semantic-cache settings."""
+    """Persistent semantic‑cache settings."""
     backend: str = DEFAULT_SEMANTIC_CACHE_BACKEND
     path: Union[str, Path] = DEFAULT_SEMANTIC_CACHE_PATH
     max_size_mb: int = DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB
@@ -428,6 +547,11 @@ class SemanticCacheConfig(BaseConfig):
         return Path(self.path).expanduser().resolve()
 
     def validate(self):
+        """Validate semantic cache configuration.
+
+        Raises:
+            ValueError: If backend or parameters are invalid.
+        """
         if self.backend not in {"sqlite", "lmdb", "filesystem"}:
             raise ValueError(
                 f"cache.backend must be 'sqlite', 'lmdb', or 'filesystem'. backend: {self.backend}"
@@ -442,6 +566,7 @@ class SemanticCacheConfig(BaseConfig):
             )
 
     def to_dict(self) -> dict:
+        """Serialize semantic cache configuration."""
         return {
             "backend": self.backend,
             "path": str(self.path),
@@ -451,6 +576,7 @@ class SemanticCacheConfig(BaseConfig):
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "SemanticCacheConfig":
+        """Construct a ``SemanticCacheConfig`` from a mapping."""
         if data is None:
             data = {}
         
@@ -464,12 +590,12 @@ class SemanticCacheConfig(BaseConfig):
 
 @dataclass
 class DELMConfig(BaseConfig):
-    """Complete DELM configuration containing both pipeline settings and schema reference.
-    
-    This class represents the full configuration for a DELM experiment, which includes:
+    """Complete DELM configuration including pipeline and schema reference.
+
+    Contains:
     - Pipeline configuration (LLM settings, data preprocessing, etc.)
     - Reference to a separate schema specification file
-    
+
     The configuration can be loaded from:
     - A single pipeline config file (config.yaml) that references a schema file
     - Separate pipeline config and schema spec files
@@ -480,13 +606,14 @@ class DELMConfig(BaseConfig):
     semantic_cache: SemanticCacheConfig
 
     def validate(self):
+        """Validate all sub‑configurations."""
         self.llm_extraction.validate()
         self.data_preprocessing.validate()
         self.schema.validate()
         self.semantic_cache.validate()
 
     def to_serialized_config_dict(self) -> dict:
-        """Return a dictionary suitable for saving as the pipeline config YAML (config.yaml)."""
+        """Return a dictionary suitable for saving as pipeline config YAML."""
         return {
             "llm_extraction": self.llm_extraction.to_dict(),
             "data_preprocessing": self.data_preprocessing.to_dict(),
@@ -519,13 +646,13 @@ class DELMConfig(BaseConfig):
 
     # Backward compatibility aliases
     def to_dict(self) -> dict:
-        """Alias for to_serialized_config_dict() for backward compatibility."""
+        """Alias for ``to_serialized_config_dict`` for backward compatibility."""
         return self.to_serialized_config_dict()
 
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DELMConfig":
-        """Create DELMConfig from dictionary."""
+        """Create ``DELMConfig`` from a mapping."""
         if data is None:
             data = {}
         
@@ -538,7 +665,17 @@ class DELMConfig(BaseConfig):
 
     @classmethod
     def from_yaml(cls, path: Path) -> "DELMConfig":
-        """Create DELMConfig from pipeline config YAML file."""
+        """Create ``DELMConfig`` from a pipeline config YAML file.
+
+        Args:
+            path: Path to the YAML configuration.
+
+        Returns:
+            A configured ``DELMConfig`` instance.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+        """
         if not path.exists():
             raise FileNotFoundError(
                 f"YAML config file does not exist: {path}"
@@ -551,7 +688,17 @@ class DELMConfig(BaseConfig):
 
     @staticmethod
     def from_any(config_like) -> "DELMConfig":
-        """Create DELMConfig from various input types."""
+        """Create ``DELMConfig`` from various input types.
+
+        Args:
+            config_like: Instance of ``DELMConfig``, dict, or path to YAML file.
+
+        Returns:
+            A configured ``DELMConfig`` instance.
+
+        Raises:
+            ValueError: If the input type is unsupported.
+        """
         if isinstance(config_like, DELMConfig):
             return config_like
         elif isinstance(config_like, str):

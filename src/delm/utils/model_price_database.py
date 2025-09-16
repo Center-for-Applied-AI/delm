@@ -1,5 +1,7 @@
-# Model pricing database for input/output tokens per million tokens.
-# Add new models and providers as needed.
+"""Model pricing database for input/output tokens per million tokens.
+
+Add new models and providers as needed.
+"""
 
 import logging
 from typing import Tuple

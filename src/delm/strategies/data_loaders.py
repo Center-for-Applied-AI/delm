@@ -30,8 +30,8 @@ class DataLoader(ABC):
     
     @abstractmethod
     def load(self, path: Path) -> pd.DataFrame:
-        """Load data from file and return as string or DataFrame.
-        
+        """Load data from a single file path into a DataFrame.
+
         Args:
             path: The path to the file to load.
 
@@ -69,9 +69,7 @@ class HtmlLoader(DataLoader):
         try:
             from bs4 import BeautifulSoup  # type: ignore
         except ImportError:
-            raise ImportError(
-                "BeautifulSoup4 not installed but required for .html/.md loading"
-            )
+            raise ImportError("BeautifulSoup4 not installed but required for .html/.md loading")
         content = path.read_text(encoding="utf-8", errors="replace")
         log.debug(f"HTML/Markdown file read successfully: {path}, content length: {len(content)} characters")
         soup = BeautifulSoup(content, "html.parser")
@@ -94,9 +92,7 @@ class DocxLoader(DataLoader):
         try:
             import docx  # python‑docx
         except ImportError:
-            raise ImportError(
-                "python-docx not installed but required for .docx loading"
-            )
+            raise ImportError("python-docx not installed but required for .docx loading")
         
         doc = docx.Document(str(path))
         log.debug(f"Word document opened successfully: {path}")
@@ -207,9 +203,7 @@ class PdfLoader(DataLoader):
             from marker.output import text_from_rendered  # type: ignore[import]
             log.debug(f"Marker PDF dependencies imported successfully")
         except ImportError:
-            raise ImportError(
-                "marker-pdf not installed but required for .pdf loading"
-            )
+            raise ImportError("marker-pdf not installed but required for .pdf loading")
         
         log.debug(f"Creating PDF converter for: {path}")
         converter = PdfConverter(artifact_dict=create_model_dict())
@@ -330,16 +324,16 @@ class DataLoaderFactory:
     
     def load_directory(self, directory_path: Union[str, Path]) -> tuple[pd.DataFrame, str]:
         """Load a directory of files using the appropriate loader.
-        
+
         Args:
             directory_path: The path to the directory to load.
 
         Returns:
-            tuple[pd.DataFrame, str]: A tuple containing the loaded dataframe and the extension of the loaded files.
-        
+            A tuple of (DataFrame of concatenated contents, extension string).
+
         Raises:
             FileNotFoundError: If the directory does not exist.
-            ValueError: If the directory contains multiple file types.
+            ValueError: If the directory contains multiple file types or no files were loaded.
         """
         path = Path(directory_path)
         log.debug(f"Loading directory: {path}")

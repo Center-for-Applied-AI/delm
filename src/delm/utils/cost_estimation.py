@@ -1,3 +1,9 @@
+"""Cost estimation helpers for DELM.
+
+Provides utilities to estimate approximate input token costs without API calls
+and total extraction costs using a sampled run.
+"""
+
 from __future__ import annotations
 
 import logging
@@ -34,15 +40,18 @@ def estimate_input_token_cost(
     console_log_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
     file_log_level: str = DEFAULT_FILE_LOG_LEVEL,
 ) -> float:
-    """
-    Should estimate input token cost based on whole dataset.
-    
+    """Estimate input token cost over the entire dataset without API calls.
+
     Args:
-        config: Configuration for the DELM pipeline.
-        data_source: Source data for extraction.
-        log_file: Optional path to log file. If None, creates {DEFAULT_LOG_DIR}/{DEFAULT_LOG_FILE_PREFIX}_cost_estimation_run_<timestamp>.log at project root.
+        config: Configuration for the DELM pipeline (config path | dict | ``DELMConfig``).
+        data_source: Source data for extraction (path or DataFrame).
+        save_file_log: Whether to write a rotating log file.
+        log_dir: Directory for log files when ``save_file_log`` is True.
         console_log_level: Log level for console output.
         file_log_level: Log level for file output.
+
+    Returns:
+        Estimated dollar cost of input tokens for processing all chunks.
     """
     from delm.logging import configure
     from datetime import datetime
@@ -117,16 +126,19 @@ def estimate_total_cost(
     console_log_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
     file_log_level: str = DEFAULT_FILE_LOG_LEVEL,
 ) -> float:
-    """
-    Estimate total cost using API calls on a sample of the data.
-    
+    """Estimate total cost using API calls on a sample of the data.
+
     Args:
-        config: Configuration for the DELM pipeline.
-        data_source: Source data for extraction.
+        config: Configuration for the DELM pipeline (config path | dict | ``DELMConfig``).
+        data_source: Source data for extraction (path or DataFrame).
         sample_size: Number of records to sample for cost estimation.
-        log_file: Optional path to log file. If None, creates {DEFAULT_LOG_DIR}/{DEFAULT_LOG_FILE_PREFIX}_cost_estimation_run_<timestamp>.log at project root.
+        save_file_log: Whether to write a rotating log file.
+        log_dir: Directory for log files when ``save_file_log`` is True.
         console_log_level: Log level for console output.
         file_log_level: Log level for file output.
+
+    Returns:
+        Estimated dollar cost for processing the entire dataset, scaled from the sample.
     """
     from delm.logging import configure
     from datetime import datetime

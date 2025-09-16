@@ -1,3 +1,5 @@
+"""Post‑processing helpers for DELM extraction outputs."""
+
 import json
 import logging
 import pandas as pd
@@ -248,15 +250,16 @@ def explode_json_results(input_df: pd.DataFrame, schema: Union[BaseSchema, str, 
     return pd.DataFrame(exploded_rows)
 
 def _explode_simple_schema_row(data: Dict[str, Any], system_cols: Dict[str, Any], schema: BaseSchema, schema_prefix: str = "") -> List[Dict[str, Any]]:
-    """
-    Explode a single row from a simple schema (or nested schema item).
-    Keeps list fields as lists, does not explode them.
-    
+    """Explode a single row for simple schema or nested item without list explosion.
+
     Args:
-        data: The data dictionary to explode
-        system_cols: System columns to include in each row
-        schema: The schema object
-        schema_prefix: Optional prefix to add to column names (for multiple schemas)
+        data: The data dictionary to explode.
+        system_cols: System columns to include in each row.
+        schema: The schema object.
+        schema_prefix: Optional prefix to add to column names (for multiple schemas).
+
+    Returns:
+        A list with a single row mapping columns to values.
     """
     if not data:
         return []

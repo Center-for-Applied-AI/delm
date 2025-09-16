@@ -69,15 +69,21 @@ class DELM:
         """Initialize the DELM extraction pipeline.
 
         Args:
-            config: DELMConfig instance for this pipeline.
+            config: DELM configuration for this pipeline.
             experiment_name: Name of the experiment.
-            experiment_directory: Directory for experiment outputs.
+            experiment_directory: Base directory for experiment outputs.
             overwrite_experiment: Whether to overwrite existing experiment data.
-            auto_checkpoint_and_resume_experiment: Whether to auto-resume experiments.
-            use_disk_storage: If True, use disk-based experiment manager; if False, use in-memory manager.
-            log_file: Optional path to log file. If None, creates delm_logs/delm_<experiment_name>_run_<timestamp>.log at project root.
+            auto_checkpoint_and_resume_experiment: Whether to auto‑resume from checkpoints.
+            use_disk_storage: If True, use disk‑based experiment manager; otherwise in‑memory.
+            save_file_log: If True, write a rotating log file under ``log_dir``.
+            log_dir: Directory for log files. If None and ``save_file_log`` is True, defaults
+                to ``DEFAULT_LOG_DIR/<experiment_name>``.
             console_log_level: Log level for console output.
             file_log_level: Log level for file output.
+            override_logging: If True, force reconfiguration of logging for the process.
+
+        Raises:
+            ValueError: If the provided ``config`` is invalid.
         """
         # Configure logging
         if save_file_log:
@@ -220,13 +226,16 @@ class DELM:
 
     
     def prep_data(self, data: str | Path | pd.DataFrame, sample_size: int = -1) -> pd.DataFrame:
-        """Preprocess data using the instance config and always save to the experiment manager.
+        """Preprocess data using the instance config and save to the experiment manager.
 
         Args:
-            data: Input data as a string, Path, or DataFrame.
+            data: Input data as a string path, ``Path``, or ``DataFrame``.
+            sample_size: Optional number of records to sample before processing. ``-1``
+                (default) processes all rows; a positive value samples deterministically
+                using ``SYSTEM_RANDOM_SEED``.
 
         Returns:
-            DataFrame of prepped (chunked) data.
+            A DataFrame containing chunked (and optionally scored) data ready for extraction.
         """
         log.debug("Starting data preprocessing")
         log.debug("Loading data from source: %s", data)

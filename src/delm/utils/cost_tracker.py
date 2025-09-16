@@ -1,3 +1,5 @@
+"""Token counting and cost tracking utilities for DELM."""
+
 import logging
 import tiktoken
 import json
@@ -8,6 +10,7 @@ from typing import List, Any
 log = logging.getLogger(__name__)
 
 class CostTracker:
+    """Track tokens and estimate cost for an extraction run."""
     def __init__(
         self, 
         provider: str,
@@ -32,6 +35,7 @@ class CostTracker:
                  self.model_input_cost_per_1M_tokens, self.model_output_cost_per_1M_tokens)
 
     def is_over_budget(self) -> bool:
+        """Return True if current estimated cost exceeds ``max_budget``."""
         current_cost = self.get_current_cost()
         if self.max_budget is None:
             return False
@@ -41,32 +45,38 @@ class CostTracker:
         return is_over
 
     def track_input_text(self, text: str):
+        """Accumulate input tokens for a single text string."""
         tokens = self.count_tokens(text)
         self.input_tokens += tokens
         log.debug("Tracked input text: %d tokens (total: %d)", tokens, self.input_tokens)
 
     def track_output_text(self, text: str):
+        """Accumulate output tokens for a single text string."""
         tokens = self.count_tokens(text)
         self.output_tokens += tokens
         log.debug("Tracked output text: %d tokens (total: %d)", tokens, self.output_tokens)
     
     def track_output_pydantic(self, response: Any) -> None:
+        """Accumulate output tokens from a Pydantic model response."""
         response_json = json.dumps(response.model_dump(mode="json"))
         tokens = self.count_tokens(response_json)
         self.output_tokens += tokens
         log.debug("Tracked Pydantic output: %d tokens (total: %d)", tokens, self.output_tokens)
 
     def count_tokens(self, text: str) -> int:
+        """Return token count for a given string using the model tokenizer."""
         tokens = len(self.tokenizer.encode(text))
         log.debug("Counted tokens: %d for text length %d", tokens, len(text))
         return tokens
 
     def count_tokens_batch(self, texts: List[str]) -> int:
+        """Return total token count for an iterable of strings."""
         total_tokens = sum(self.count_tokens(t) for t in texts)
         log.debug("Counted batch tokens: %d total for %d texts", total_tokens, len(texts))
         return total_tokens
 
     def estimate_cost(self, input_tokens: int, output_tokens: int) -> float:
+        """Estimate dollar cost for given input and output token counts."""
         input_cost = input_tokens * self.model_input_cost_per_1M_tokens / 1_000_000
         output_cost = output_tokens * self.model_output_cost_per_1M_tokens / 1_000_000
         total_cost = input_cost + output_cost
@@ -75,6 +85,7 @@ class CostTracker:
         return total_cost
 
     def get_cost_summary_dict(self) -> dict[str, Any]:
+        """Return a dictionary summary of the current cost state."""
         summary = {
             "provider": self.provider,
             "model": self.model,
@@ -88,6 +99,7 @@ class CostTracker:
         return summary
     
     def print_cost_summary(self) -> None:
+        """Print a human‑readable cost summary to stdout."""
         print("=" * 50)
         print("Cost Summary (ESTIMATED)")
         print("=" * 50)
@@ -99,11 +111,13 @@ class CostTracker:
         print(f"Total cost of extraction: ${self.get_current_cost():.3f}")
 
     def get_current_cost(self) -> float:
+        """Return the current estimated total cost."""
         current_cost = self.estimate_cost(self.input_tokens, self.output_tokens)
         log.debug("Current cost: $%.6f", current_cost)
         return current_cost
 
     def to_dict(self) -> dict:
+        """Serialize the tracker state to a dictionary."""
         state_dict = {
             "provider": self.provider,
             "model": self.model,
@@ -118,6 +132,7 @@ class CostTracker:
 
     @classmethod
     def from_dict(cls, d: dict) -> "CostTracker":
+        """Create a tracker from a previously serialized dictionary."""
         log.debug("Creating CostTracker from dict: %s", d)
         # Create object without calling __init__ to avoid database lookup
         obj = cls.__new__(cls)

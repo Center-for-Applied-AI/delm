@@ -85,12 +85,16 @@ def make_cache_key(
     model_name: str,
     temperature: float,
 ) -> str:
-    """
-    Build a deterministic cache key that depends **only** on:
-      • rendered user prompt text  (includes chunk & any template vars)  
-      • system prompt text  
-      • model_name  (e.g. 'gpt‑4o-mini')  
-      • temperature
+    """Build a deterministic cache key from prompt and model settings.
+
+    Args:
+        prompt_text: Rendered user prompt text (includes chunk and variables).
+        system_prompt: The system prompt text.
+        model_name: Provider/model identifier (e.g., ``"gpt-4o-mini"``).
+        temperature: Sampling temperature.
+
+    Returns:
+        A 64‑character hex digest keyed on the materialized inputs.
     """
     log.debug("Creating cache key: model=%s, temperature=%s, prompt_length=%d, system_length=%d", 
              model_name, temperature, len(prompt_text), len(system_prompt))

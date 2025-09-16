@@ -42,16 +42,16 @@ class BaseExperimentManager(ABC):
     """Abstract base class for DELM experiment managers."""
     @abstractmethod
     def get_results(self) -> pd.DataFrame:
-        """Get the results from the experiment directory.
-        
+        """Get the results produced by the experiment.
+
         Returns:
-            A DataFrame containing the results..
+            A DataFrame containing the results.
         """
         pass
     @abstractmethod
     def initialize_experiment(self, delm_config: DELMConfig):
-        """Initialize the experiment.
-        
+        """Initialize the experiment state and directories.
+
         Args:
             delm_config: The DELM configuration.
         """
@@ -59,7 +59,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def save_preprocessed_data(self, df: pd.DataFrame) -> Path:
         """Save the preprocessed data to the experiment directory.
-        
+
         Args:
             df: The DataFrame to save.
 
@@ -69,10 +69,11 @@ class BaseExperimentManager(ABC):
         pass
     @abstractmethod
     def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
-        """Load the preprocessed data from the experiment directory.
-        
+        """Load preprocessed data from the experiment directory.
+
         Args:
-            file_path: The path to the preprocessed data.
+            file_path: Optional explicit path to a feather file; when omitted,
+                use the manager's default preprocessed data path.
 
         Returns:
             A DataFrame containing the preprocessed data.
@@ -81,7 +82,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def save_batch_checkpoint(self, batch_df: pd.DataFrame, batch_id: int) -> Path:
         """Save a batch checkpoint to the experiment directory.
-        
+
         Args:
             batch_df: The DataFrame to save.
             batch_id: The ID of the batch.
@@ -93,7 +94,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def list_batch_checkpoints(self) -> List[Path]:
         """List all batch checkpoint files in the processing cache directory.
-        
+
         Returns:
             A list of paths to the batch checkpoint files.
         """
@@ -101,7 +102,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def load_batch_checkpoint(self, batch_path: Path) -> pd.DataFrame:
         """Load a batch checkpoint from a feather file.
-        
+
         Args:
             batch_path: The path to the batch checkpoint file.
 
@@ -112,7 +113,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def load_batch_checkpoint_by_id(self, batch_id: int) -> pd.DataFrame:
         """Load a batch checkpoint by batch ID.
-        
+
         Args:
             batch_id: The ID of the batch.
 
@@ -123,7 +124,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def consolidate_batches(self) -> pd.DataFrame:
         """Consolidate all batch files into a single DataFrame and save as final result.
-        
+
         Returns:
             A DataFrame containing the consolidated data.
         """
@@ -135,7 +136,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def get_all_existing_batch_ids(self) -> set:
         """Get all existing batch IDs.
-        
+
         Returns:
             A set of all existing batch IDs.
         """
@@ -143,7 +144,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def get_batch_checkpoint_path(self, batch_id: int) -> Path:
         """Get the path to the batch checkpoint file for a given batch ID.
-        
+
         Args:
             batch_id: The ID of the batch.
 
@@ -154,7 +155,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def delete_batch_checkpoint(self, batch_id: int) -> bool:
         """Delete the batch checkpoint file for a given batch ID.
-        
+
         Args:
             batch_id: The ID of the batch.
 
@@ -165,7 +166,7 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def save_state(self, cost_tracker: CostTracker):
         """Save the experiment state to the experiment directory.
-        
+
         Args:
             cost_tracker: The cost tracker to save.
         """
@@ -173,9 +174,9 @@ class BaseExperimentManager(ABC):
     @abstractmethod
     def load_state(self) -> CostTracker | None:
         """Load the experiment state from the experiment directory.
-        
+
         Returns:
-            The cost tracker.
+            The restored cost tracker, or None if not found.
         """
         pass
     @abstractmethod
@@ -225,8 +226,13 @@ class DiskExperimentManager(BaseExperimentManager):
         return result_file.exists()
 
     def get_results(self) -> pd.DataFrame:
-        """
-        Get the results from the experiment directory.
+        """Get the consolidated results from the experiment directory.
+
+        Returns:
+            A DataFrame containing the results.
+
+        Raises:
+            FileNotFoundError: If the consolidated result file does not exist.
         """
         result_file = self.data_dir / f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
         if not result_file.exists():
@@ -238,7 +244,14 @@ class DiskExperimentManager(BaseExperimentManager):
         return pd.read_feather(result_file)
 
     def initialize_experiment(self, delm_config: DELMConfig):
-        """Validate and create experiment directory structure, write config and schema files."""
+        """Validate and create experiment directory structure; write config and schema files.
+
+        Raises:
+            ExperimentManagementError: If the experiment directory exists and neither
+                overwrite nor checkpoint/resume is allowed.
+            FileNotFoundError: If attempting to resume without config files present.
+            ValueError: If resume config or schema mismatches current configuration.
+        """
         experiment_dir_path = self.experiment_dir
         if experiment_dir_path.exists():
             log.debug(f"Experiment directory already exists: {experiment_dir_path}")
@@ -364,7 +377,19 @@ class DiskExperimentManager(BaseExperimentManager):
         return self.preprocessed_data_path
 
     def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
-        """Load preprocessed data from feather file."""
+        """Load preprocessed data from a feather file.
+
+        Args:
+            file_path: Optional path to a feather file. If None, uses the manager's
+                default preprocessed data path.
+
+        Returns:
+            The loaded DataFrame.
+
+        Raises:
+            ValueError: If the experiment was not initialized or the file is not a feather file.
+            FileNotFoundError: If the file does not exist.
+        """
         if file_path is None:
             if not hasattr(self, 'preprocessed_data_path'):
                 raise ValueError("Experiment not initialized. Call initialize_experiment() first.")
@@ -399,7 +424,18 @@ class DiskExperimentManager(BaseExperimentManager):
         return batch_files
 
     def load_batch_checkpoint(self, batch_path: Path) -> pd.DataFrame:
-        """Load a batch checkpoint from a feather file."""
+        """Load a batch checkpoint from a feather file.
+
+        Args:
+            batch_path: Path to the batch feather file.
+
+        Returns:
+            The loaded DataFrame.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            ValueError: If the file extension is not ``.feather``.
+        """
         log.debug(f"Loading batch checkpoint from: {batch_path}")
         if not batch_path.exists():
             log.error(f"Batch checkpoint file does not exist: {batch_path}")
@@ -413,7 +449,14 @@ class DiskExperimentManager(BaseExperimentManager):
         return pd.read_feather(batch_path)
 
     def load_batch_checkpoint_by_id(self, batch_id: int) -> pd.DataFrame:
-        """Load a batch checkpoint by batch ID."""
+        """Load a batch checkpoint by batch ID.
+
+        Args:
+            batch_id: Batch ID to load.
+
+        Returns:
+            The loaded DataFrame.
+        """
         log.debug(f"Loading batch checkpoint by ID: {batch_id}")
         batch_filename = f"{BATCH_FILE_PREFIX}{batch_id:0{BATCH_FILE_DIGITS}d}{BATCH_FILE_SUFFIX}"
         batch_path = self.cache_dir / batch_filename
@@ -423,7 +466,14 @@ class DiskExperimentManager(BaseExperimentManager):
         return df
 
     def consolidate_batches(self) -> pd.DataFrame:
-        """Consolidate all batch files into a single DataFrame and save as final result."""
+        """Consolidate all batch files into a single DataFrame and save as final result.
+
+        Returns:
+            The concatenated DataFrame across all batch files.
+
+        Raises:
+            FileNotFoundError: If no batch files are present.
+        """
         batch_files = self.list_batch_checkpoints()
         if not batch_files:
             log.error(f"No batch files found for consolidation.")
@@ -472,7 +522,11 @@ class DiskExperimentManager(BaseExperimentManager):
         return self.cache_dir / batch_filename
 
     def delete_batch_checkpoint(self, batch_id: int) -> bool:
-        """Delete the batch checkpoint file for a given batch ID. Returns True if deleted."""
+        """Delete the batch checkpoint file for a given batch ID.
+
+        Returns:
+            True if the file was deleted; False if it did not exist.
+        """
         log.debug(f"Deleting batch checkpoint for batch ID: {batch_id}")
         path = self.get_batch_checkpoint_path(batch_id)
         log.debug(f"Batch checkpoint path: {path}")
@@ -546,6 +600,14 @@ class InMemoryExperimentManager(BaseExperimentManager):
         self._schema_dict = None
 
     def get_results(self) -> pd.DataFrame:
+        """Return extracted results held in memory.
+
+        Returns:
+            The extracted results DataFrame.
+
+        Raises:
+            ValueError: If results have not been saved.
+        """
         log.debug(f"Getting results from InMemoryExperimentManager")
         if self._extracted_data is None:
             log.error("Attempted to get results but no extracted data is present.")
@@ -554,15 +616,33 @@ class InMemoryExperimentManager(BaseExperimentManager):
         return self._extracted_data
 
     def initialize_experiment(self, delm_config: DELMConfig):
+        """Initialize in-memory experiment by storing config and schema dicts."""
         log.debug(f"Initializing experiment in InMemoryExperimentManager")
         self._config_dict = delm_config.to_serialized_config_dict()
         self._schema_dict = delm_config.to_serialized_schema_spec_dict()
 
     def save_preprocessed_data(self, df: pd.DataFrame) -> str:
+        """Save preprocessed data in memory.
+
+        Returns:
+            The literal string "in-memory".
+        """
         self._preprocessed_data = df.copy()
         return "in-memory"
 
     def load_preprocessed_data(self, file_path: Path | None = None) -> pd.DataFrame:
+        """Load preprocessed data from memory.
+
+        Args:
+            file_path: Must be None for in-memory manager.
+
+        Returns:
+            A copy of the stored preprocessed DataFrame.
+
+        Raises:
+            NotImplementedError: If a file path is provided.
+            ValueError: If no preprocessed data is available.
+        """
         if file_path is not None:
             log.error("Loading preprocessed data from a file path is not supported for InMemoryExperimentManager YET.")
             raise NotImplementedError("Loading preprocessed data from a file path is not supported for InMemoryExperimentManager YET.")
@@ -572,7 +652,11 @@ class InMemoryExperimentManager(BaseExperimentManager):
         return self._preprocessed_data.copy()
 
     def save_batch_checkpoint(self, batch_df: pd.DataFrame, batch_id: int) -> str:
-        """Save a batch checkpoint in memory."""
+        """Save a batch checkpoint in memory.
+
+        Returns:
+            A synthetic identifier string for the in-memory batch (e.g., "in-memory-batch-3").
+        """
         self._batches[batch_id] = batch_df.copy()
         return f"in-memory-batch-{batch_id}"
 
@@ -581,7 +665,17 @@ class InMemoryExperimentManager(BaseExperimentManager):
         return sorted(self._batches.keys())
 
     def load_batch_checkpoint(self, batch_path: str) -> pd.DataFrame:
-        """Load a batch checkpoint by a string path (expects 'in-memory-batch-{id}')."""
+        """Load a batch checkpoint by a synthetic path string.
+
+        Args:
+            batch_path: Path string in the form "in-memory-batch-{id}".
+
+        Returns:
+            The stored batch DataFrame.
+
+        Raises:
+            ValueError: If the path is malformed.
+        """
         if not batch_path.startswith("in-memory-batch-"):
             raise ValueError(f"Invalid batch path format: {batch_path}. Expected format: 'in-memory-batch-{{id}}'")
         try:
@@ -591,14 +685,31 @@ class InMemoryExperimentManager(BaseExperimentManager):
         return self.load_batch_checkpoint_by_id(batch_id)
 
     def load_batch_checkpoint_by_id(self, batch_id: int) -> pd.DataFrame:
-        """Load a batch checkpoint by batch ID."""
+        """Load a batch checkpoint by batch ID.
+
+        Args:
+            batch_id: The batch identifier previously saved.
+
+        Returns:
+            The stored batch DataFrame.
+
+        Raises:
+            ValueError: If the batch is not present in memory.
+        """
         if batch_id not in self._batches:
             log.error(f"Attempted to load batch checkpoint {batch_id} but it's not available in memory.")
             raise ValueError(f"No batch checkpoint with id {batch_id} in memory.")
         return self._batches[batch_id].copy()
 
     def consolidate_batches(self) -> pd.DataFrame:
-        """Concatenate all batch DataFrames in memory."""
+        """Concatenate all batch DataFrames in memory.
+
+        Returns:
+            Concatenated DataFrame across all in-memory batches.
+
+        Raises:
+            ValueError: If no batches have been saved.
+        """
         if not self._batches:
             log.error("Attempted to consolidate batches but no batch checkpoints are available in memory.")
             raise ValueError("No batch checkpoints in memory to consolidate.")
@@ -615,23 +726,37 @@ class InMemoryExperimentManager(BaseExperimentManager):
         self._batches.clear()
 
     def get_all_existing_batch_ids(self) -> set:
+        """Return all batch IDs stored in memory."""
         return set(self._batches.keys())
 
     def get_batch_checkpoint_path(self, batch_id: int) -> str:
+        """Return the synthetic path string for a batch ID."""
         return f"in-memory-batch-{batch_id}"
 
     def delete_batch_checkpoint(self, batch_id: int) -> bool:
+        """Delete a batch checkpoint by ID.
+
+        Returns:
+            True if the checkpoint existed and was removed; False otherwise.
+        """
         if batch_id in self._batches:
             del self._batches[batch_id]
             return True
         return False
 
     def save_state(self, cost_tracker: CostTracker):
+        """Save the cost tracker in memory."""
         self._state = cost_tracker
 
     def load_state(self) -> CostTracker | None:
+        """Load the cost tracker from memory."""
         return self._state
 
     def save_extracted_data(self, df: pd.DataFrame) -> str:
+        """Save extracted data in memory.
+
+        Returns:
+            The literal string "in-memory".
+        """
         self._extracted_data = df.copy()
-        return "in-memory" 
+        return "in-memory"
