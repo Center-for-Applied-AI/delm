@@ -81,7 +81,7 @@ from .constants import (
     IGNORE_FILES,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "Eric Fithian - Chicago Booth CAAI Lab"
 
 __all__ = [
