@@ -7,7 +7,7 @@ name = "delm"
 version = "0.1.0"
 description = "Data Extraction Language Model - A pipeline for extracting structured data from text using language models"
 readme = "README.md"
-license = "MIT"
+license = { text = "MIT" }
 authors = [
     {name = "Eric Fithian - Chicago Booth CAAI Lab"}
 ]
