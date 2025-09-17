@@ -1,3 +1,8 @@
+# db
+*.db
+*.db-shm
+*.db-wal
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -197,6 +202,7 @@ experiments/
 .delm_cache/
 .delm_cache/*
 examples/commodity_data*
+examples/cost_vs_coverage/cache/
 delm_logs/
 
 # API Keys and secrets
