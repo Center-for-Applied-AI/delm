@@ -2098,7 +2098,9 @@ separate schema_spec.yaml file.</p>
   </span>
 
 <a href="#delm.config.DELMConfig.from_any" class="headerlink" title="Permanent link">&para;</a></h3>
-<div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_any</span><span class="p">(</span><span class="n">config_like</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DELMConfig</span>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">from_any</span><span class="p">(</span>
+    <span class="n">config_like</span><span class="p">:</span> <span class="n">DELMConfig</span> <span class="o">|</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DELMConfig</span>
 </code></pre></div>
 
     <div class="doc doc-contents ">
@@ -2122,6 +2124,12 @@ separate schema_spec.yaml file.</p>
                 <code>config_like</code>
             </td>
             <td>
+                  <code><a class="autorefs autorefs-internal" title="delm.config.DELMConfig
+
+
+  
+      dataclass
+  " href="#delm.config.DELMConfig">DELMConfig</a> | <span title="dict">dict</span>[<span title="str">str</span>, <span title="typing.Any">Any</span>] | <span title="str">str</span> | <span title="pathlib.Path">Path</span></code>
             </td>
             <td>
               <div class="doc-md-description">
