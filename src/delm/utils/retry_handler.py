@@ -20,7 +20,7 @@ class RetryHandler:
         self.max_retries = max_retries
         self.base_delay = base_delay
     
-    def execute_with_retry(self, func: Callable, *args, **kwargs) -> Any:
+    def execute_with_retry(self, func: Callable, *args: Any, **kwargs: Any) -> Any:
         """Execute function with retry logic.
         
         Args:
@@ -32,7 +32,7 @@ class RetryHandler:
             The result of the function execution.
 
         Raises:
-            The last exception from the function execution if all attempts fail.
+            Exception: The last exception from the function execution if all attempts fail.
         """
         exceptions = []
         for attempt in range(self.max_retries + 1):

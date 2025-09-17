@@ -136,7 +136,7 @@ class DELM:
         config_path: Union[str, Path],
         experiment_name: str,
         experiment_directory: Path,
-        **kwargs,
+        **kwargs: Any,
     ) -> "DELM":
         """Create a DELM instance from a YAML configuration file.
 
@@ -168,7 +168,7 @@ class DELM:
         config_dict: Dict[str, Any],
         experiment_name: str,
         experiment_directory: Path,
-        **kwargs,
+        **kwargs: Any,
     ) -> "DELM":
         """Create a DELM instance from a configuration dictionary.
 

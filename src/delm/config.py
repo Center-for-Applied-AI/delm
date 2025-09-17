@@ -687,7 +687,9 @@ class DELMConfig(BaseConfig):
         return cls.from_dict(data)
 
     @staticmethod
-    def from_any(config_like) -> "DELMConfig":
+    def from_any(
+        config_like: "DELMConfig | dict[str, Any] | str | Path",
+    ) -> "DELMConfig":
         """Create ``DELMConfig`` from various input types.
 
         Args:
