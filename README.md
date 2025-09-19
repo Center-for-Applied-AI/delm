@@ -1,18 +1,24 @@
 # DELM (Data Extraction with Language Models)
 
-A comprehensive Python toolkit for extracting structured data from unstructured text using language models. DELM provides a configurable, scalable pipeline with built-in cost tracking, caching, and evaluation capabilities.
+DELM is a Python toolkit for extracting structured data from unstructured text using language models. It provides a configurable pipeline with cost tracking, caching, and evaluation capabilities.
 
 ## Features
 
-- **Multi-format Support**: TXT, HTML, MD, DOCX, PDF, CSV, Excel, Parquet, Feather
-- **Progressive Schema System**: Simple → Nested → Multiple schemas for any complexity
-- **Multi-Provider Support**: OpenAI, Anthropic, Google, Groq, Together AI, Fireworks AI
-- **Smart Processing**: Configurable text splitting, relevance scoring, and filtering
-- **Cost Optimization**: Built-in cost tracking, caching, and budget management
-- **Batch Processing**: Parallel execution with checkpointing and resume capabilities
-- **Comprehensive Evaluation**: Performance metrics and cost analysis tools
+- Supported input formats: TXT, HTML, MD, DOCX, PDF, CSV, Excel, Parquet, Feather
+- Progressive schema system: simple → nested → multiple
+- Multiple model providers: OpenAI, Anthropic, Google, Groq, Together AI, Fireworks AI
+- Configurable processing: text splitting, relevance scoring, filtering
+- Cost management: cost tracking, caching, budget limits
+- Batch processing: parallel execution with checkpointing and resume
+- Evaluation tools: performance metrics and cost analysis
 
 ## Installation
+
+```bash
+pip install delm
+```
+
+Or if you would like to install from source:
 
 ```bash
 # Clone the repository
@@ -23,9 +29,9 @@ cd delm
 pip install -e .
 ```
 
-## Quick Start
+## Quick start
 
-### Basic Usage
+### Basic usage
 
 ```python
 from pathlib import Path
@@ -47,11 +53,11 @@ final_df = delm.get_extraction_results()
 cost_summary = delm.get_cost_summary()
 ```
 
-### Configuration Files
+### Configuration files
 
 DELM uses two configuration files:
 
-**1. Pipeline Configuration (`config.yaml`)**
+1. Pipeline configuration (`config.yaml`)
 ```yaml
 llm_extraction:
   provider: "openai"
@@ -73,7 +79,7 @@ schema:
   spec_path: "schema_spec.yaml"
 ```
 
-**2. Schema Specification (`schema_spec.yaml`)**
+2. Schema specification (`schema_spec.yaml`)
 ```yaml
 schema_type: "nested"
 container_name: "commodities"
@@ -91,11 +97,11 @@ variables:
     required: false
 ```
 
-## Schema Types
+## Schema types
 
 DELM supports three levels of schema complexity:
 
-### Simple Schema (Level 1)
+### Simple schema (level 1)
 Extract key-value pairs from each text chunk:
 ```yaml
 schema_type: "simple"
@@ -108,7 +114,7 @@ variables:
     data_type: "string"
 ```
 
-### Nested Schema (Level 2)
+### Nested schema (level 2)
 Extract structured objects with multiple fields:
 ```yaml
 schema_type: "nested"
@@ -122,7 +128,7 @@ variables:
     data_type: "number"
 ```
 
-### Multiple Schema (Level 3)
+### Multiple schemas (level 3)
 Extract multiple independent schemas simultaneously:
 ```yaml
 schema_type: "multiple"
@@ -136,7 +142,7 @@ companies:
   variables: [...]
 ```
 
-## Supported Data Types
+## Supported data types
 
 | Type | Description | Example |
 |------|-------------|---------|
@@ -150,17 +156,17 @@ companies:
 | `[boolean]` | List of booleans | `[true, false, true]` |
 
 
-## Advanced Features
+## Advanced features
 
-### Cost Summary
+### Cost summary
 ```python
 # Get cost summary after extraction
 cost_summary = delm.get_cost_summary()
 print(f"Total cost: ${cost_summary['total_cost']}")
 ```
 
-### Semantic Caching
-Reuses API responses from identical calls. Ensures no wasted API credits for certain experiment re‑runs.
+### Semantic caching
+Caches API responses for identical calls to reduce repeated cost in re‑runs.
 ```yaml
 semantic_cache:
   backend: "sqlite"        # sqlite, lmdb, filesystem
@@ -169,7 +175,7 @@ semantic_cache:
   synchronous: "normal"    # sqlite only: "normal" or "full"
 ```
 
-### Relevance Filtering
+### Relevance filtering
 ```yaml
 data_preprocessing:
   scoring:
@@ -179,7 +185,7 @@ data_preprocessing:
 ```
 If a scorer is configured but no `pandas_score_filter` is provided, all chunks are kept (a warning is logged).
 
-### Text Splitting Strategies
+### Text splitting strategies
 ```yaml
 data_preprocessing:
   splitting:
@@ -191,9 +197,9 @@ data_preprocessing:
     # pattern: "\n\n"
 ```
 
-## Performance & Evaluation
+## Performance and evaluation
 
-### Cost Estimation
+### Cost estimation
 Estimate total cost of your current configuration setup before running the full extraction.
 ```python
 from delm.utils.cost_estimation import estimate_input_token_cost, estimate_total_cost
@@ -214,7 +220,7 @@ total_cost = estimate_total_cost(
 print(f"Estimated total cost: ${total_cost:.2f}")
 ```
 
-### Performance Evaluation
+### Performance evaluation
 Estimate the performance of your current configuration before running the full extraction.
 ```python
 from delm.utils.performance_estimation import estimate_performance
@@ -237,21 +243,21 @@ for key, value in metrics.items():
     print(f"{key:<30} Precision: {precision:.3f}  Recall: {recall:.3f}  F1: {f1:.3f}")
 ```
 
-## Configuration Reference
+## Configuration reference
 
-### Required Fields
+### Required fields
 - `llm_extraction.provider`: LLM provider (openai, anthropic, google, etc.)
 - `llm_extraction.name`: Model name (gpt-4o-mini, claude-3-sonnet, etc.)
 - `schema.spec_path`: Path to schema specification file
 
-### Optional Fields with Defaults
+### Optional fields with defaults
 - `llm_extraction.temperature`: 0.0 (deterministic)
 - `llm_extraction.batch_size`: 10 (records per batch)
 - `llm_extraction.max_workers`: 1 (concurrent workers)
 - `llm_extraction.track_cost`: true (cost tracking)
 - `semantic_cache.backend`: "sqlite" (cache backend)
 
-### Additional LLM Fields
+### Additional LLM fields
 - `llm_extraction.max_retries`: 3 (retry attempts)
 - `llm_extraction.base_delay`: 1.0 (seconds, exponential backoff base)
 - `llm_extraction.dotenv_path`: null (path to “.env” for credentials)
@@ -260,18 +266,18 @@ for key, value in metrics.items():
 
 If using providers not present in the built-in pricing DB, set both `model_input_cost_per_1M_tokens` and `model_output_cost_per_1M_tokens`, or set `track_cost: false`.
 
-### Data Preprocessing Fields
+### Data preprocessing fields
 - `data_preprocessing.drop_target_column`: false
 - `data_preprocessing.pandas_score_filter`: null (e.g., "delm_score >= 0.7")
 - `data_preprocessing.preprocessed_data_path`: null (path to “.feather” with `delm_text_chunk` and `delm_chunk_id`; when set, omit splitting/scoring/filter fields)
 
-### Semantic Cache Fields
+### Semantic cache fields
 - `semantic_cache.backend`: "sqlite" | "lmdb" | "filesystem"
 - `semantic_cache.path`: ".delm_cache"
 - `semantic_cache.max_size_mb`: 512
 - `semantic_cache.synchronous`: "normal" | "full" (sqlite only)
 
-## Experiment Storage & Logging
+## Experiment storage and logging
 
 - Disk storage (default): checkpointing, resume, and results persisted under `delm_experiments/<experiment_name>/`.
 - In-memory storage: `use_disk_storage=False` for fast prototyping (no persistence, no resume).
@@ -281,24 +287,24 @@ If using providers not present in the built-in pricing DB, set both `model_input
 
 ## Architecture
 
-### Core Components
-1. **DataProcessor**: Handles loading, splitting, and scoring
-2. **SchemaManager**: Manages schema loading and validation
-3. **ExtractionManager**: Orchestrates LLM extraction
-4. **ExperimentManager**: Handles experiment state and checkpointing
-5. **CostTracker**: Monitors API costs and budgets
+### Core components
+1. DataProcessor: Handles loading, splitting, and scoring
+2. SchemaManager: Manages schema loading and validation
+3. ExtractionManager: Orchestrates LLM extraction
+4. ExperimentManager: Handles experiment state and checkpointing
+5. CostTracker: Monitors API costs and budgets
 
-### Strategy Classes
-- **SplitStrategy**: Text chunking (Paragraph, FixedWindow, Regex)
-- **RelevanceScorer**: Content scoring (Keyword, Fuzzy)
-- **SchemaRegistry**: Schema type management
+### Strategy classes
+- SplitStrategy: Text chunking (Paragraph, FixedWindow, Regex)
+- RelevanceScorer: Content scoring (Keyword, Fuzzy)
+- SchemaRegistry: Schema type management
 
-### Estimation Functions
-- **estimate_input_token_cost**: Estimate input token costs without API calls
-- **estimate_total_cost**: Estimate total costs using API calls on a sample
-- **estimate_performance**: Evaluate extraction performance against human-labeled data
+### Estimation functions
+- estimate_input_token_cost: Estimate input token costs without API calls
+- estimate_total_cost: Estimate total costs using API calls on a sample
+- estimate_performance: Evaluate extraction performance against human-labeled data
 
-## File Format Support
+## File format support
 
 | Format | Extension | Requirements |
 |--------|-----------|--------------|
@@ -313,12 +319,12 @@ If using providers not present in the built-in pricing DB, set both `model_input
 
 ## Documentation
 
-### Local MkDocs Site
+### Local MkDocs site
 1. Install the documentation dependencies: `pip install mkdocs mkdocs-material mkdocstrings mkdocstrings-python`
 2. Serve the docs locally to `http://127.0.0.1:8000/`: `mkdocs serve`
 3. Use `mkdocs build` to generate a static site in the `site/` directory.
 
-### Reference Materials
+### Reference materials
 - [Schema Reference](SCHEMA_REFERENCE.md) - Detailed schema configuration guide
 - [Configuration Examples](example.config.yaml) - Complete configuration templates
 - [Schema Examples](example.schema_spec.yaml) - Schema specification templates

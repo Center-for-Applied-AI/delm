@@ -4,7 +4,7 @@ llm_extraction:
   temperature: 0.0
   max_retries: 3
   batch_size: 10
-  max_workers: 4
+  max_workers: 10
   base_delay: 1.0
   track_cost: true
   max_budget: 50.0
@@ -13,6 +13,7 @@ llm_extraction:
 data_preprocessing:
   target_column: "text"
   drop_target_column: false
+  pandas_score_filter: "delm_score > 0"
   splitting:
     type: "ParagraphSplit"
   scoring:
@@ -20,9 +21,14 @@ data_preprocessing:
     keywords: ["price", "cost", "market", "commodity", "oil", "gas", "steel", "copper", "aluminum", "gold"]
 
 schema:
-  spec_path: "../commodity_schema.yaml"
+  spec_path: "commodity_schema.yaml"
   container_name: "commodity_prices"
-  prompt_template: "Extract all numeric market prices for goods mentioned by firm representatives in investor call transcripts. For each, record: good, subtype (if needed), whether it's a price expectation, price bounds, unit, currency, and time horizon."
+  prompt_template: |
+    Extract all numeric market prices for goods mentioned by firm representatives in investor call transcripts. For each, record: good, subtype (if needed), whether it's a price expectation, price bounds, unit, currency, and time horizon.
+
+    {variables}
+
+    {text}
 
 semantic_cache:
   backend: "sqlite"

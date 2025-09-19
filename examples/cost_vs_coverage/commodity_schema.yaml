@@ -1,4 +1,4 @@
-type: "nested"
+schema_type: "nested"
 container_name: "commodity_prices"
 variables:
   - name: "good"

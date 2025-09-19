@@ -1,0 +1,74 @@
+{
+  "commodity_prices": {
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "tp": 0,
+    "fp": 13272,
+    "fn": 422
+  },
+  "commodity_prices.unit": {
+    "precision": 0.032231404958677684,
+    "recall": 0.40310077519379844,
+    "f1": 0.059690070786301896,
+    "tp": 156,
+    "fp": 4684,
+    "fn": 231
+  },
+  "commodity_prices.price_expectation": {
+    "precision": 0.5061728395061729,
+    "recall": 0.9946091644204852,
+    "f1": 0.6709090909090909,
+    "tp": 369,
+    "fp": 360,
+    "fn": 2
+  },
+  "commodity_prices.horizon": {
+    "precision": 0.01026252983293556,
+    "recall": 0.1075,
+    "f1": 0.018736383442265796,
+    "tp": 43,
+    "fp": 4147,
+    "fn": 357
+  },
+  "commodity_prices.price_lower": {
+    "precision": 0.0484808235098788,
+    "recall": 0.6935866983372921,
+    "f1": 0.09062693978895096,
+    "tp": 292,
+    "fp": 5731,
+    "fn": 129
+  },
+  "commodity_prices.price_upper": {
+    "precision": 0.04569276121847363,
+    "recall": 0.66270783847981,
+    "f1": 0.08549103722996783,
+    "tp": 279,
+    "fp": 5827,
+    "fn": 142
+  },
+  "commodity_prices.good": {
+    "precision": 0.020639960918417195,
+    "recall": 0.43896103896103894,
+    "f1": 0.03942610521404409,
+    "tp": 169,
+    "fp": 8019,
+    "fn": 216
+  },
+  "commodity_prices.currency": {
+    "precision": 0.4588607594936709,
+    "recall": 0.7671957671957672,
+    "f1": 0.5742574257425742,
+    "tp": 290,
+    "fp": 342,
+    "fn": 88
+  },
+  "commodity_prices.good_subtype": {
+    "precision": 0.011891891891891892,
+    "recall": 0.027777777777777776,
+    "f1": 0.016654049962149888,
+    "tp": 11,
+    "fp": 914,
+    "fn": 385
+  }
+}
