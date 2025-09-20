@@ -1,9 +1,4 @@
-<table>
-  <tr>
-    <td valign="middle"><img src="delm_logo.png" alt="DELM logo" width="200"></td>
-    <td valign="middle"><h1>Data Extraction with Language Models</h1></td>
-  </tr>
- </table>
+<h1><img src="delm_logo.png" alt="DELM logo" width="200" style="vertical-align: middle; margin-right: 8px;"> Data Extraction with Language Models</h1>
 
 DELM is a Python toolkit for extracting structured data from unstructured text using language models. It provides a configurable pipeline with cost tracking, caching, and evaluation capabilities.
 
