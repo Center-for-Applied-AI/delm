@@ -19,6 +19,8 @@ import pandas as pd
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
 
 from delm import DELM, DELMConfig
 from delm.utils.performance_estimation import estimate_performance
@@ -63,6 +65,9 @@ ESTIMATED_COSTS_JSON = CURRENT_DIR / "estimated_costs.json"
 PERFORMANCE_METRICS_JSON = CURRENT_DIR / "performance_metrics.json"
 SELECTION_RESULTS_CSV = CURRENT_DIR / "keyword_selection_greedy.csv"
 PARETO_FIG_PATH = CURRENT_DIR / "pareto_frontier.png"
+PARETO_FIG_DEG2_PATH = CURRENT_DIR / "pareto_frontier_deg2.png"
+PARETO_FIG_PDF_PATH = CURRENT_DIR / "pareto_frontier.pdf"
+PARETO_FIG_DEG2_PDF_PATH = CURRENT_DIR / "pareto_frontier_deg2.pdf"
 
 # Tune these to control API spend during estimation runs
 PERF_SAMPLE_SIZE = -1
@@ -310,6 +315,40 @@ def _greedy_keyword_selection(
         result_df["train_cost_pct"] = result_df["train_estimated_total_cost"] / train_max
         result_df["test_cost_pct"] = result_df["test_estimated_total_cost"] / test_max
     return result_df
+
+
+# ----------------------------------------------------------------------------
+# plotting utilities
+# ----------------------------------------------------------------------------
+
+def _fit_concave_quadratic(x: np.ndarray, y: np.ndarray) -> np.poly1d | None:
+    """Fit y ≈ a x^2 + b x + c with a ≤ 0 via grid search on a and least squares for b, c.
+
+    Returns None if fewer than 3 points are available.
+    """
+    if len(x) < 3:
+        return None
+    a, b, c = np.polyfit(x, y, 2)
+    if a <= 0:
+        return np.poly1d([a, b, c])
+    width = max(1.0, abs(a) * 5.0)
+    a_grid = np.linspace(-width, 0.0, 201)
+    M = np.column_stack([x, np.ones_like(x)])
+    best_sse = None
+    best_params = None
+    for a_candidate in a_grid:
+        y_tilde = y - a_candidate * (x ** 2)
+        sol, *_ = np.linalg.lstsq(M, y_tilde, rcond=None)
+        b_cand, c_cand = float(sol[0]), float(sol[1])
+        pred = a_candidate * (x ** 2) + b_cand * x + c_cand
+        sse = float(np.sum((y - pred) ** 2))
+        if best_sse is None or sse < best_sse:
+            best_sse = sse
+            best_params = (a_candidate, b_cand, c_cand)
+    if best_params is None:
+        return None
+    a_best, b_best, c_best = best_params
+    return np.poly1d([a_best, b_best, c_best])
 # ----------------------------------------------------------------------------
 # main flow
 # ----------------------------------------------------------------------------
@@ -365,29 +404,110 @@ def main() -> None:
     selection_df.to_csv(SELECTION_RESULTS_CSV, index=False)
 
     if not selection_df.empty:
-        plt.figure(figsize=(8, 5))
+        # ICLR-friendly base style
+        sns.set_theme(style="whitegrid", font_scale=1.2)
+        plt.rcParams.update({
+            "figure.figsize": (3.0, 2.0),
+            "font.size": 8,
+            "axes.labelsize": 8,
+            "axes.titlesize": 9,
+            "legend.fontsize": 7,
+            "xtick.labelsize": 7,
+            "ytick.labelsize": 7,
+            "savefig.bbox": "tight",
+            "savefig.pad_inches": 0.02,
+            "pdf.fonttype": 42,
+        })
+        color_palette = sns.color_palette("colorblind")
+
         selection_df_sorted_train = selection_df.sort_values("train_cost_pct")
         selection_df_sorted_test = selection_df.sort_values("test_cost_pct")
 
-        plt.plot(
-            selection_df_sorted_train["train_cost_pct"],
-            selection_df_sorted_train["train_recall"],
+        # Raw frontier (cost % vs recall)
+        fig1 = plt.figure()
+        sns.lineplot(
+            x=selection_df_sorted_train["train_cost_pct"],
+            y=selection_df_sorted_train["train_recall"],
             marker="o",
+            linestyle="-",
+            linewidth=1.2,
+            markersize=3.5,
+            color=color_palette[0],
             label="Train",
         )
-        plt.plot(
-            selection_df_sorted_test["test_cost_pct"],
-            selection_df_sorted_test["test_recall"],
-            marker="o",
+        sns.lineplot(
+            x=selection_df_sorted_test["test_cost_pct"],
+            y=selection_df_sorted_test["test_recall"],
+            marker="s",
+            linestyle="--",
+            linewidth=1.2,
+            markersize=3.5,
+            color=color_palette[1],
             label="Test",
         )
-        plt.xlabel("Price % of max")
-        plt.ylabel("Recall")
-        plt.title("Pareto frontier: price vs recall")
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-        plt.tight_layout()
-        plt.savefig(PARETO_FIG_PATH, dpi=150)
+        plt.xlabel("Cost (% of max)")
+        plt.ylabel("Recall (good)")
+        plt.title("Pareto frontier")
+        plt.legend(loc="lower right", frameon=True)
+        fig1.savefig(PARETO_FIG_PATH, dpi=300)
+        fig1.savefig(PARETO_FIG_PDF_PATH)
+        plt.close(fig1)
+
+        # Degree-2 concave smoothing (with points)
+        fig2 = plt.figure()
+        sns.scatterplot(
+            x=selection_df["train_cost_pct"],
+            y=selection_df["train_recall"],
+            marker="o",
+            s=12,
+            color=color_palette[0],
+            label="Train pts",
+        )
+        sns.scatterplot(
+            x=selection_df["test_cost_pct"],
+            y=selection_df["test_recall"],
+            marker="s",
+            s=12,
+            color=color_palette[1],
+            label="Test pts",
+        )
+
+        x_train = selection_df_sorted_train["train_cost_pct"].to_numpy()
+        y_train = selection_df_sorted_train["train_recall"].to_numpy()
+        x_test = selection_df_sorted_test["test_cost_pct"].to_numpy()
+        y_test = selection_df_sorted_test["test_recall"].to_numpy()
+
+        p_train = _fit_concave_quadratic(x_train, y_train)
+        if p_train is not None:
+            x_grid_train = np.linspace(x_train.min(), x_train.max(), 200)
+            sns.lineplot(
+                x=x_grid_train,
+                y=p_train(x_grid_train),
+                linestyle="-",
+                linewidth=1.2,
+                color=color_palette[0],
+                label="Train deg2",
+            )
+
+        p_test = _fit_concave_quadratic(x_test, y_test)
+        if p_test is not None:
+            x_grid_test = np.linspace(x_test.min(), x_test.max(), 200)
+            sns.lineplot(
+                x=x_grid_test,
+                y=p_test(x_grid_test),
+                linestyle="--",
+                linewidth=1.2,
+                color=color_palette[1],
+                label="Test deg2",
+            )
+
+        plt.xlabel("Cost (% of max)")
+        plt.ylabel("Recall (good)")
+        plt.title("Pareto frontier (deg-2, concave)")
+        plt.legend(loc="lower right", frameon=True)
+        fig2.savefig(PARETO_FIG_DEG2_PATH, dpi=300)
+        fig2.savefig(PARETO_FIG_DEG2_PDF_PATH)
+        plt.close(fig2)
 
 
 if __name__ == "__main__":
