@@ -1,9 +1,9 @@
 {
   "provider": "openai",
-  "model": "gpt-4o-mini",
-  "input_tokens": 5096645,
-  "output_tokens": 924125,
-  "model_input_cost_per_1M_tokens": 0.6,
-  "model_output_cost_per_1M_tokens": 2.4,
-  "total_cost": 5.275887
+  "model": "gpt-5",
+  "input_tokens": 6766510,
+  "output_tokens": 164656,
+  "model_input_cost_per_1M_tokens": 1.25,
+  "model_output_cost_per_1M_tokens": 10.0,
+  "total_cost": 10.1046975
 }

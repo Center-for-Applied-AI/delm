@@ -3,6 +3,9 @@
 *.db-shm
 *.db-wal
 
+extracted_results.csv
+expected_vs_extracted.csv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -158,10 +158,15 @@ def main() -> None:
     record_expected_df = build_expected_df(record_labeled_df)
 
     # model fitting and other
-    pipeline.prep_data(record_text_df)
+    preprocessed_chunks_df = pipeline.prep_data(record_text_df)
     pipeline.process_via_llm()
 
     extracted_results_df = pipeline.get_extraction_results()
+    # Attach original metadata (including 'id') to results via chunk id
+    preproc_meta_df = preprocessed_chunks_df.drop(columns=["delm_text_chunk"], errors="ignore")
+    extracted_results_df = extracted_results_df.merge(
+        preproc_meta_df, on="delm_chunk_id", how="left"
+    )
     cost_summary = pipeline.get_cost_summary()
 
     estimated_total_cost = estimate_total_cost(

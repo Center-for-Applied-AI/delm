@@ -5,6 +5,8 @@ variables:
     data_type: "string"
     required: true
     description: "The name of the good or commodity mentioned"
+    allowed_values: ["silver","gold","soybeans","heating oil","copper","gasoline","natural gas","aluminum","iron ore","corn","cotton","palm","gas","oil","nickel","sugar","cattle","wheat","coal","zinc","coffee","emissions","tin","hogs","cocoa","lead","diesel","uranium","ethanol","platinum","electricity","fuel","energy","other"]
+    validate_in_text: true
   - name: "good_subtype"
     data_type: "string"
     required: false
