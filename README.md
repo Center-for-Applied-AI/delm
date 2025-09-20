@@ -1,4 +1,4 @@
-<a href="#"><img src="delm_logo.png" align="left" width="150" style="margin-right: 15px;" alt="DELM logo"/></a>
+<a href="#"><img src="delm_logo.png" align="left" width="160" style="margin-right: 15px;" alt="DELM logo"/></a>
 
 # Data Extraction with Language Models
 
