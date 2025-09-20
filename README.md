@@ -97,6 +97,9 @@ variables:
     required: false
 ```
 
+Validation notes:
+- `validate_in_text: true` applies to string fields only. Values must literally appear (case‑insensitive) in the source text to be kept.
+
 ## Schema types
 
 DELM supports three levels of schema complexity:
@@ -142,6 +145,8 @@ companies:
   variables: [...]
 ```
 
+Note: Multiple schema outputs are unwrapped. For a nested sub‑schema named `books` with container `books`, the output key is `books: [...]` (not `books: {books: [...]}`).
+
 ## Supported data types
 
 | Type | Description | Example |
@@ -150,6 +155,7 @@ companies:
 | `number` | Floating-point numbers | `150.5` |
 | `integer` | Whole numbers | `2024` |
 | `boolean` | True/False values | `true` |
+| `date` | Date strings | `"2025-09-15"` |
 | `[string]` | List of strings | `["oil", "gas"]` |
 | `[number]` | List of numbers | `[100, 200, 300]` |
 | `[integer]` | List of integers | `[1, 2, 3, 4]` |
@@ -185,6 +191,18 @@ data_preprocessing:
 ```
 If a scorer is configured but no `pandas_score_filter` is provided, all chunks are kept (a warning is logged).
 
+You can also use a fuzzy keyword scorer. This requires the optional dependency `rapidfuzz`.
+```yaml
+data_preprocessing:
+  scoring:
+    type: "FuzzyScorer"
+    keywords:
+      - price
+      - forecast
+      - guidance
+  pandas_score_filter: "delm_score >= 0.5"  # example threshold for fuzzy scores
+```
+
 ### Text splitting strategies
 ```yaml
 data_preprocessing:
@@ -197,9 +215,24 @@ data_preprocessing:
     # pattern: "\n\n"
 ```
 
+### Post-processing
+After extraction, explode the JSON column into tabular rows according to your schema.
+```python
+from delm.utils.post_processing import explode_json_results
+
+# Use the same schema used for extraction (path to the YAML/JSON or a schema object)
+exploded_df = explode_json_results(
+    final_df,
+    schema=delm.config.schema.spec_path  # or a loaded schema object
+)
+```
+
 ## Performance and evaluation
 
 ### Cost estimation
+> [!WARNING]
+> Cost estimation is provided as‑is. Estimates are not guarantees and may be inaccurate. The authors and maintainers accept no liability for any losses, charges, or damages resulting from use of this feature. Use at your own risk.
+
 Estimate total cost of your current configuration setup before running the full extraction.
 ```python
 from delm.utils.cost_estimation import estimate_input_token_cost, estimate_total_cost
