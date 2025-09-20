@@ -1,8 +1,7 @@
 # Core Managers
 
-These modules encapsulate the operational logic that powers DELM beyond the high-level
-pipeline façade: data preprocessing, experiment storage, schema coordination, and
-batched extraction.
+Modules that power DELM beyond the high-level pipeline: data preprocessing,
+experiment storage, schema coordination, and batched extraction.
 
 ## Data Processor
 

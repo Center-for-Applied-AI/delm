@@ -1,6 +1,6 @@
 # DELM
 
-DELM (Data Extraction with Language Models) is a Python toolkit for turning unstructured documents into structured datasets with the help of large language models. The library provides a configurable pipeline that handles document ingestion, schema-driven prompting, cost tracking, and evaluation so that you can focus on defining the data you need.
+DELM (Data Extraction with Language Models) is a Python toolkit for extracting structured data from unstructured text using language models. It provides a configurable pipeline with cost tracking, caching, and evaluation capabilities.
 
 ## Why DELM?
 
@@ -12,20 +12,20 @@ DELM (Data Extraction with Language Models) is a Python toolkit for turning unst
 
 ## Key Capabilities
 
-### Configurable Pipeline
+### Configurable processing
 
-Configure preprocessing, chunking, filtering, and extraction logic from a single YAML file. Override settings per-dataset without touching code.
+Text splitting, relevance scoring, filtering, and extraction logic in one YAML
 
 ### Progressive Schema System
 
-Start with simple fields and evolve toward complex nested schemas or multiple schemas per prompt. Validation rules and enum restrictions keep results clean.
+Start with simple fields and grow to nested schemas or multiple schemas per prompt. Validation rules and enums keep results clean.
 
-### Cost Awareness
+### Cost management
 
-Track token usage and costs per provider, set budgets, and export summaries for downstream reporting.
+Cost tracking, caching, budget limits
 
 ### Extensible Architecture
 
-Augment the default pipeline with custom scorers, schema components, or post-processing hooks. The toolkit is designed to integrate into larger data workflows.
+Add custom scorers, schema components, or post-processing hooks. DELM integrates into larger data workflows.
 
-Continue with the guides below to install DELM, configure your pipeline, and design schemas that match your project.
+Use the guides below to install DELM, configure a pipeline, and design schemas for your project. For a full quick start and configuration examples, see the README.

@@ -1,14 +1,24 @@
 # Schema Reference
 
-Schemas define the structured outputs that DELM extracts from your documents. This reference walks through each schema type, configuration option, and validation rule so you can design prompts that return clean, predictable data.
+Schemas define the structured outputs that DELM extracts from your documents. The schema system supports progressive complexity levels, from simple key‑value extraction to complex nested structures.
+
+## Table of Contents
+
+- [Schema Types](#schema-types)
+  - [Simple Schema (Level 1)](#simple-schema-level-1)
+  - [Nested Schema (Level 2)](#nested-schema-level-2)
+  - [Multiple Schemas (Level 3)](#multiple-schemas-level-3)
+- [Variable Configuration](#variable-configuration)
+- [Prompt Customization](#prompt-customization)
+- [Schema Examples](#schema-examples)
 
 ## Schema Types
 
-DELM ships with a progressive schema system. Start with simple key/value pairs and grow to nested or multi-schema extractions as your use case evolves.
+DELM supports three levels of schema complexity, each building on the previous level.
 
 ### Simple Schema (Level 1)
 
-Ideal for flat, per-chunk fields.
+The simplest form of extraction: individual key‑value pairs.
 
 ```yaml
 variables:
@@ -16,10 +26,12 @@ variables:
     description: "Company names mentioned in the text"
     data_type: "[string]"
     required: false
+
   - name: "revenue_numbers"
     description: "Revenue figures mentioned"
     data_type: "[number]"
     required: false
+
   - name: "forecast_year"
     description: "Year for which forecast is made"
     data_type: "integer"
@@ -27,8 +39,7 @@ variables:
     validate_in_text: true
 ```
 
-Output example:
-
+Output Format:
 ```json
 {
   "company_names": ["Apple", "Microsoft"],
@@ -39,7 +50,7 @@ Output example:
 
 ### Nested Schema (Level 2)
 
-Group related fields into structured objects.
+Extract structured objects with multiple related fields.
 
 ```yaml
 schema_type: "nested"
@@ -49,28 +60,31 @@ variables:
     description: "Company name"
     data_type: "string"
     required: true
+
   - name: "revenue"
     description: "Revenue figure in USD"
     data_type: "number"
     required: false
+
   - name: "sector"
     description: "Business sector"
     data_type: "string"
     required: false
     allowed_values: ["technology", "finance", "healthcare", "energy", "retail"]
+
   - name: "growth_rate"
     description: "Annual growth rate percentage"
     data_type: "number"
     required: false
-    validate_in_text: true
+    validate_in_text: true  # Only extract if explicitly mentioned
+
   - name: "products"
     description: "List of products offered by the company"
     data_type: "[string]"
     required: false
 ```
 
-Output example:
-
+Output Format:
 ```json
 {
   "companies": [
@@ -80,6 +94,13 @@ Output example:
       "sector": "technology",
       "growth_rate": 12.5,
       "products": ["iPhone", "MacBook", "iPad"]
+    },
+    {
+      "name": "Microsoft",
+      "revenue": 2000000000,
+      "sector": "technology",
+      "growth_rate": null,
+      "products": ["Windows", "Office", "Azure"]
     }
   ]
 }
@@ -87,99 +108,202 @@ Output example:
 
 ### Multiple Schemas (Level 3)
 
-Extract several schemas in one request. Each entry under the root YAML object defines a sub-schema.
+Extract multiple independent structured objects simultaneously. These can be simple, nested, or even deep multi‑schemas.
 
 ```yaml
 schema_type: "multiple"
 
+# Companies schema
 companies:
   schema_type: "nested"
   container_name: "companies"
   variables:
-    - { name: "name", data_type: "string", required: true }
-    - { name: "revenue", data_type: "number" }
+    - name: "name"
+      description: "Company name"
+      data_type: "string"
+      required: true
+    - name: "revenue"
+      description: "Revenue figure"
+      data_type: "number"
+      required: false
 
+# Products schema
 products:
   schema_type: "nested"
   container_name: "products"
   variables:
-    - { name: "name", data_type: "string", required: true }
-    - { name: "price", data_type: "number" }
-    - { name: "category", data_type: "string", allowed_values: ["software", "hardware", "service", "consulting"] }
+    - name: "name"
+      description: "Product name"
+      data_type: "string"
+      required: true
+    - name: "price"
+      description: "Product price in USD"
+      data_type: "number"
+      required: false
+    - name: "category"
+      description: "Product category"
+      data_type: "string"
+      allowed_values: ["software", "hardware", "service", "consulting"]
+      required: false
 
+# Market trends schema
 market_trends:
   schema_type: "nested"
   container_name: "trends"
   variables:
-    - { name: "trend_name", data_type: "string", required: true }
-    - { name: "impact", data_type: "string", allowed_values: ["positive", "negative", "neutral"] }
+    - name: "trend_name"
+      description: "Market trend description"
+      data_type: "string"
+      required: true
+    - name: "impact"
+      description: "Expected impact (positive/negative/neutral)"
+      data_type: "string"
+      allowed_values: ["positive", "negative", "neutral"]
+      required: false
 ```
 
-Output example:
-
+Output Format:
 ```json
 {
-  "companies": [ { "name": "Apple", "revenue": 1500000000 } ],
-  "products": [ { "name": "iPhone 15", "price": 999, "category": "hardware" } ],
-  "trends": [ { "trend_name": "AI adoption acceleration", "impact": "positive" } ]
+  "companies": [
+    { "name": "Apple", "revenue": 1500000000 }
+  ],
+  "products": [
+    { "name": "iPhone 15", "price": 999, "category": "hardware" }
+  ],
+  "trends": [
+    { "trend_name": "AI adoption acceleration", "impact": "positive" }
+  ]
 }
 ```
 
 ## Variable Configuration
 
+Each variable in your schema can be configured with these options.
+
 ### Required Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | Key used in the output JSON |
-| `description` | string | Natural-language instructions passed to the LLM |
-| `data_type` | string | Expected value type (see below) |
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Variable name (used as JSON key) |
+| `description` | string | Yes | Human‑readable description for LLM |
+| `data_type` | string | Yes | Data type (see supported types below) |
 
 ### Optional Fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `required` | boolean | `false` | Drop the response when no value is produced |
-| `allowed_values` | list | `null` | Restrict outputs to predefined options |
-| `validate_in_text` | boolean | `false` | Require the value to appear verbatim in the source text |
+| `required` | boolean | false | Whether field must be present |
+| `allowed_values` | array | null | List of valid values |
+| `validate_in_text` | boolean | false | Only extract if explicitly mentioned |
 
 ### Supported Data Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| `string` | Free-form text | `"Apple"` |
-| `number` | Floating-point numbers | `12.5` |
-| `integer` | Whole numbers | `2024` |
-| `boolean` | `true` / `false` | `false` |
-| `date` | ISO-like date strings | `"2025-09-15"` |
-| `[string]` | List of strings | `["oil", "gas"]` |
-| `[number]` | List of numbers | `[0.12, 0.34]` |
-| `[integer]` | List of integers | `[1, 2, 3]` |
-| `[boolean]` | List of booleans | `[true, false]` |
+| Type | Description | Example Values |
+|------|-------------|----------------|
+| `string` | Text values | "Apple", "technology" |
+| `number` | Floating‑point numbers | 1500000000, 12.5 |
+| `integer` | Whole numbers | 2024, 100 |
+| `boolean` | True/false values | true, false |
+| `date` | Date strings | "2025-09-15" |
+| `[string]` | List of strings | ["Apple", "Google"] |
+| `[number]` | List of numbers | [12.5, 42, 100] |
+| `[integer]` | List of integers | [2024, 100, 7] |
+| `[boolean]` | List of booleans | [true, false, true] |
 
-> Wrap list types in quotes inside YAML files (e.g. `"[string]"`).
+Note: List types must be surrounded by quotes in `.yaml` files. For example `"[string]"`, not `[string]`.
+
+Schema spec files are YAML (`.yml`/`.yaml`).
 
 ## Prompt Customization
 
-DELM renders prompts using two strings from your pipeline configuration:
+DELM renders the prompt using two configurable strings from your pipeline config:
 
-- `schema.system_prompt` becomes the system-role message.
-- `schema.prompt_template` is formatted for each chunk with `{variables}`, `{text}`, and optional `{context}` placeholders.
+- `schema.system_prompt`: Injected as the system role message
+- `schema.prompt_template`: A Python `str.format`‑style template rendered per chunk, with placeholders:
+  - `{variables}`: A human‑readable list of variables with types and allowed values
+  - `{text}`: The current text chunk
+  - `{context}`: Optional extra key‑values (if provided by advanced flows)
 
-For multi-schema configurations, prompts for each child schema are combined into a single message so that the model receives all required instructions at once.
+Examples:
 
-## Validation Semantics
+```text
+System: {schema.system_prompt}
+User: {schema.prompt_template.format(variables=..., text=..., context=...)}
+```
 
-- Required fields without valid outputs cause the item (or entire response for simple schemas) to be discarded.
-- Null-like strings in string fields (`"none"`, `"unknown"`, etc.) are filtered unless included in `allowed_values`.
-- `validate_in_text: true` keeps only strings that appear verbatim in the source text (case-insensitive).
-- For nested schemas, `container_name` defaults to `"instances"` when omitted.
-- In multiple schemas, child outputs are unwrapped so top-level keys match the child schema names.
+Notes:
+- For Multiple schemas, the prompt is built by concatenating sub‑schema prompts under headings.
+- Token estimation uses these same prompts, so edits affect cost estimates.
 
-## Extended Examples
+### Variable Examples
+
+```yaml
+# Simple string field
+- name: "company_name"
+  description: "Name of the company"
+  data_type: "string"
+  required: true
+
+# Number with validation
+- name: "revenue"
+  description: "Revenue in USD"
+  data_type: "number"
+  required: false
+  validate_in_text: true
+
+# String field with allowed values (essentially an enum)
+- name: "sector"
+  description: "Business sector"
+  data_type: "string"
+  allowed_values: ["technology", "finance", "healthcare"]
+  required: false
+
+# Boolean field
+- name: "is_public"
+  description: "Whether company is publicly traded"
+  data_type: "boolean"
+  required: false
+
+# List of numbers with allowed values
+- name: "quarterly_growth_rates"
+  description: "Quarterly revenue growth rates in percent"
+  data_type: "[number]"
+  allowed_values: [0, 5, 10, 15, 20, 25, 30]
+  required: false
+```
+
+## Validation Features
+
+### Text Validation
+```yaml
+- name: "commodity_type"
+  description: "Type of commodity mentioned"
+  data_type: "string"
+  validate_in_text: true  # Only extract if explicitly mentioned in text
+```
+
+### Allowed Values
+```yaml
+- name: "sentiment"
+  description: "Overall sentiment"
+  data_type: "string"
+  allowed_values: ["positive", "negative", "neutral"]
+```
+
+### Cleaning & Validation Semantics
+
+- Required fields: If a required field has no valid value, the item is dropped.
+  - Simple schema: the whole response for a chunk is discarded.
+  - Nested schema: the specific object is discarded; the chunk may still yield other objects.
+- Null‑like strings in string fields (e.g., "none", "null", "unknown", "n/a", "") are filtered unless explicitly listed in `allowed_values`.
+- `validate_in_text: true` keeps only string values that literally appear in the source text (case‑insensitive).
+- For Multiple schemas, nested sub‑schemas are unwrapped in outputs (e.g., `books: [...]`, not `books: {books: [...]}`).
+- For Nested schemas, if `container_name` is omitted, it defaults to "instances".
+
+## Schema Examples
 
 ### Financial Report Analysis
-
 ```yaml
 schema_type: "nested"
 container_name: "financial_metrics"
@@ -196,13 +320,14 @@ variables:
     description: "Currency of the value"
     data_type: "string"
     allowed_values: ["USD", "EUR", "GBP"]
+    required: false
   - name: "period"
     description: "Time period for the metric"
     data_type: "string"
+    required: false
 ```
 
 ### Commodity Price Extraction
-
 ```yaml
 variables:
   - name: "commodity_type"
@@ -213,16 +338,18 @@ variables:
   - name: "price_value"
     description: "Price value mentioned"
     data_type: "number"
+    required: false
   - name: "price_mention"
     description: "Whether a price is mentioned"
     data_type: "boolean"
+    required: false
   - name: "forecast_period"
     description: "Time period for price forecast"
     data_type: "string"
+    required: false
 ```
 
 ### Customer Feedback Analysis
-
 ```yaml
 schema_type: "multiple"
 
@@ -243,6 +370,7 @@ sentiment:
       description: "Intensity of the sentiment"
       data_type: "string"
       allowed_values: ["low", "medium", "high"]
+      required: false
 
 suggestions:
   schema_type: "nested"
@@ -256,4 +384,9 @@ suggestions:
       description: "Category of suggestion"
       data_type: "string"
       allowed_values: ["feature", "bug", "ui", "performance"]
+      required: false
 ```
+
+---
+
+For more help, see the main `README.md` or open an issue on GitHub.

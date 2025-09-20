@@ -1,10 +1,16 @@
 # Getting Started
 
-Follow this guide to install DELM, connect your language-model provider, and run your first extraction pipeline.
+Install DELM, connect a language-model provider, and run your first extraction pipeline.
 
 ## Installation
 
-Clone the repository and install the package in editable mode:
+Install from PyPI:
+
+```bash
+pip install delm
+```
+
+Or install from source:
 
 ```bash
 git clone https://github.com/Center-for-Applied-AI/delm.git
@@ -12,7 +18,7 @@ cd delm
 pip install -e .
 ```
 
-If you plan to use the optional developer tooling (tests, linters, notebooks), install the `dev` extra:
+If you use the optional developer tooling (tests, linters, notebooks), install the `dev` extra:
 
 ```bash
 pip install -e .[dev]
@@ -20,7 +26,7 @@ pip install -e .[dev]
 
 ## Configure Environment Variables
 
-Create an `.env` file (or export directly in your shell) with the credentials for the LLM providers you plan to use. A minimal configuration looks like this:
+Create an `.env` file (or export in your shell) with credentials for the LLM providers you use. A minimal configuration:
 
 ```env
 OPENAI_API_KEY=sk-...
@@ -28,7 +34,7 @@ ANTHROPIC_API_KEY=...
 TOGETHER_API_KEY=...
 ```
 
-> Replace the values with your real credentials. DELM only loads providers that have available keys.
+Replace the values with your credentials. DELM only loads providers that have available keys.
 
 ## Quick Start
 

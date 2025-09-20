@@ -1,9 +1,7 @@
 # Pipeline API
 
 The `DELM` class coordinates configuration validation, experiment setup, preprocessing,
-and batched extraction. This page renders its public API directly from the module
-source so you can review constructor arguments and helper methods without leaving
-the docs.
+and batched extraction. Use this page to review constructor arguments and helper methods.
 
 ::: delm.delm.DELM
     options:

@@ -1,7 +1,6 @@
 # Utilities
 
-Supporting modules that keep DELM reliable and observable. These APIs are rendered
-from docstrings so you can inspect parameters and behaviour in place.
+Supporting modules that keep DELM reliable and observable.
 
 ## Concurrency and Retry
 

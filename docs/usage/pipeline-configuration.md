@@ -1,6 +1,6 @@
 # Pipeline Configuration
 
-Every DELM run is driven by a pipeline configuration file (YAML) that describes how to prepare documents, which model to call, and how to manage costs. The configuration keeps extraction logic declarative so you can version and review changes alongside your code.
+Each run is driven by a YAML configuration that describes how to prepare documents, which model to call, and how to manage costs. Keep extraction logic declarative so you can version and review changes alongside your code.
 
 ## Minimal Configuration
 
@@ -40,7 +40,7 @@ Controls which provider and model to use, as well as sampling and batching behav
 
 ### `data_preprocessing`
 
-Defines how input documents are transformed before sending prompts.
+Defines how input documents are transformed before prompting.
 
 - `target_column`: DataFrame column used as the primary text input.
 - `splitting`: Strategy for splitting large documents (`ParagraphSplit`, `SentenceSplit`, custom classes).
@@ -57,7 +57,7 @@ Points to the schema specification file and optional prompt customization.
 
 ## Experiment Management
 
-When you instantiate `DELM.from_yaml`, you pass an `experiment_name` and `experiment_directory`. DELM creates a subdirectory that stores:
+When you instantiate `DELM.from_yaml`, pass an `experiment_name` and `experiment_directory`. DELM creates a subdirectory that stores:
 
 - Input checkpoints and chunk metadata.
 - Cached responses and retry logs.
