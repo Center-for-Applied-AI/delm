@@ -14,7 +14,11 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+from typing import Any
 import pandas as pd
+from tqdm import tqdm
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
 
 from delm import DELM, DELMConfig
 from delm.utils.performance_estimation import estimate_performance
@@ -46,7 +50,7 @@ SCHEMA_PATH = next(
 )
 
 
-EXPERIMENT_NAME = "cost_coverage_example"
+EXPERIMENT_NAME = "cost_coverage_greedy"
 EXPERIMENT_DIR = CURRENT_DIR / "experiments"
 
 # Expected JSON container name from the schema
@@ -57,10 +61,13 @@ EXPECTED_VS_EXTRACTED_CSV = CURRENT_DIR / "expected_vs_extracted.csv"
 COST_SUMMARY_JSON = CURRENT_DIR / "cost_summary.json"
 ESTIMATED_COSTS_JSON = CURRENT_DIR / "estimated_costs.json"
 PERFORMANCE_METRICS_JSON = CURRENT_DIR / "performance_metrics.json"
+SELECTION_RESULTS_CSV = CURRENT_DIR / "keyword_selection_greedy.csv"
+PARETO_FIG_PATH = CURRENT_DIR / "pareto_frontier.png"
 
 # Tune these to control API spend during estimation runs
 PERF_SAMPLE_SIZE = -1
 COST_EST_SAMPLE_SIZE = 30
+TEST_SIZE = 0.2
 
 
 # ----------------------------------------------------------------------------
@@ -127,79 +134,260 @@ def stringify_dict_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame
 
 
 # ----------------------------------------------------------------------------
+# keyword selection utilities
+# ----------------------------------------------------------------------------
+
+def _split_train_test_ids(
+    record_text_df: pd.DataFrame,
+    test_size: float,
+    random_seed: int,
+) -> tuple[list[object], list[object]]:
+    """Split unique ids into train and test subsets.
+
+    Args:
+        record_text_df: DataFrame with columns "id" and "text" and unique ids.
+        test_size: Fraction for test split.
+        random_seed: Seed for reproducibility.
+
+    Returns:
+        Tuple of train_ids and test_ids.
+    """
+    unique_ids = record_text_df["id"].unique().tolist()
+    train_ids, test_ids = train_test_split(
+        unique_ids, test_size=test_size, random_state=random_seed, shuffle=True
+    )
+    return train_ids, test_ids
+
+
+def _clone_config_with_keywords(
+    base_config: DELMConfig,
+    keywords: list[str],
+) -> DELMConfig:
+    """Return a fresh config with a specific KeywordScorer list.
+
+    Args:
+        base_config: Base DELM configuration object.
+        keywords: Keywords for KeywordScorer.
+
+    Returns:
+        New DELMConfig with updated scoring keywords.
+    """
+    cfg_dict = base_config.to_serialized_config_dict()
+    cfg_dict["data_preprocessing"]["scoring"] = {
+        "type": "KeywordScorer",
+        "keywords": list(keywords),
+    }
+    cfg_dict["schema"]["spec_path"] = str(SCHEMA_PATH)
+    return DELMConfig.from_dict(cfg_dict)
+
+
+def _evaluate_recall_and_cost(
+    config: DELMConfig,
+    text_df: pd.DataFrame,
+    expected_df: pd.DataFrame,
+    perf_sample_size: int,
+    cost_est_sample_size: int,
+) -> tuple[float, float]:
+    """Compute recall for commodity_prices.good and estimated total cost.
+
+    Args:
+        config: DELM configuration to evaluate.
+        text_df: Source records with columns "id" and target text.
+        expected_df: Expected JSON per id from ``build_expected_df``.
+        perf_sample_size: Record sample size for performance estimation.
+        cost_est_sample_size: Sample size for cost estimation.
+
+    Returns:
+        Tuple of (recall, estimated_total_cost).
+    """
+    metrics, _ = estimate_performance(
+        config=config,
+        data_source=text_df,
+        expected_extraction_output_df=expected_df,
+        true_json_column="expected_json",
+        matching_id_column="id",
+        record_sample_size=perf_sample_size,
+    )
+    target_key = f"{CONTAINER_NAME}.good"
+    recall = float(metrics.get(target_key, {}).get("recall", 0.0))
+
+    total_cost = estimate_total_cost(
+        config=config,
+        data_source=text_df,
+        sample_size=cost_est_sample_size,
+    )
+    return recall, float(total_cost)
+
+
+def _greedy_keyword_selection(
+    base_config: DELMConfig,
+    candidate_keywords: list[str],
+    train_text_df: pd.DataFrame,
+    train_expected_df: pd.DataFrame,
+    test_text_df: pd.DataFrame,
+    test_expected_df: pd.DataFrame,
+    perf_sample_size: int,
+    cost_est_sample_size: int,
+) -> pd.DataFrame:
+    """Greedy forward selection maximizing train recall of commodity_prices.good.
+
+    Args:
+        base_config: Base DELM configuration.
+        candidate_keywords: Candidate keyword pool.
+        train_text_df: Training records DataFrame.
+        train_expected_df: Training expected JSON DataFrame.
+        test_text_df: Test records DataFrame.
+        test_expected_df: Test expected JSON DataFrame.
+        perf_sample_size: Record sample size for performance estimation.
+        cost_est_sample_size: Sample size for cost estimation.
+
+    Returns:
+        DataFrame with one row per k including selected keywords, recalls, and costs.
+    """
+    selected: list[str] = []
+    remaining: list[str] = list(dict.fromkeys([kw.lower() for kw in candidate_keywords]))
+    train_recall_cache: dict[tuple[str, ...], float] = {}
+
+    records: list[dict[str, Any]] = []
+
+    for k in range(1, len(remaining) + 1):
+        best_kw = None
+        best_recall = -1.0
+        for kw in tqdm(remaining, desc=f"k={k} select", leave=False):
+            combo = tuple(selected + [kw])
+            if combo in train_recall_cache:
+                recall_k = train_recall_cache[combo]
+            else:
+                cfg_k = _clone_config_with_keywords(base_config, list(combo))
+                recall_k, _ = _evaluate_recall_and_cost(
+                    cfg_k,
+                    train_text_df,
+                    train_expected_df,
+                    perf_sample_size,
+                    cost_est_sample_size,
+                )
+                train_recall_cache[combo] = recall_k
+            if recall_k > best_recall:
+                best_recall = recall_k
+                best_kw = kw
+
+        if best_kw is None:
+            break
+        selected.append(best_kw)
+        remaining.remove(best_kw)
+
+        cfg_selected = _clone_config_with_keywords(base_config, selected)
+        train_recall, train_cost = _evaluate_recall_and_cost(
+            cfg_selected,
+            train_text_df,
+            train_expected_df,
+            perf_sample_size,
+            cost_est_sample_size,
+        )
+        test_recall, test_cost = _evaluate_recall_and_cost(
+            cfg_selected,
+            test_text_df,
+            test_expected_df,
+            perf_sample_size,
+            cost_est_sample_size,
+        )
+
+        records.append(
+            {
+                "k": k,
+                "keywords": json.dumps(selected, ensure_ascii=False),
+                "train_recall": train_recall,
+                "train_estimated_total_cost": train_cost,
+                "test_recall": test_recall,
+                "test_estimated_total_cost": test_cost,
+            }
+        )
+
+    result_df = pd.DataFrame.from_records(records)
+    if not result_df.empty:
+        train_max = result_df["train_estimated_total_cost"].max()
+        test_max = result_df["test_estimated_total_cost"].max()
+        result_df["train_cost_pct"] = result_df["train_estimated_total_cost"] / train_max
+        result_df["test_cost_pct"] = result_df["test_estimated_total_cost"] / test_max
+    return result_df
+# ----------------------------------------------------------------------------
 # main flow
 # ----------------------------------------------------------------------------
 
 def main() -> None:
-    """Run extraction, cost estimation, and performance estimation with DELM."""
+    """Run greedy keyword selection with train/test split, CSV, and Pareto plot."""
 
-    # config
     EXPERIMENT_DIR.mkdir(parents=True, exist_ok=True)
 
     config_obj = DELMConfig.from_yaml(CONFIG_PATH)
     config_obj.schema.spec_path = SCHEMA_PATH
-    pipeline = DELM(
-        config=config_obj,
-        experiment_name=EXPERIMENT_NAME,
-        experiment_directory=EXPERIMENT_DIR,
-    )
 
-    # data import
     record_labeled_df = pd.read_csv(SOURCE_DATA_PATH)
 
-    # Ensure single input row per id to avoid duplicate joins later
     record_text_df = (
         record_labeled_df[["id", "text"]]
         .drop_duplicates(subset=["id"], keep="first")
         .copy()
     )
 
-    # data augmentation
-    record_expected_df = build_expected_df(record_labeled_df)
-
-    # model fitting and other
-    preprocessed_chunks_df = pipeline.prep_data(record_text_df)
-    pipeline.process_via_llm()
-
-    extracted_results_df = pipeline.get_extraction_results()
-    # Attach original metadata (including 'id') to results via chunk id
-    preproc_meta_df = preprocessed_chunks_df.drop(columns=["delm_text_chunk"], errors="ignore")
-    extracted_results_df = extracted_results_df.merge(
-        preproc_meta_df, on="delm_chunk_id", how="left"
-    )
-    cost_summary = pipeline.get_cost_summary()
-
-    estimated_total_cost = estimate_total_cost(
-        config=config_obj,
-        data_source=str(SOURCE_DATA_PATH),
-        sample_size=COST_EST_SAMPLE_SIZE,
+    train_ids, test_ids = _split_train_test_ids(
+        record_text_df=record_text_df, test_size=TEST_SIZE, random_seed=RANDOM_SEED
     )
 
-    performance_metrics, expected_vs_extracted_df = estimate_performance(
-        config=config_obj,
-        data_source=record_text_df,
-        expected_extraction_output_df=record_expected_df,
-        true_json_column="expected_json",
-        matching_id_column="id",
-        record_sample_size=PERF_SAMPLE_SIZE,
+    train_text_df = record_text_df[record_text_df["id"].isin(train_ids)].copy()
+    test_text_df = record_text_df[record_text_df["id"].isin(test_ids)].copy()
+
+    train_expected_df = build_expected_df(
+        record_labeled_df[record_labeled_df["id"].isin(train_ids)].copy()
+    )
+    test_expected_df = build_expected_df(
+        record_labeled_df[record_labeled_df["id"].isin(test_ids)].copy()
     )
 
-    # data export
-    extracted_results_df.to_csv(EXTRACTED_RESULTS_CSV, index=False)
-    dump_json(COST_SUMMARY_JSON, cost_summary)
-    dump_json(
-        ESTIMATED_COSTS_JSON,
-        {
-            "sample_size": COST_EST_SAMPLE_SIZE,
-            "estimated_total_cost": estimated_total_cost,
-        },
-    )
-    dump_json(PERFORMANCE_METRICS_JSON, performance_metrics)
+    scorer = config_obj.data_preprocessing.scoring.scorer
+    if scorer is None or not hasattr(scorer, "keywords"):
+        raise ValueError(
+            "Config must define a KeywordScorer with a non-empty keywords list."
+        )
+    candidate_keywords: list[str] = list(scorer.keywords)
 
-    expected_vs_extracted_to_save = stringify_dict_columns(
-        expected_vs_extracted_df, columns=["expected_dict", "extracted_dict"]
+    selection_df = _greedy_keyword_selection(
+        base_config=config_obj,
+        candidate_keywords=candidate_keywords,
+        train_text_df=train_text_df,
+        train_expected_df=train_expected_df,
+        test_text_df=test_text_df,
+        test_expected_df=test_expected_df,
+        perf_sample_size=PERF_SAMPLE_SIZE,
+        cost_est_sample_size=COST_EST_SAMPLE_SIZE,
     )
-    expected_vs_extracted_to_save.to_csv(EXPECTED_VS_EXTRACTED_CSV, index=False)
+
+    selection_df.to_csv(SELECTION_RESULTS_CSV, index=False)
+
+    if not selection_df.empty:
+        plt.figure(figsize=(8, 5))
+        selection_df_sorted_train = selection_df.sort_values("train_cost_pct")
+        selection_df_sorted_test = selection_df.sort_values("test_cost_pct")
+
+        plt.plot(
+            selection_df_sorted_train["train_cost_pct"],
+            selection_df_sorted_train["train_recall"],
+            marker="o",
+            label="Train",
+        )
+        plt.plot(
+            selection_df_sorted_test["test_cost_pct"],
+            selection_df_sorted_test["test_recall"],
+            marker="o",
+            label="Test",
+        )
+        plt.xlabel("Price % of max")
+        plt.ylabel("Recall")
+        plt.title("Pareto frontier: price vs recall")
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(PARETO_FIG_PATH, dpi=150)
 
 
 if __name__ == "__main__":
