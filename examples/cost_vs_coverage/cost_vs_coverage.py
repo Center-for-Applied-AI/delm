@@ -1,13 +1,4 @@
-"""
-Run DELM extraction, cost estimation, and performance estimation on
-`data/commodity_data.csv` using the configuration in
-`examples/cost_vs_coverage/config.yaml` and the schema in
-`examples/commodity_schema.yaml`.
-
-Sections: setup -> config -> data import -> data augmentation ->
-model fitting and other -> data export.
-
-This script saves artifacts into `examples/cost_vs_coverage/`.
+"""Builds a Pareto frontier of cost vs coverage using DELM.
 """
 
 from __future__ import annotations
@@ -445,8 +436,8 @@ def main() -> None:
             color=color_palette[1],
             label="Test",
         )
-        plt.xlabel("Cost (% of max)")
-        plt.ylabel("Recall (good)")
+        plt.xlabel("Normalized Cost")
+        plt.ylabel("Recall (commodity_prices.good)")
         plt.title("Pareto frontier")
         plt.legend(loc="lower right", frameon=True)
         fig1.savefig(PARETO_FIG_PATH, dpi=300)
@@ -501,8 +492,8 @@ def main() -> None:
                 label="Test deg2",
             )
 
-        plt.xlabel("Cost (% of max)")
-        plt.ylabel("Recall (good)")
+        plt.xlabel("Normalized Cost")
+        plt.ylabel("Recall (commodity_prices.good)")
         plt.title("Pareto frontier (deg-2, concave)")
         plt.legend(loc="lower right", frameon=True)
         fig2.savefig(PARETO_FIG_DEG2_PATH, dpi=300)
