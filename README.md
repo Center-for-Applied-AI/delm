@@ -6,6 +6,8 @@
 
 DELM is a Python toolkit for extracting structured data from unstructured text using language models. It provides a configurable pipeline with cost tracking, caching, and evaluation capabilities.
 
+Full docs: <center-for-applied-ai.github.io/delm/>
+
 ## Features
 
 - Supported input formats: TXT, HTML, MD, DOCX, PDF, CSV, Excel, Parquet, Feather
