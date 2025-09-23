@@ -1,0 +1,37 @@
+llm_extraction:
+  provider: "openai"
+  name: "gpt-5"
+  temperature: 1
+  max_retries: 3
+  batch_size: 1
+  max_workers: 1
+  base_delay: 1.0
+  track_cost: true
+  max_budget: 10.0
+  dotenv_path: ".env"
+
+data_preprocessing:
+  target_column: "text"
+  drop_target_column: false
+  splitting:
+    type: "None"
+  scoring:
+    type: "None"
+
+schema:
+  spec_path: "optimizer_schema.yaml"
+  prompt_template: |
+    Your task is to refine the definition of the variable "price_expectation" based on 10 wrong examples. The variable is a boolean, so the wrong examples should all have been labeled as opposite. Identify the implicit logic the extractor missed.
+    {variables}
+
+    Current definition of the variable "price_expectation":
+    {current_definition}
+
+    Examples where price_expectation is wrong:
+    {examples}
+
+semantic_cache:
+  backend: "sqlite"
+  path: "./cache"
+  max_size_mb: 100
+  synchronous: "normal"

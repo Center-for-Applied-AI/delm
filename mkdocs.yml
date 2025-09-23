@@ -5,26 +5,8 @@ repo_name: Center-for-Applied-AI/delm
 edit_uri: edit/main/docs/
 
 theme:
-  name: material
-  features:
-    - navigation.sections
-    - navigation.expand
-    - navigation.top
-    - toc.integrate
-    - content.code.copy
-    - content.action.edit
-  palette:
-    - scheme: default
-      primary: indigo
-      accent: deep orange
-    - scheme: slate
-      primary: indigo
-      accent: deep orange
-      toggle:
-        icon: material/weather-night
-        name: Switch to dark mode
-  icon:
-    repo: fontawesome/brands/github
+  name: readthedocs
+  logo: assets/delm_logo.png
 
 markdown_extensions:
   - admonition

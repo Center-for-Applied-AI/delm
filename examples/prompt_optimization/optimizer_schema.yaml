@@ -1,0 +1,14 @@
+# =============================================================================
+# Prompt Optimizer Schema Specification
+# =============================================================================
+# This schema defines the structure of the optimizer model's output used to
+# refine the prompt definition for the `price_expectation` concept.
+# =============================================================================
+
+schema_type: "simple"
+
+variables:
+  - name: "price_expectation_new_definition"
+    description: "Corrected definition of what constitutes a price expectation"
+    data_type: "string"
+    required: true
