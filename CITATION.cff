@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+title: "DELM: a Python toolkit for Data Extraction with Language Models"
+authors:
+  - family-names: "Fithian"
+    given-names: "Eric"
+  - family-names: "Skobelev"
+    given-names: "Kirill"
+date-released: 2025
+url: "https://arxiv.org/abs/2509.20617"
+identifiers:
+  - type: "arXiv"
+    value: "2509.20617"
