@@ -53,7 +53,7 @@ Points to the schema specification file and optional prompt customization.
 
 - `spec_path`: Path to a `schema_spec.yaml` file that describes the extraction schema.
 - `system_prompt`: Override the default system prompt for all runs.
-- `prompt_template`: Format string used to render each prompt with `{variables}`, `{text}`, and optional `{context}` placeholders.
+- `prompt_template`: Format string used to render each prompt with `{variables}` and `{text}` placeholders.
 
 ## Experiment Management
 

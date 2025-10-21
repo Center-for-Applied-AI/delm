@@ -1,6 +1,6 @@
 # Getting Started
 
-Install DELM, connect a language-model provider, and run your first extraction pipeline.
+Install DELM, create your first configuration files, and run your first extraction pipeline.
 
 ## Installation
 
@@ -36,23 +36,72 @@ TOGETHER_API_KEY=...
 
 Replace the values with your credentials. DELM only loads providers that have available keys.
 
-## Quick Start
+## Create Your Pipeline Configuration
 
-Use the high-level `DELM` class to load a pipeline configuration and run a job:
+Create a file called `config.yaml` in your project directory:
+
+```yaml
+llm_extraction:
+  provider: "openai"
+  name: "gpt-4o-mini"
+  temperature: 0.0
+  batch_size: 10
+
+schema:
+  spec_path: "schema_spec.yaml"
+```
+
+This minimal configuration:
+- Uses OpenAI's GPT-4o-mini model
+- Sets temperature to 0.0 for deterministic results
+- Processes 10 records per batch
+- Points to your schema specification file
+
+## Create Your Schema Specification
+
+Create a file called `schema_spec.yaml` in your project directory:
+
+```yaml
+schema_type: "nested"
+container_name: "commodities"
+variables:
+  - name: "commodity_type"
+    description: "Type of commodity mentioned"
+    data_type: "string"
+    required: true
+  - name: "price_value"
+    description: "Price value mentioned"
+    data_type: "number"
+    required: false
+```
+
+This schema:
+- Extracts a list of commodity objects from each text chunk
+- Each object has a required commodity type and optional price value
+- Uses a nested schema structure for multiple items per chunk
+
+## Run Your First Extraction
+
+Now you can run your first extraction:
 
 ```python
 from pathlib import Path
 from delm import DELM
 
+# 1. Create pipeline from config
 pipeline = DELM.from_yaml(
-    config_path="example.config.yaml",
-    experiment_name="my_experiment",
+    config_path="config.yaml",
+    experiment_name="my_first_extraction",
     experiment_directory=Path("experiments"),
 )
 
+# 2. Prepare your data
 pipeline.prep_data("data/input.txt")
+
+# 3. Run extraction
 pipeline.process_via_llm()
 
+# 4. Get results
 results = pipeline.get_extraction_results()
 cost_summary = pipeline.get_cost_summary()
 ```
@@ -65,20 +114,79 @@ A typical project structure keeps inputs, configuration, and outputs separated:
 project/
 ├── data/
 │   └── input.txt
-├── config/
-│   └── pipeline.yaml
-├── schema/
-│   └── schema_spec.yaml
+├── config.yaml
+├── schema_spec.yaml
 └── experiments/
-    └── my_experiment/
+    └── my_first_extraction/
+        ├── delm_data/
+        ├── delm_logs/
+        └── cost_summary.json
 ```
 
-- **Pipeline configuration** controls providers, preprocessing, and batching.
-- **Schema specification** declares the fields you want to extract.
-- **Experiments directory** stores run artifacts, logs, and summaries.
+- **Pipeline configuration** (`config.yaml`) controls providers, preprocessing, and batching
+- **Schema specification** (`schema_spec.yaml`) declares the fields you want to extract
+- **Experiments directory** stores run artifacts, logs, and summaries
+
+## Understanding Your Results
+
+After running extraction, you'll get:
+
+### Extraction Results
+```python
+results = pipeline.get_extraction_results()
+print(results.head())
+```
+
+The results DataFrame contains:
+- `delm_raw_data`: Original text chunks
+- `delm_extracted_data_json`: Extracted JSON for each chunk
+- `delm_chunk_id`: Unique identifier for each chunk
+
+### Cost Summary
+```python
+cost_summary = pipeline.get_cost_summary()
+print(f"Total cost: ${cost_summary['total_cost']:.4f}")
+print(f"Input tokens: {cost_summary['total_input_tokens']:,}")
+print(f"Output tokens: {cost_summary['total_output_tokens']:,}")
+```
+
+### Example Output
+
+For a text chunk about "Oil prices rose to $75 per barrel", your schema would extract:
+
+```json
+{
+  "commodities": [
+    {
+      "commodity_type": "oil",
+      "price_value": 75
+    }
+  ]
+}
+```
 
 ## Next Steps
 
-1. Review [Pipeline Configuration](usage/pipeline-configuration.md) to understand every option in the YAML config.
-2. Explore the [Schema Reference](schema/reference.md) for guidance on designing robust schemas.
-3. Check the `examples/` directory for sample configs covering common extraction scenarios.
+Now that you've run your first extraction, explore these advanced workflows:
+
+### Cost Estimation
+Before running large extractions, estimate costs to stay within budget:
+- [Cost Estimation Tutorial](tutorials/cost-estimation.md) - Learn to estimate costs before running full extractions
+
+### Performance Evaluation  
+Evaluate extraction quality against human-labeled data:
+- [Performance Evaluation Tutorial](tutorials/performance-evaluation.md) - Learn to measure precision, recall, and F1 scores
+
+### Advanced Configuration
+Customize your pipeline for production use:
+- [Pipeline Configuration](configuration/pipeline-config.md) - Complete reference for all configuration options
+- [Schema Design](configuration/schema-design.md) - Advanced schema patterns and validation features
+
+### Built-in Features
+Explore DELM's production-ready features:
+- [Caching](features/caching.md) - Reduce costs with semantic caching
+- [Text Processing](features/text-processing.md) - Advanced splitting and scoring strategies
+- [Batch Processing](features/batch-processing.md) - Optimize performance with batching and checkpointing
+- [Cost Tracking](features/cost-tracking.md) - Monitor spending and set budget limits
+- [Post-Processing](features/post-processing.md) - Transform results into tabular format
+- [File Formats](features/file-formats.md) - Supported input formats and requirements

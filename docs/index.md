@@ -28,4 +28,38 @@ Cost tracking, caching, budget limits
 
 Add custom scorers, schema components, or post-processing hooks. DELM integrates into larger data workflows.
 
-Use the guides below to install DELM, configure a pipeline, and design schemas for your project. For a full quick start and configuration examples, see the README.
+## Quick Start
+
+Get up and running with DELM in minutes:
+
+1. **[Getting Started](getting-started.md)** - Install DELM, create your first config and schema files, and run your first extraction
+2. **[Cost Estimation Tutorial](tutorials/cost-estimation.md)** - Learn to estimate costs before running large extractions  
+3. **[Performance Evaluation Tutorial](tutorials/performance-evaluation.md)** - Learn to measure extraction quality with precision, recall, and F1 metrics
+
+## Configuration
+
+Customize your extraction pipeline:
+
+- **[Pipeline Configuration](configuration/pipeline-config.md)** - Complete reference for all configuration options
+- **[Schema Design](configuration/schema-design.md)** - Advanced schema patterns, validation features, and examples
+
+## Features
+
+Explore DELM's production-ready capabilities:
+
+- **[Caching](features/caching.md)** - Reduce costs with semantic caching
+- **[Text Processing](features/text-processing.md)** - Advanced splitting and scoring strategies  
+- **[Batch Processing](features/batch-processing.md)** - Optimize performance with batching and checkpointing
+- **[Cost Tracking](features/cost-tracking.md)** - Monitor costs and budget limits
+- **[Post-Processing](features/post-processing.md)** - Transform results into tabular format
+- **[File Formats](features/file-formats.md)** - Supported input formats and requirements
+
+## API Reference
+
+Complete API documentation for developers:
+
+- **[API Overview](reference/index.md)** - Browse all available APIs
+- **[Pipeline API](reference/pipeline.md)** - High-level orchestration class
+- **[Configuration Objects](reference/config.md)** - Typed configuration classes
+- **[Core Managers](reference/managers.md)** - Internal pipeline components
+- **[Utilities](reference/utilities.md)** - Supporting helper functions
