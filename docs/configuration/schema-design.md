@@ -223,13 +223,12 @@ DELM renders the prompt using two configurable strings from your pipeline config
 - `schema.prompt_template`: A Python `str.format`‑style template rendered per chunk, with placeholders:
   - `{variables}`: A human‑readable list of variables with types and allowed values
   - `{text}`: The current text chunk
-  - `{context}`: Optional extra key‑values (if provided by advanced flows)
 
 Examples:
 
 ```text
 System: {schema.system_prompt}
-User: {schema.prompt_template.format(variables=..., text=..., context=...)}
+User: {schema.prompt_template.format(variables=..., text=...)}
 ```
 
 Notes:

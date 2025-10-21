@@ -42,9 +42,20 @@ plugins:
 nav:
   - Overview: index.md
   - Getting Started: getting-started.md
-  - Usage:
-      - Pipeline Configuration: usage/pipeline-configuration.md
-  - Schema Reference: schema/reference.md
+  - Tutorials:
+      - Cost Estimation: tutorials/cost-estimation.md
+      - Performance Evaluation: tutorials/performance-evaluation.md
+  - Configuration:
+      - Pipeline Configuration: configuration/pipeline-config.md
+      - Schema Design: configuration/schema-design.md
+  - Features:
+      - Caching: features/caching.md
+      - Text Processing: features/text-processing.md
+      - Batch Processing: features/batch-processing.md
+      - Checkpointing: features/checkpointing.md
+      - Cost Tracking: features/cost-tracking.md
+      - Post-Processing: features/post-processing.md
+      - File Formats: features/file-formats.md
   - Reference:
       - API Overview: reference/index.md
       - Pipeline API: reference/pipeline.md
