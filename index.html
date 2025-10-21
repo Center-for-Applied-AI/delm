@@ -58,6 +58,14 @@
     </li>
         </ul>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#features">Features</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#api-reference">API Reference</a>
+    </li>
     </ul>
                 </li>
               </ul>
@@ -65,14 +73,36 @@
                 <li class="toctree-l1"><a class="reference internal" href="getting-started/">Getting Started</a>
                 </li>
               </ul>
-              <p class="caption"><span class="caption-text">Usage</span></p>
+              <p class="caption"><span class="caption-text">Tutorials</span></p>
               <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="usage/pipeline-configuration/">Pipeline Configuration</a>
+                  <li class="toctree-l1"><a class="reference internal" href="tutorials/cost-estimation/">Cost Estimation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="tutorials/performance-evaluation/">Performance Evaluation</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="schema/reference/">Schema Reference</a>
-                </li>
+                  <li class="toctree-l1"><a class="reference internal" href="configuration/pipeline-config/">Pipeline Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="configuration/schema-design/">Schema Design</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Features</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="features/caching/">Caching</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="features/text-processing/">Text Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="features/batch-processing/">Batch Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="features/checkpointing/">Checkpointing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="features/cost-tracking/">Cost Tracking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="features/post-processing/">Post-Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="features/file-formats/">File Formats</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">Reference</span></p>
               <ul>
@@ -130,7 +160,38 @@
 <p>Cost tracking, caching, budget limits</p>
 <h3 id="extensible-architecture">Extensible Architecture<a class="headerlink" href="#extensible-architecture" title="Permanent link">&para;</a></h3>
 <p>Add custom scorers, schema components, or post-processing hooks. DELM integrates into larger data workflows.</p>
-<p>Use the guides below to install DELM, configure a pipeline, and design schemas for your project. For a full quick start and configuration examples, see the README.</p>
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<p>Get up and running with DELM in minutes:</p>
+<ol>
+<li><strong><a href="getting-started/">Getting Started</a></strong> - Install DELM, create your first config and schema files, and run your first extraction</li>
+<li><strong><a href="tutorials/cost-estimation/">Cost Estimation Tutorial</a></strong> - Learn to estimate costs before running large extractions  </li>
+<li><strong><a href="tutorials/performance-evaluation/">Performance Evaluation Tutorial</a></strong> - Learn to measure extraction quality with precision, recall, and F1 metrics</li>
+</ol>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<p>Customize your extraction pipeline:</p>
+<ul>
+<li><strong><a href="configuration/pipeline-config/">Pipeline Configuration</a></strong> - Complete reference for all configuration options</li>
+<li><strong><a href="configuration/schema-design/">Schema Design</a></strong> - Advanced schema patterns, validation features, and examples</li>
+</ul>
+<h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
+<p>Explore DELM's production-ready capabilities:</p>
+<ul>
+<li><strong><a href="features/caching/">Caching</a></strong> - Reduce costs with semantic caching</li>
+<li><strong><a href="features/text-processing/">Text Processing</a></strong> - Advanced splitting and scoring strategies  </li>
+<li><strong><a href="features/batch-processing/">Batch Processing</a></strong> - Optimize performance with batching and checkpointing</li>
+<li><strong><a href="features/cost-tracking/">Cost Tracking</a></strong> - Monitor costs and budget limits</li>
+<li><strong><a href="features/post-processing/">Post-Processing</a></strong> - Transform results into tabular format</li>
+<li><strong><a href="features/file-formats/">File Formats</a></strong> - Supported input formats and requirements</li>
+</ul>
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
+<p>Complete API documentation for developers:</p>
+<ul>
+<li><strong><a href="reference/">API Overview</a></strong> - Browse all available APIs</li>
+<li><strong><a href="reference/pipeline/">Pipeline API</a></strong> - High-level orchestration class</li>
+<li><strong><a href="reference/config/">Configuration Objects</a></strong> - Typed configuration classes</li>
+<li><strong><a href="reference/managers/">Core Managers</a></strong> - Internal pipeline components</li>
+<li><strong><a href="reference/utilities/">Utilities</a></strong> - Supporting helper functions</li>
+</ul>
               
             </div>
           </div><footer>
@@ -183,5 +244,5 @@
 
 <!--
 MkDocs version : 1.6.1
-Build Date UTC : 2025-09-20 17:51:44.974853+00:00
+Build Date UTC : 2025-10-21 22:23:25.857498+00:00
 -->

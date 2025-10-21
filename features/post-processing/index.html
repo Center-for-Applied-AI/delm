@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Post-Processing - DELM Documentation</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Post-Processing";
+        var mkdocs_page_input_path = "features/post-processing.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../..">
+          <img src="../../assets/delm_logo.png" class="logo" alt="Logo"/>
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Overview</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorials/cost-estimation/">Cost Estimation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorials/performance-evaluation/">Performance Evaluation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/pipeline-config/">Pipeline Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/schema-design/">Schema Design</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Features</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../caching/">Caching</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../text-processing/">Text Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../batch-processing/">Batch Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../checkpointing/">Checkpointing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cost-tracking/">Cost Tracking</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Post-Processing</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#basic-usage">Basic Usage</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#simple-explosion">Simple Explosion</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#using-schema-object">Using Schema Object</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#schema-type-handling">Schema Type Handling</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#simple-schema-explosion">Simple Schema Explosion</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#nested-schema-explosion">Nested Schema Explosion</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#multiple-schema-explosion">Multiple Schema Explosion</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#advanced-configuration">Advanced Configuration</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#custom-column-names">Custom Column Names</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#filtering-results">Filtering Results</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#handling-missing-data">Handling Missing Data</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#data-analysis-examples">Data Analysis Examples</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#basic-analysis">Basic Analysis</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#grouped-analysis">Grouped Analysis</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#time-series-analysis">Time Series Analysis</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#integration-with-analysis-tools">Integration with Analysis Tools</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#pandas-integration">Pandas Integration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#export-to-other-formats">Export to Other Formats</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#database-integration">Database Integration</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#schema-specific-examples">Schema-Specific Examples</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#financial-data-extraction">Financial Data Extraction</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#sentiment-analysis">Sentiment Analysis</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#performance-optimization">Performance Optimization</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#large-dataset-handling">Large Dataset Handling</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#memory-optimization">Memory Optimization</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../file-formats/">File Formats</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/">API Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pipeline/">Pipeline API</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/config/">Configuration Objects</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/managers/">Core Managers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/utilities/">Utilities</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">DELM Documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Features</li>
+      <li class="breadcrumb-item active">Post-Processing</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/Center-for-Applied-AI/delm/edit/main/docs/features/post-processing.md">Edit on Center-for-Applied-AI/delm</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="post-processing">Post-Processing<a class="headerlink" href="#post-processing" title="Permanent link">&para;</a></h1>
+<p>Learn how to transform DELM extraction results into tabular format using the <code>explode_json_results</code> utility.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>DELM extracts structured JSON data, but you often need tabular format for analysis. The <code>explode_json_results</code> utility converts nested JSON into flat, analyzable tables.</p>
+<h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
+<h3 id="simple-explosion">Simple Explosion<a class="headerlink" href="#simple-explosion" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.utils.post_processing</span><span class="w"> </span><span class="kn">import</span> <span class="n">explode_json_results</span>
+
+<span class="c1"># Convert JSON results to tabular format</span>
+<span class="n">exploded_df</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span>
+    <span class="n">final_df</span><span class="p">,</span>
+    <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;schema_spec.yaml&quot;</span>  <span class="c1"># Path to your schema file</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">exploded_df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</code></pre></div>
+<h3 id="using-schema-object">Using Schema Object<a class="headerlink" href="#using-schema-object" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span>
+
+<span class="c1"># Load schema from pipeline</span>
+<span class="n">pipeline</span> <span class="o">=</span> <span class="n">DELM</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">,</span> <span class="s2">&quot;experiment&quot;</span><span class="p">,</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;experiments&quot;</span><span class="p">))</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">schema_manager</span><span class="o">.</span><span class="n">get_extraction_schema</span><span class="p">()</span>
+
+<span class="c1"># Use schema object instead of file path</span>
+<span class="n">exploded_df</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span>
+    <span class="n">final_df</span><span class="p">,</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="schema-type-handling">Schema Type Handling<a class="headerlink" href="#schema-type-handling" title="Permanent link">&para;</a></h2>
+<h3 id="simple-schema-explosion">Simple Schema Explosion<a class="headerlink" href="#simple-schema-explosion" title="Permanent link">&para;</a></h3>
+<p>For simple schemas (key-value pairs):</p>
+<p><strong>Input JSON</strong>:
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;price&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;company&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Apple&quot;</span><span class="p">}</span>
+</code></pre></div></p>
+<p><strong>Output Table</strong>:
+<div class="highlight"><pre><span></span><code>| delm_chunk_id | price | company |
+|---------------|-------|---------|
+| chunk_1       | 100   | Apple   |
+</code></pre></div></p>
+<h3 id="nested-schema-explosion">Nested Schema Explosion<a class="headerlink" href="#nested-schema-explosion" title="Permanent link">&para;</a></h3>
+<p>For nested schemas (list of objects):</p>
+<p><strong>Input JSON</strong>:
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;commodities&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;oil&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;price&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">75</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;gold&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;price&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1950</span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p><strong>Output Table</strong>:
+<div class="highlight"><pre><span></span><code>| delm_chunk_id | commodity_type | commodity_price |
+|---------------|----------------|-----------------|
+| chunk_1       | oil            | 75              |
+| chunk_1       | gold           | 1950            |
+</code></pre></div></p>
+<h3 id="multiple-schema-explosion">Multiple Schema Explosion<a class="headerlink" href="#multiple-schema-explosion" title="Permanent link">&para;</a></h3>
+<p>For multiple schemas (multiple independent lists):</p>
+<p><strong>Input JSON</strong>:
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;commodities&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;oil&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;price&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">75</span><span class="p">}],</span>
+<span class="w">  </span><span class="nt">&quot;companies&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Exxon&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;sector&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;energy&quot;</span><span class="p">}]</span>
+<span class="p">}</span>
+</code></pre></div></p>
+<p><strong>Output Tables</strong>:
+<div class="highlight"><pre><span></span><code># commodities table
+| delm_chunk_id | commodity_type | commodity_price |
+|---------------|----------------|-----------------|
+| chunk_1       | oil            | 75              |
+
+# companies table  
+| delm_chunk_id | company_name | company_sector |
+|---------------|--------------|----------------|
+| chunk_1       | Exxon        | energy         |
+</code></pre></div></p>
+<h2 id="advanced-configuration">Advanced Configuration<a class="headerlink" href="#advanced-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="custom-column-names">Custom Column Names<a class="headerlink" href="#custom-column-names" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Specify custom column name mappings</span>
+<span class="n">exploded_df</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span>
+    <span class="n">final_df</span><span class="p">,</span>
+    <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;schema_spec.yaml&quot;</span><span class="p">,</span>
+    <span class="n">column_mapping</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;commodity_type&quot;</span><span class="p">:</span> <span class="s2">&quot;type&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;price_value&quot;</span><span class="p">:</span> <span class="s2">&quot;price&quot;</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="filtering-results">Filtering Results<a class="headerlink" href="#filtering-results" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Filter out null values</span>
+<span class="n">exploded_df</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span>
+    <span class="n">final_df</span><span class="p">,</span>
+    <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;schema_spec.yaml&quot;</span><span class="p">,</span>
+    <span class="n">drop_null</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Remove rows with null values</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="handling-missing-data">Handling Missing Data<a class="headerlink" href="#handling-missing-data" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Keep null values but mark them</span>
+<span class="n">exploded_df</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span>
+    <span class="n">final_df</span><span class="p">,</span>
+    <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;schema_spec.yaml&quot;</span><span class="p">,</span>
+    <span class="n">null_value</span><span class="o">=</span><span class="s2">&quot;MISSING&quot;</span>  <span class="c1"># Replace null with custom value</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="data-analysis-examples">Data Analysis Examples<a class="headerlink" href="#data-analysis-examples" title="Permanent link">&para;</a></h2>
+<h3 id="basic-analysis">Basic Analysis<a class="headerlink" href="#basic-analysis" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Load and explode results</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">get_extraction_results</span><span class="p">()</span>
+<span class="n">exploded_df</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;schema_spec.yaml&quot;</span><span class="p">)</span>
+
+<span class="c1"># Basic statistics</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total extractions: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">exploded_df</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unique commodities: </span><span class="si">{</span><span class="n">exploded_df</span><span class="p">[</span><span class="s1">&#39;commodity_type&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Average price: $</span><span class="si">{</span><span class="n">exploded_df</span><span class="p">[</span><span class="s1">&#39;price_value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="grouped-analysis">Grouped Analysis<a class="headerlink" href="#grouped-analysis" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Group by commodity type</span>
+<span class="n">commodity_stats</span> <span class="o">=</span> <span class="n">exploded_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;commodity_type&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">agg</span><span class="p">({</span>
+    <span class="s1">&#39;price_value&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;count&#39;</span><span class="p">,</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;std&#39;</span><span class="p">],</span>
+    <span class="s1">&#39;delm_chunk_id&#39;</span><span class="p">:</span> <span class="s1">&#39;nunique&#39;</span>
+<span class="p">})</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Commodity Statistics:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">commodity_stats</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="time-series-analysis">Time Series Analysis<a class="headerlink" href="#time-series-analysis" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># If you have timestamp data</span>
+<span class="n">exploded_df</span><span class="p">[</span><span class="s1">&#39;extraction_date&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">(</span><span class="n">exploded_df</span><span class="p">[</span><span class="s1">&#39;delm_chunk_id&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;(\d</span><span class="si">{4}</span><span class="s1">-\d</span><span class="si">{2}</span><span class="s1">-\d</span><span class="si">{2}</span><span class="s1">)&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+<span class="c1"># Daily price trends</span>
+<span class="n">daily_prices</span> <span class="o">=</span> <span class="n">exploded_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;extraction_date&#39;</span><span class="p">,</span> <span class="s1">&#39;commodity_type&#39;</span><span class="p">])[</span><span class="s1">&#39;price_value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">unstack</span><span class="p">()</span>
+<span class="n">daily_prices</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s1">&#39;line&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Daily Commodity Prices&#39;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="integration-with-analysis-tools">Integration with Analysis Tools<a class="headerlink" href="#integration-with-analysis-tools" title="Permanent link">&para;</a></h2>
+<h3 id="pandas-integration">Pandas Integration<a class="headerlink" href="#pandas-integration" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="c1"># Convert to pandas for analysis</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">exploded_df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+<span class="c1"># Advanced filtering</span>
+<span class="n">oil_prices</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;commodity_type&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;oil&#39;</span><span class="p">][</span><span class="s1">&#39;price_value&#39;</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Oil price range: $</span><span class="si">{</span><span class="n">oil_prices</span><span class="o">.</span><span class="n">min</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> - $</span><span class="si">{</span><span class="n">oil_prices</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Statistical analysis</span>
+<span class="n">price_correlation</span> <span class="o">=</span> <span class="n">df</span><span class="p">[[</span><span class="s1">&#39;price_value&#39;</span><span class="p">,</span> <span class="s1">&#39;delm_chunk_id&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">corr</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Price correlation matrix:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">price_correlation</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="export-to-other-formats">Export to Other Formats<a class="headerlink" href="#export-to-other-formats" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Export to CSV</span>
+<span class="n">exploded_df</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="s2">&quot;extracted_data.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Export to Excel with multiple sheets</span>
+<span class="k">with</span> <span class="n">pd</span><span class="o">.</span><span class="n">ExcelWriter</span><span class="p">(</span><span class="s2">&quot;extracted_data.xlsx&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">writer</span><span class="p">:</span>
+    <span class="n">exploded_df</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="s2">&quot;All Data&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Create summary sheet</span>
+    <span class="n">summary</span> <span class="o">=</span> <span class="n">exploded_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="s1">&#39;commodity_type&#39;</span><span class="p">)[</span><span class="s1">&#39;price_value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">agg</span><span class="p">([</span><span class="s1">&#39;count&#39;</span><span class="p">,</span> <span class="s1">&#39;mean&#39;</span><span class="p">,</span> <span class="s1">&#39;std&#39;</span><span class="p">])</span>
+    <span class="n">summary</span><span class="o">.</span><span class="n">to_excel</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="s2">&quot;Summary&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="database-integration">Database Integration<a class="headerlink" href="#database-integration" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">sqlite3</span>
+
+<span class="c1"># Save to SQLite database</span>
+<span class="n">conn</span> <span class="o">=</span> <span class="n">sqlite3</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="s2">&quot;extractions.db&quot;</span><span class="p">)</span>
+<span class="n">exploded_df</span><span class="o">.</span><span class="n">to_sql</span><span class="p">(</span><span class="s2">&quot;extractions&quot;</span><span class="p">,</span> <span class="n">conn</span><span class="p">,</span> <span class="n">if_exists</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+<span class="c1"># Query the database</span>
+<span class="n">query</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">SELECT commodity_type, AVG(price_value) as avg_price, COUNT(*) as count</span>
+<span class="s2">FROM extractions </span>
+<span class="s2">GROUP BY commodity_type</span>
+<span class="s2">&quot;&quot;&quot;</span>
+<span class="n">summary_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_sql_query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">conn</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">summary_df</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="schema-specific-examples">Schema-Specific Examples<a class="headerlink" href="#schema-specific-examples" title="Permanent link">&para;</a></h2>
+<h3 id="financial-data-extraction">Financial Data Extraction<a class="headerlink" href="#financial-data-extraction" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Schema: financial metrics</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;schema_type&quot;</span><span class="p">:</span> <span class="s2">&quot;nested&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;container_name&quot;</span><span class="p">:</span> <span class="s2">&quot;metrics&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;variables&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;metric_name&quot;</span><span class="p">,</span> <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="s2">&quot;number&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;currency&quot;</span><span class="p">,</span> <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">}</span>
+    <span class="p">]</span>
+<span class="p">}</span>
+
+<span class="c1"># Explode and analyze</span>
+<span class="n">exploded_df</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+
+<span class="c1"># Financial analysis</span>
+<span class="n">revenue_metrics</span> <span class="o">=</span> <span class="n">exploded_df</span><span class="p">[</span><span class="n">exploded_df</span><span class="p">[</span><span class="s1">&#39;metric_name&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s1">&#39;revenue&#39;</span><span class="p">,</span> <span class="n">case</span><span class="o">=</span><span class="kc">False</span><span class="p">)]</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Revenue metrics found: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">revenue_metrics</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Currency breakdown</span>
+<span class="n">currency_dist</span> <span class="o">=</span> <span class="n">exploded_df</span><span class="p">[</span><span class="s1">&#39;currency&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Currency distribution:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">currency_dist</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="sentiment-analysis">Sentiment Analysis<a class="headerlink" href="#sentiment-analysis" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Schema: sentiment analysis</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;schema_type&quot;</span><span class="p">:</span> <span class="s2">&quot;nested&quot;</span><span class="p">,</span> 
+    <span class="s2">&quot;container_name&quot;</span><span class="p">:</span> <span class="s2">&quot;sentiments&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;variables&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;aspect&quot;</span><span class="p">,</span> <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;sentiment&quot;</span><span class="p">,</span> <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;intensity&quot;</span><span class="p">,</span> <span class="s2">&quot;data_type&quot;</span><span class="p">:</span> <span class="s2">&quot;string&quot;</span><span class="p">}</span>
+    <span class="p">]</span>
+<span class="p">}</span>
+
+<span class="c1"># Explode and analyze sentiment</span>
+<span class="n">exploded_df</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+
+<span class="c1"># Sentiment distribution</span>
+<span class="n">sentiment_dist</span> <span class="o">=</span> <span class="n">exploded_df</span><span class="p">[</span><span class="s1">&#39;sentiment&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Sentiment distribution:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sentiment_dist</span><span class="p">)</span>
+
+<span class="c1"># Aspect analysis</span>
+<span class="n">aspect_sentiment</span> <span class="o">=</span> <span class="n">exploded_df</span><span class="o">.</span><span class="n">groupby</span><span class="p">([</span><span class="s1">&#39;aspect&#39;</span><span class="p">,</span> <span class="s1">&#39;sentiment&#39;</span><span class="p">])</span><span class="o">.</span><span class="n">size</span><span class="p">()</span><span class="o">.</span><span class="n">unstack</span><span class="p">(</span><span class="n">fill_value</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Aspect-Sentiment Matrix:&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">aspect_sentiment</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="performance-optimization">Performance Optimization<a class="headerlink" href="#performance-optimization" title="Permanent link">&para;</a></h2>
+<h3 id="large-dataset-handling">Large Dataset Handling<a class="headerlink" href="#large-dataset-handling" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Process large datasets in chunks</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_large_dataset</span><span class="p">(</span><span class="n">pipeline</span><span class="p">,</span> <span class="n">chunk_size</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">get_extraction_results</span><span class="p">()</span>
+    <span class="n">exploded_chunks</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">),</span> <span class="n">chunk_size</span><span class="p">):</span>
+        <span class="n">chunk</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="n">chunk_size</span><span class="p">]</span>
+        <span class="n">exploded_chunk</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span><span class="n">chunk</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="s2">&quot;schema_spec.yaml&quot;</span><span class="p">)</span>
+        <span class="n">exploded_chunks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exploded_chunk</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">exploded_chunks</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="memory-optimization">Memory Optimization<a class="headerlink" href="#memory-optimization" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Optimize memory usage</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">memory_efficient_explosion</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">schema</span><span class="p">):</span>
+    <span class="c1"># Process in smaller batches</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">exploded_batches</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">),</span> <span class="n">batch_size</span><span class="p">):</span>
+        <span class="n">batch</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">i</span><span class="p">:</span><span class="n">i</span><span class="o">+</span><span class="n">batch_size</span><span class="p">]</span>
+        <span class="n">exploded_batch</span> <span class="o">=</span> <span class="n">explode_json_results</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+        <span class="n">exploded_batches</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">exploded_batch</span><span class="p">)</span>
+
+        <span class="c1"># Clear memory</span>
+        <span class="k">del</span> <span class="n">batch</span><span class="p">,</span> <span class="n">exploded_batch</span>
+
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">exploded_batches</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<p>If you encounter issues, review the logs in your experiment directory for detailed error information.</p>
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../configuration/schema-design/">Schema Design</a> - Learn advanced schema patterns</li>
+<li><a href="../batch-processing/">Batch Processing</a> - Optimize performance with batching</li>
+<li><a href="../cost-tracking/">Cost Tracking</a> - Monitor costs and budget limits</li>
+<li><a href="../../configuration/pipeline-config/">Pipeline Configuration</a> - Complete configuration reference</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../cost-tracking/" class="btn btn-neutral float-left" title="Cost Tracking"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../file-formats/" class="btn btn-neutral float-right" title="File Formats">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/Center-for-Applied-AI/delm" class="fa fa-code-fork" style="color: #fcfcfc"> Center-for-Applied-AI/delm</a>
+        </span>
+    
+    
+      <span><a href="../cost-tracking/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../file-formats/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

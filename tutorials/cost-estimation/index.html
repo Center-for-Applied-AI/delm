@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>Cost Estimation - DELM Documentation</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Cost Estimation";
+        var mkdocs_page_input_path = "tutorials/cost-estimation.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../..">
+          <img src="../../assets/delm_logo.png" class="logo" alt="Logo"/>
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Overview</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Tutorials</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Cost Estimation</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#when-to-use-cost-estimation">When to Use Cost Estimation</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#input-token-cost-estimation">Input Token Cost Estimation</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#how-it-works">How It Works</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#example-output">Example Output</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#total-cost-estimation">Total Cost Estimation</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#how-it-works_1">How It Works</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#example-output_1">Example Output</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#interpreting-results">Interpreting Results</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#cost-breakdown">Cost Breakdown</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#cost-optimization-strategies">Cost Optimization Strategies</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#1-reduce-input-tokens">1. Reduce Input Tokens</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#2-use-caching">2. Use Caching</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#3-choose-cost-effective-models">3. Choose Cost-Effective Models</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#4-optimize-batch-size">4. Optimize Batch Size</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#1-start-with-input-token-estimation">1. Start with Input Token Estimation</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2-use-representative-samples">2. Use Representative Samples</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#3-account-for-caching">3. Account for Caching</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#4-set-budget-limits">4. Set Budget Limits</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#5-monitor-during-processing">5. Monitor During Processing</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../performance-evaluation/">Performance Evaluation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/pipeline-config/">Pipeline Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/schema-design/">Schema Design</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Features</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/caching/">Caching</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/text-processing/">Text Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/batch-processing/">Batch Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/checkpointing/">Checkpointing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/cost-tracking/">Cost Tracking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/post-processing/">Post-Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/file-formats/">File Formats</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/">API Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pipeline/">Pipeline API</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/config/">Configuration Objects</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/managers/">Core Managers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/utilities/">Utilities</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">DELM Documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Tutorials</li>
+      <li class="breadcrumb-item active">Cost Estimation</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/Center-for-Applied-AI/delm/edit/main/docs/tutorials/cost-estimation.md">Edit on Center-for-Applied-AI/delm</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="cost-estimation-tutorial">Cost Estimation Tutorial<a class="headerlink" href="#cost-estimation-tutorial" title="Permanent link">&para;</a></h1>
+<p>Learn how to estimate extraction costs before running large-scale data processing jobs.</p>
+<h2 id="when-to-use-cost-estimation">When to Use Cost Estimation<a class="headerlink" href="#when-to-use-cost-estimation" title="Permanent link">&para;</a></h2>
+<p>Cost estimation helps you:
+- <strong>Budget planning</strong>: Understand costs before committing to large extractions
+- <strong>Model selection</strong>: Compare costs between different models and providers
+- <strong>Configuration optimization</strong>: Find the most cost-effective settings
+- <strong>Risk management</strong>: Avoid unexpected charges on large datasets</p>
+<h2 id="input-token-cost-estimation">Input Token Cost Estimation<a class="headerlink" href="#input-token-cost-estimation" title="Permanent link">&para;</a></h2>
+<p>Estimate costs without making API calls using <code>estimate_input_token_cost</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.utils.cost_estimation</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_input_token_cost</span>
+
+<span class="c1"># Estimate input token costs for your dataset</span>
+<span class="n">input_cost</span> <span class="o">=</span> <span class="n">estimate_input_token_cost</span><span class="p">(</span>
+    <span class="n">config</span><span class="o">=</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">,</span>
+    <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;data.csv&quot;</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Estimated input token cost: $</span><span class="si">{</span><span class="n">input_cost</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
+<p>This method:
+1. Loads your configuration and data
+2. Processes text through splitting and scoring (if configured)
+3. Counts input tokens using the same prompts that would be sent to the LLM
+4. Calculates cost based on your model's input token pricing</p>
+<h3 id="example-output">Example Output<a class="headerlink" href="#example-output" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>Estimated input token cost: $12.45
+</code></pre></div>
+<p><strong>Note</strong>: This only estimates input tokens. Total costs will be higher due to output tokens.</p>
+<h2 id="total-cost-estimation">Total Cost Estimation<a class="headerlink" href="#total-cost-estimation" title="Permanent link">&para;</a></h2>
+<p>Get more accurate estimates using <code>estimate_total_cost</code> with actual API calls:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.utils.cost_estimation</span><span class="w"> </span><span class="kn">import</span> <span class="n">estimate_total_cost</span>
+
+<span class="c1"># Estimate total costs using a sample of your data</span>
+<span class="n">total_cost</span> <span class="o">=</span> <span class="n">estimate_total_cost</span><span class="p">(</span>
+    <span class="n">config</span><span class="o">=</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">,</span>
+    <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;data.csv&quot;</span><span class="p">,</span>
+    <span class="n">sample_size</span><span class="o">=</span><span class="mi">100</span>  <span class="c1"># Process 100 records for estimation</span>
+<span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Estimated total cost: $</span><span class="si">{</span><span class="n">total_cost</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="how-it-works_1">How It Works<a class="headerlink" href="#how-it-works_1" title="Permanent link">&para;</a></h3>
+<p>This method:
+1. Samples a subset of your data (default: 10 records)
+2. Runs the full extraction pipeline on the sample
+3. Tracks actual input and output token usage
+4. Scales the sample cost to estimate full dataset cost</p>
+<h3 id="example-output_1">Example Output<a class="headerlink" href="#example-output_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>Estimated total cost: $156.78
+</code></pre></div>
+<p><strong>Warning</strong>: This method makes actual API calls and will charge you for the sample data.</p>
+<h2 id="interpreting-results">Interpreting Results<a class="headerlink" href="#interpreting-results" title="Permanent link">&para;</a></h2>
+<h3 id="cost-breakdown">Cost Breakdown<a class="headerlink" href="#cost-breakdown" title="Permanent link">&para;</a></h3>
+<p>After running either estimation method, you can get detailed cost information:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># If you ran estimate_total_cost, you can access the pipeline&#39;s cost tracker</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span>
+
+<span class="n">pipeline</span> <span class="o">=</span> <span class="n">DELM</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span>
+    <span class="n">config_path</span><span class="o">=</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">,</span>
+    <span class="n">experiment_name</span><span class="o">=</span><span class="s2">&quot;cost_estimation&quot;</span><span class="p">,</span>
+    <span class="n">experiment_directory</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;experiments&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="c1"># Run your estimation</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;data.csv&quot;</span><span class="p">)</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">process_via_llm</span><span class="p">()</span>
+
+<span class="c1"># Get detailed cost summary</span>
+<span class="n">cost_summary</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">get_cost_summary</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total cost: $</span><span class="si">{</span><span class="n">cost_summary</span><span class="p">[</span><span class="s1">&#39;total_cost&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Input tokens: </span><span class="si">{</span><span class="n">cost_summary</span><span class="p">[</span><span class="s1">&#39;total_input_tokens&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Output tokens: </span><span class="si">{</span><span class="n">cost_summary</span><span class="p">[</span><span class="s1">&#39;total_output_tokens&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cached tokens: </span><span class="si">{</span><span class="n">cost_summary</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;total_cached_tokens&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="cost-optimization-strategies">Cost Optimization Strategies<a class="headerlink" href="#cost-optimization-strategies" title="Permanent link">&para;</a></h3>
+<p>Based on your estimates, consider these optimizations:</p>
+<h4 id="1-reduce-input-tokens">1. Reduce Input Tokens<a class="headerlink" href="#1-reduce-input-tokens" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="nt">data_preprocessing</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">splitting</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;FixedWindowSplit&quot;</span>
+<span class="w">    </span><span class="nt">window</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span><span class="w">  </span><span class="c1"># Smaller chunks = fewer tokens</span>
+<span class="w">  </span><span class="nt">scoring</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;KeywordScorer&quot;</span>
+<span class="w">    </span><span class="nt">keywords</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;price&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;forecast&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">pandas_score_filter</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;delm_score</span><span class="nv"> </span><span class="s">&gt;=</span><span class="nv"> </span><span class="s">0.8&quot;</span><span class="w">  </span><span class="c1"># Filter irrelevant chunks</span>
+</code></pre></div>
+<h4 id="2-use-caching">2. Use Caching<a class="headerlink" href="#2-use-caching" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="nt">semantic_cache</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">backend</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;sqlite&quot;</span>
+<span class="w">  </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;.delm_cache&quot;</span>
+<span class="w">  </span><span class="nt">max_size_mb</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">512</span>
+</code></pre></div>
+<h4 id="3-choose-cost-effective-models">3. Choose Cost-Effective Models<a class="headerlink" href="#3-choose-cost-effective-models" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="nt">llm_extraction</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;openai&quot;</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;gpt-3.5-turbo&quot;</span><span class="w">  </span><span class="c1"># Cheaper than gpt-4o-mini</span>
+<span class="w">  </span><span class="c1"># or</span>
+<span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropic&quot;</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;claude-3-haiku&quot;</span><span class="w">  </span><span class="c1"># Anthropic&#39;s most cost-effective model</span>
+</code></pre></div>
+<h4 id="4-optimize-batch-size">4. Optimize Batch Size<a class="headerlink" href="#4-optimize-batch-size" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="nt">llm_extraction</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">20</span><span class="w">  </span><span class="c1"># Larger batches can reduce overhead</span>
+<span class="w">  </span><span class="nt">max_workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span><span class="w">  </span><span class="c1"># Parallel processing</span>
+</code></pre></div>
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+<h3 id="1-start-with-input-token-estimation">1. Start with Input Token Estimation<a class="headerlink" href="#1-start-with-input-token-estimation" title="Permanent link">&para;</a></h3>
+<p>Always begin with <code>estimate_input_token_cost</code> since it's free and gives you a baseline.</p>
+<h3 id="2-use-representative-samples">2. Use Representative Samples<a class="headerlink" href="#2-use-representative-samples" title="Permanent link">&para;</a></h3>
+<p>For <code>estimate_total_cost</code>, use a sample size that represents your full dataset:
+- <strong>Small datasets</strong> (&lt; 1000 records): Use 10-20% of your data
+- <strong>Medium datasets</strong> (1000-10000 records): Use 5-10% of your data<br />
+- <strong>Large datasets</strong> (&gt; 10000 records): Use 1-5% of your data</p>
+<h3 id="3-account-for-caching">3. Account for Caching<a class="headerlink" href="#3-account-for-caching" title="Permanent link">&para;</a></h3>
+<p>If you plan to use caching, your actual costs will be lower than estimates since repeated chunks won't be re-processed.</p>
+<h3 id="4-set-budget-limits">4. Set Budget Limits<a class="headerlink" href="#4-set-budget-limits" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nt">llm_extraction</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">track_cost</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">max_budget</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100.0</span><span class="w">  </span><span class="c1"># Stop processing if cost exceeds $100</span>
+</code></pre></div>
+<h3 id="5-monitor-during-processing">5. Monitor During Processing<a class="headerlink" href="#5-monitor-during-processing" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Check costs during long-running jobs</span>
+<span class="n">cost_summary</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">get_cost_summary</span><span class="p">()</span>
+<span class="k">if</span> <span class="n">cost_summary</span><span class="p">[</span><span class="s1">&#39;total_cost&#39;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">50.0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Warning: Approaching budget limit&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<p>If you encounter issues, review the logs in your experiment directory for detailed error information.</p>
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../performance-evaluation/">Performance Evaluation Tutorial</a> - Learn to measure extraction quality</li>
+<li><a href="../../features/cost-tracking/">Cost Tracking</a> - Advanced cost monitoring and budget management</li>
+<li><a href="../../configuration/pipeline-config/">Pipeline Configuration</a> - Complete configuration reference</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../../getting-started/" class="btn btn-neutral float-left" title="Getting Started"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../performance-evaluation/" class="btn btn-neutral float-right" title="Performance Evaluation">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/Center-for-Applied-AI/delm" class="fa fa-code-fork" style="color: #fcfcfc"> Center-for-Applied-AI/delm</a>
+        </span>
+    
+    
+      <span><a href="../../getting-started/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../performance-evaluation/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

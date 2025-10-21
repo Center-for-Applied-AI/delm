@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../../img/favicon.ico" />
+    <title>File Formats - DELM Documentation</title>
+    <link rel="stylesheet" href="../../css/theme.css" />
+    <link rel="stylesheet" href="../../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "File Formats";
+        var mkdocs_page_input_path = "features/file-formats.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <!--[if lt IE 9]>
+      <script src="../../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+      <script>hljs.highlightAll();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../..">
+          <img src="../../assets/delm_logo.png" class="logo" alt="Logo"/>
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../..">Overview</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../../getting-started/">Getting Started</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Tutorials</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorials/cost-estimation/">Cost Estimation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorials/performance-evaluation/">Performance Evaluation</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/pipeline-config/">Pipeline Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../configuration/schema-design/">Schema Design</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Features</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../caching/">Caching</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../text-processing/">Text Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../batch-processing/">Batch Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../checkpointing/">Checkpointing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../cost-tracking/">Cost Tracking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../post-processing/">Post-Processing</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">File Formats</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#supported-formats">Supported Formats</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#installation-requirements">Installation Requirements</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#core-dependencies">Core Dependencies</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#individual-format-dependencies">Individual Format Dependencies</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#format-specific-usage">Format-Specific Usage</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#text-files">Text Files</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#html-files">HTML Files</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#markdown-files">Markdown Files</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#word-documents">Word Documents</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#pdf-files">PDF Files</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#csv-files">CSV Files</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#excel-files">Excel Files</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#parquet-files">Parquet Files</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#feather-files">Feather Files</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#configuration-examples">Configuration Examples</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#csv-with-custom-column">CSV with Custom Column</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#excel-with-multiple-sheets">Excel with Multiple Sheets</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#directory-processing">Directory Processing</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#performance-considerations">Performance Considerations</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#format-performance-ranking">Format Performance Ranking</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#optimization-tips">Optimization Tips</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#for-large-datasets">For Large Datasets</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#for-pdf-processing">For PDF Processing</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#error-handling">Error Handling</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#common-issues">Common Issues</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#missing-dependencies">Missing Dependencies</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#unsupported-formats">Unsupported Formats</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#corrupted-files">Corrupted Files</a>
+    </li>
+        </ul>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#1-choose-appropriate-format">1. Choose Appropriate Format</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#2-preprocess-when-needed">2. Preprocess When Needed</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#3-handle-mixed-formats">3. Handle Mixed Formats</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#4-optimize-for-performance">4. Optimize for Performance</a>
+    </li>
+        </ul>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a>
+    </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Reference</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/">API Overview</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/pipeline/">Pipeline API</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/config/">Configuration Objects</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/managers/">Core Managers</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../reference/utilities/">Utilities</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../..">DELM Documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
+          <li class="breadcrumb-item">Features</li>
+      <li class="breadcrumb-item active">File Formats</li>
+    <li class="wy-breadcrumbs-aside">
+          <a href="https://github.com/Center-for-Applied-AI/delm/edit/main/docs/features/file-formats.md">Edit on Center-for-Applied-AI/delm</a>
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="file-formats">File Formats<a class="headerlink" href="#file-formats" title="Permanent link">&para;</a></h1>
+<p>Learn about the file formats supported by DELM and their specific requirements.</p>
+<h2 id="supported-formats">Supported Formats<a class="headerlink" href="#supported-formats" title="Permanent link">&para;</a></h2>
+<p>DELM supports a wide range of input formats for text extraction:</p>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Extension</th>
+<th>Requirements</th>
+<th>Best For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Text</td>
+<td><code>.txt</code></td>
+<td>Built-in</td>
+<td>Plain text documents</td>
+</tr>
+<tr>
+<td>HTML</td>
+<td><code>.html</code>, <code>.htm</code></td>
+<td><code>beautifulsoup4</code></td>
+<td>Web pages, HTML documents</td>
+</tr>
+<tr>
+<td>Markdown</td>
+<td><code>.md</code></td>
+<td><code>beautifulsoup4</code></td>
+<td>Documentation, README files</td>
+</tr>
+<tr>
+<td>Word Documents</td>
+<td><code>.docx</code></td>
+<td><code>python-docx</code></td>
+<td>Microsoft Word documents</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td><code>.pdf</code></td>
+<td><code>marker-pdf</code></td>
+<td>Scanned documents, reports</td>
+</tr>
+<tr>
+<td>CSV</td>
+<td><code>.csv</code></td>
+<td><code>pandas</code></td>
+<td>Structured data with text columns</td>
+</tr>
+<tr>
+<td>Excel</td>
+<td><code>.xlsx</code>, <code>.xls</code></td>
+<td><code>openpyxl</code></td>
+<td>Spreadsheets with text data</td>
+</tr>
+<tr>
+<td>Parquet</td>
+<td><code>.parquet</code></td>
+<td><code>pyarrow</code></td>
+<td>High-performance columnar data</td>
+</tr>
+<tr>
+<td>Feather</td>
+<td><code>.feather</code></td>
+<td><code>pyarrow</code></td>
+<td>Fast serialization format</td>
+</tr>
+</tbody>
+</table>
+<h2 id="installation-requirements">Installation Requirements<a class="headerlink" href="#installation-requirements" title="Permanent link">&para;</a></h2>
+<h3 id="core-dependencies">Core Dependencies<a class="headerlink" href="#core-dependencies" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Install DELM with all format support</span>
+pip<span class="w"> </span>install<span class="w"> </span>delm<span class="o">[</span>all<span class="o">]</span>
+
+<span class="c1"># Or install specific format dependencies</span>
+pip<span class="w"> </span>install<span class="w"> </span>beautifulsoup4<span class="w"> </span>python-docx<span class="w"> </span>marker-pdf<span class="w"> </span>openpyxl<span class="w"> </span>pyarrow
+</code></pre></div>
+<h3 id="individual-format-dependencies">Individual Format Dependencies<a class="headerlink" href="#individual-format-dependencies" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># HTML/Markdown support</span>
+pip<span class="w"> </span>install<span class="w"> </span>beautifulsoup4
+
+<span class="c1"># Word document support  </span>
+pip<span class="w"> </span>install<span class="w"> </span>python-docx
+
+<span class="c1"># PDF support (with OCR)</span>
+pip<span class="w"> </span>install<span class="w"> </span>marker-pdf
+
+<span class="c1"># Excel support</span>
+pip<span class="w"> </span>install<span class="w"> </span>openpyxl
+
+<span class="c1"># Parquet/Feather support</span>
+pip<span class="w"> </span>install<span class="w"> </span>pyarrow
+</code></pre></div>
+<h2 id="format-specific-usage">Format-Specific Usage<a class="headerlink" href="#format-specific-usage" title="Permanent link">&para;</a></h2>
+<h3 id="text-files">Text Files<a class="headerlink" href="#text-files" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.txt</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># Direct file path</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;document.txt&quot;</span><span class="p">)</span>
+
+<span class="c1"># Multiple text files</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;text_files/&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Best for</strong>: Plain text documents, logs, simple text files</p>
+<h3 id="html-files">HTML Files<a class="headerlink" href="#html-files" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.html</code>, <code>.htm</code></p>
+<p><strong>Requirements</strong>: <code>beautifulsoup4</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># Single HTML file</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;webpage.html&quot;</span><span class="p">)</span>
+
+<span class="c1"># Directory of HTML files</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;html_documents/&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Features</strong>:
+- Extracts text content from HTML tags
+- Removes HTML markup and formatting
+- Preserves text structure and paragraphs</p>
+<p><strong>Best for</strong>: Web pages, HTML reports, scraped content</p>
+<h3 id="markdown-files">Markdown Files<a class="headerlink" href="#markdown-files" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.md</code></p>
+<p><strong>Requirements</strong>: <code>beautifulsoup4</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># Markdown documentation</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;README.md&quot;</span><span class="p">)</span>
+
+<span class="c1"># Multiple markdown files</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;docs/&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Features</strong>:
+- Converts markdown formatting to plain text
+- Preserves document structure
+- Handles headers, lists, and formatting</p>
+<p><strong>Best for</strong>: Documentation, README files, technical writing</p>
+<h3 id="word-documents">Word Documents<a class="headerlink" href="#word-documents" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.docx</code></p>
+<p><strong>Requirements</strong>: <code>python-docx</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># Word document</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;report.docx&quot;</span><span class="p">)</span>
+
+<span class="c1"># Multiple Word files</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;word_documents/&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Features</strong>:
+- Extracts text from Word documents
+- Preserves paragraph structure
+- Handles tables and formatting</p>
+<p><strong>Best for</strong>: Business documents, reports, formatted text</p>
+<h3 id="pdf-files">PDF Files<a class="headerlink" href="#pdf-files" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.pdf</code></p>
+<p><strong>Requirements</strong>: <code>marker-pdf</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># PDF document</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;document.pdf&quot;</span><span class="p">)</span>
+
+<span class="c1"># Directory of PDFs</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;pdf_documents/&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Features</strong>:
+- OCR support for scanned documents
+- Text extraction from native PDFs
+- Handles complex layouts and formatting</p>
+<p><strong>Best for</strong>: Scanned documents, reports, academic papers</p>
+<p><strong>Note</strong>: PDF processing may be slower due to OCR requirements</p>
+<h3 id="csv-files">CSV Files<a class="headerlink" href="#csv-files" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.csv</code></p>
+<p><strong>Requirements</strong>: <code>pandas</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># CSV with text column</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;data.csv&quot;</span><span class="p">)</span>
+
+<span class="c1"># Specify text column</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;data.csv&quot;</span><span class="p">,</span> <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;text_content&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Configuration</strong>:
+<div class="highlight"><pre><span></span><code><span class="nt">data_preprocessing</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">target_column</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;text_content&quot;</span><span class="w">  </span><span class="c1"># Column containing text to extract</span>
+</code></pre></div></p>
+<p><strong>Best for</strong>: Structured data with text columns, survey responses, tabular data</p>
+<h3 id="excel-files">Excel Files<a class="headerlink" href="#excel-files" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.xlsx</code>, <code>.xls</code></p>
+<p><strong>Requirements</strong>: <code>openpyxl</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># Excel file</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;spreadsheet.xlsx&quot;</span><span class="p">)</span>
+
+<span class="c1"># Multiple Excel files</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;excel_files/&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Configuration</strong>:
+<div class="highlight"><pre><span></span><code><span class="nt">data_preprocessing</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">target_column</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;description&quot;</span><span class="w">  </span><span class="c1"># Column with text content</span>
+</code></pre></div></p>
+<p><strong>Best for</strong>: Spreadsheets with text data, structured reports</p>
+<h3 id="parquet-files">Parquet Files<a class="headerlink" href="#parquet-files" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.parquet</code></p>
+<p><strong>Requirements</strong>: <code>pyarrow</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># Parquet file</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">)</span>
+
+<span class="c1"># Specify text column</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;content&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Features</strong>:
+- High-performance columnar format
+- Efficient compression
+- Fast reading and writing</p>
+<p><strong>Best for</strong>: Large datasets, high-performance processing</p>
+<h3 id="feather-files">Feather Files<a class="headerlink" href="#feather-files" title="Permanent link">&para;</a></h3>
+<p><strong>Supported extensions</strong>: <code>.feather</code></p>
+<p><strong>Requirements</strong>: <code>pyarrow</code></p>
+<p><strong>Usage</strong>:
+<div class="highlight"><pre><span></span><code><span class="c1"># Feather file</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;data.feather&quot;</span><span class="p">)</span>
+
+<span class="c1"># Multiple feather files</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;feather_files/&quot;</span><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Features</strong>:
+- Fast serialization
+- Cross-language compatibility
+- Efficient storage</p>
+<p><strong>Best for</strong>: Fast data exchange, temporary storage</p>
+<h2 id="configuration-examples">Configuration Examples<a class="headerlink" href="#configuration-examples" title="Permanent link">&para;</a></h2>
+<h3 id="csv-with-custom-column">CSV with Custom Column<a class="headerlink" href="#csv-with-custom-column" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nt">data_preprocessing</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">target_column</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;text_content&quot;</span><span class="w">  </span><span class="c1"># Use specific column for text</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Load CSV and specify text column</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;survey_responses.csv&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="excel-with-multiple-sheets">Excel with Multiple Sheets<a class="headerlink" href="#excel-with-multiple-sheets" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Load specific sheet from Excel</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="c1"># Load Excel file</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_excel</span><span class="p">(</span><span class="s2">&quot;report.xlsx&quot;</span><span class="p">,</span> <span class="n">sheet_name</span><span class="o">=</span><span class="s2">&quot;responses&quot;</span><span class="p">)</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="directory-processing">Directory Processing<a class="headerlink" href="#directory-processing" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Process all files in directory</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;documents/&quot;</span><span class="p">)</span>  <span class="c1"># Mix of formats supported</span>
+
+<span class="c1"># Process specific file types</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;pdf_documents/&quot;</span><span class="p">)</span>  <span class="c1"># Only PDFs</span>
+</code></pre></div>
+<h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
+<h3 id="format-performance-ranking">Format Performance Ranking<a class="headerlink" href="#format-performance-ranking" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Fastest</strong>: Text, CSV, Parquet, Feather</li>
+<li><strong>Medium</strong>: HTML, Markdown, Excel</li>
+<li><strong>Slowest</strong>: PDF (due to OCR), Word documents</li>
+</ol>
+<h3 id="optimization-tips">Optimization Tips<a class="headerlink" href="#optimization-tips" title="Permanent link">&para;</a></h3>
+<h4 id="for-large-datasets">For Large Datasets<a class="headerlink" href="#for-large-datasets" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># Use Parquet for large datasets</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;large_dataset.parquet&quot;</span><span class="p">)</span>
+
+<span class="c1"># Process in chunks</span>
+<span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;large_file.csv&quot;</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="mi">1000</span><span class="p">):</span>
+    <span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="for-pdf-processing">For PDF Processing<a class="headerlink" href="#for-pdf-processing" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># Pre-process PDFs to text for better performance</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">PyPDF2</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">pdf_to_text</span><span class="p">(</span><span class="n">pdf_path</span><span class="p">):</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">pdf_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">file</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">PyPDF2</span><span class="o">.</span><span class="n">PdfReader</span><span class="p">(</span><span class="n">file</span><span class="p">)</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">reader</span><span class="o">.</span><span class="n">pages</span><span class="p">:</span>
+            <span class="n">text</span> <span class="o">+=</span> <span class="n">page</span><span class="o">.</span><span class="n">extract_text</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">text</span>
+
+<span class="c1"># Convert PDFs to text first</span>
+<span class="n">text_content</span> <span class="o">=</span> <span class="n">pdf_to_text</span><span class="p">(</span><span class="s2">&quot;document.pdf&quot;</span><span class="p">)</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">text_content</span><span class="p">]}))</span>
+</code></pre></div>
+<h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
+<h3 id="common-issues">Common Issues<a class="headerlink" href="#common-issues" title="Permanent link">&para;</a></h3>
+<h4 id="missing-dependencies">Missing Dependencies<a class="headerlink" href="#missing-dependencies" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># Check for required dependencies</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">beautifulsoup4</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;HTML support available&quot;</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Install beautifulsoup4 for HTML support: pip install beautifulsoup4&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="unsupported-formats">Unsupported Formats<a class="headerlink" href="#unsupported-formats" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># Check file extension</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="n">file_path</span> <span class="o">=</span> <span class="s2">&quot;document.unknown&quot;</span>
+<span class="n">extension</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">file_path</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span>
+
+<span class="n">supported_extensions</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;.html&#39;</span><span class="p">,</span> <span class="s1">&#39;.md&#39;</span><span class="p">,</span> <span class="s1">&#39;.docx&#39;</span><span class="p">,</span> <span class="s1">&#39;.pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;.xlsx&#39;</span><span class="p">,</span> <span class="s1">&#39;.parquet&#39;</span><span class="p">,</span> <span class="s1">&#39;.feather&#39;</span><span class="p">]</span>
+
+<span class="k">if</span> <span class="n">extension</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">supported_extensions</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unsupported format: </span><span class="si">{</span><span class="n">extension</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Supported formats: </span><span class="si">{</span><span class="n">supported_extensions</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="corrupted-files">Corrupted Files<a class="headerlink" href="#corrupted-files" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><span class="c1"># Handle corrupted files gracefully</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">safe_load_file</span><span class="p">(</span><span class="n">file_path</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error loading </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+</code></pre></div>
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+<h3 id="1-choose-appropriate-format">1. Choose Appropriate Format<a class="headerlink" href="#1-choose-appropriate-format" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># For structured data with text</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;survey_data.csv&quot;</span><span class="p">)</span>  <span class="c1"># Use CSV</span>
+
+<span class="c1"># For documents</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;report.pdf&quot;</span><span class="p">)</span>  <span class="c1"># Use PDF</span>
+
+<span class="c1"># For web content</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;webpage.html&quot;</span><span class="p">)</span>  <span class="c1"># Use HTML</span>
+</code></pre></div>
+<h3 id="2-preprocess-when-needed">2. Preprocess When Needed<a class="headerlink" href="#2-preprocess-when-needed" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Convert complex formats to simpler ones</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">preprocess_documents</span><span class="p">(</span><span class="n">input_dir</span><span class="p">,</span> <span class="n">output_dir</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">input_dir</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*.pdf&quot;</span><span class="p">):</span>
+        <span class="c1"># Convert PDF to text</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">extract_text_from_pdf</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+        <span class="c1"># Save as text file</span>
+        <span class="n">output_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">output_dir</span><span class="p">)</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">file_path</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">.txt&quot;</span>
+        <span class="n">output_path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="3-handle-mixed-formats">3. Handle Mixed Formats<a class="headerlink" href="#3-handle-mixed-formats" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Process directory with mixed formats</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_mixed_directory</span><span class="p">(</span><span class="n">dir_path</span><span class="p">):</span>
+    <span class="n">supported_files</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">dir_path</span><span class="p">)</span><span class="o">.</span><span class="n">rglob</span><span class="p">(</span><span class="s2">&quot;*&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">file_path</span><span class="o">.</span><span class="n">suffix</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="p">[</span><span class="s1">&#39;.txt&#39;</span><span class="p">,</span> <span class="s1">&#39;.html&#39;</span><span class="p">,</span> <span class="s1">&#39;.md&#39;</span><span class="p">,</span> <span class="s1">&#39;.docx&#39;</span><span class="p">,</span> <span class="s1">&#39;.pdf&#39;</span><span class="p">,</span> <span class="s1">&#39;.csv&#39;</span><span class="p">,</span> <span class="s1">&#39;.xlsx&#39;</span><span class="p">]:</span>
+            <span class="n">supported_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+
+    <span class="c1"># Process each file</span>
+    <span class="k">for</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">supported_files</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to process </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="4-optimize-for-performance">4. Optimize for Performance<a class="headerlink" href="#4-optimize-for-performance" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Use fastest format for your data</span>
+<span class="c1"># Convert to Parquet for large datasets</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;large_data.csv&quot;</span><span class="p">)</span>
+<span class="n">df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="s2">&quot;large_data.parquet&quot;</span><span class="p">)</span>
+
+<span class="c1"># Use Parquet for processing</span>
+<span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;large_data.parquet&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<p>If you encounter issues, review the logs in your experiment directory for detailed error information.</p>
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../text-processing/">Text Processing</a> - Optimize text splitting and scoring</li>
+<li><a href="../batch-processing/">Batch Processing</a> - Handle large datasets efficiently</li>
+<li><a href="../../configuration/pipeline-config/">Pipeline Configuration</a> - Complete configuration reference</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../post-processing/" class="btn btn-neutral float-left" title="Post-Processing"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../reference/" class="btn btn-neutral float-right" title="API Overview">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+        <span>
+          <a href="https://github.com/Center-for-Applied-AI/delm" class="fa fa-code-fork" style="color: #fcfcfc"> Center-for-Applied-AI/delm</a>
+        </span>
+    
+    
+      <span><a href="../post-processing/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../../reference/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script src="../../js/jquery-3.6.0.min.js"></script>
+    <script>var base_url = "../..";</script>
+    <script src="../../js/theme_extra.js"></script>
+    <script src="../../js/theme.js"></script>
+      <script src="../../search/main.js"></script>
+    <script>
+        jQuery(function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        });
+    </script>
+
+</body>
+</html>

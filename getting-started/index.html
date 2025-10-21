@@ -52,25 +52,71 @@
     </li>
     <li class="toctree-l2"><a class="reference internal" href="#configure-environment-variables">Configure Environment Variables</a>
     </li>
-    <li class="toctree-l2"><a class="reference internal" href="#quick-start">Quick Start</a>
+    <li class="toctree-l2"><a class="reference internal" href="#create-your-pipeline-configuration">Create Your Pipeline Configuration</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#create-your-schema-specification">Create Your Schema Specification</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#run-your-first-extraction">Run Your First Extraction</a>
         <ul>
     <li class="toctree-l3"><a class="reference internal" href="#project-layout">Project Layout</a>
     </li>
         </ul>
     </li>
+    <li class="toctree-l2"><a class="reference internal" href="#understanding-your-results">Understanding Your Results</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#extraction-results">Extraction Results</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#cost-summary">Cost Summary</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#example-output">Example Output</a>
+    </li>
+        </ul>
+    </li>
     <li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a>
+        <ul>
+    <li class="toctree-l3"><a class="reference internal" href="#cost-estimation">Cost Estimation</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#performance-evaluation">Performance Evaluation</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#advanced-configuration">Advanced Configuration</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#built-in-features">Built-in Features</a>
+    </li>
+        </ul>
     </li>
     </ul>
                 </li>
               </ul>
-              <p class="caption"><span class="caption-text">Usage</span></p>
+              <p class="caption"><span class="caption-text">Tutorials</span></p>
               <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../usage/pipeline-configuration/">Pipeline Configuration</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../tutorials/cost-estimation/">Cost Estimation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../tutorials/performance-evaluation/">Performance Evaluation</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
               <ul>
-                <li class="toctree-l1"><a class="reference internal" href="../schema/reference/">Schema Reference</a>
-                </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../configuration/pipeline-config/">Pipeline Configuration</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../configuration/schema-design/">Schema Design</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Features</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../features/caching/">Caching</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../features/text-processing/">Text Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../features/batch-processing/">Batch Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../features/checkpointing/">Checkpointing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../features/cost-tracking/">Cost Tracking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../features/post-processing/">Post-Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../features/file-formats/">File Formats</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">Reference</span></p>
               <ul>
@@ -110,7 +156,7 @@
             <div class="section" itemprop="articleBody">
               
                 <h1 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h1>
-<p>Install DELM, connect a language-model provider, and run your first extraction pipeline.</p>
+<p>Install DELM, create your first configuration files, and run your first extraction pipeline.</p>
 <h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h2>
 <p>Install from PyPI:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>delm
@@ -130,20 +176,59 @@ ANTHROPIC_API_KEY=...
 TOGETHER_API_KEY=...
 </code></pre></div>
 <p>Replace the values with your credentials. DELM only loads providers that have available keys.</p>
-<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
-<p>Use the high-level <code>DELM</code> class to load a pipeline configuration and run a job:</p>
+<h2 id="create-your-pipeline-configuration">Create Your Pipeline Configuration<a class="headerlink" href="#create-your-pipeline-configuration" title="Permanent link">&para;</a></h2>
+<p>Create a file called <code>config.yaml</code> in your project directory:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">llm_extraction</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;openai&quot;</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;gpt-4o-mini&quot;</span>
+<span class="w">  </span><span class="nt">temperature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+<span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+
+<span class="nt">schema</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">spec_path</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;schema_spec.yaml&quot;</span>
+</code></pre></div>
+<p>This minimal configuration:
+- Uses OpenAI's GPT-4o-mini model
+- Sets temperature to 0.0 for deterministic results
+- Processes 10 records per batch
+- Points to your schema specification file</p>
+<h2 id="create-your-schema-specification">Create Your Schema Specification<a class="headerlink" href="#create-your-schema-specification" title="Permanent link">&para;</a></h2>
+<p>Create a file called <code>schema_spec.yaml</code> in your project directory:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">schema_type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;nested&quot;</span>
+<span class="nt">container_name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;commodities&quot;</span>
+<span class="nt">variables</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;commodity_type&quot;</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Type</span><span class="nv"> </span><span class="s">of</span><span class="nv"> </span><span class="s">commodity</span><span class="nv"> </span><span class="s">mentioned&quot;</span>
+<span class="w">    </span><span class="nt">data_type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;string&quot;</span>
+<span class="w">    </span><span class="nt">required</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;price_value&quot;</span>
+<span class="w">    </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Price</span><span class="nv"> </span><span class="s">value</span><span class="nv"> </span><span class="s">mentioned&quot;</span>
+<span class="w">    </span><span class="nt">data_type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;number&quot;</span>
+<span class="w">    </span><span class="nt">required</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</code></pre></div>
+<p>This schema:
+- Extracts a list of commodity objects from each text chunk
+- Each object has a required commodity type and optional price value
+- Uses a nested schema structure for multiple items per chunk</p>
+<h2 id="run-your-first-extraction">Run Your First Extraction<a class="headerlink" href="#run-your-first-extraction" title="Permanent link">&para;</a></h2>
+<p>Now you can run your first extraction:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span>
 
+<span class="c1"># 1. Create pipeline from config</span>
 <span class="n">pipeline</span> <span class="o">=</span> <span class="n">DELM</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span>
-    <span class="n">config_path</span><span class="o">=</span><span class="s2">&quot;example.config.yaml&quot;</span><span class="p">,</span>
-    <span class="n">experiment_name</span><span class="o">=</span><span class="s2">&quot;my_experiment&quot;</span><span class="p">,</span>
+    <span class="n">config_path</span><span class="o">=</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">,</span>
+    <span class="n">experiment_name</span><span class="o">=</span><span class="s2">&quot;my_first_extraction&quot;</span><span class="p">,</span>
     <span class="n">experiment_directory</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;experiments&quot;</span><span class="p">),</span>
 <span class="p">)</span>
 
+<span class="c1"># 2. Prepare your data</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;data/input.txt&quot;</span><span class="p">)</span>
+
+<span class="c1"># 3. Run extraction</span>
 <span class="n">pipeline</span><span class="o">.</span><span class="n">process_via_llm</span><span class="p">()</span>
 
+<span class="c1"># 4. Get results</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">get_extraction_results</span><span class="p">()</span>
 <span class="n">cost_summary</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">get_cost_summary</span><span class="p">()</span>
 </code></pre></div>
@@ -152,30 +237,72 @@ TOGETHER_API_KEY=...
 <div class="highlight"><pre><span></span><code>project/
 ├── data/
 │   └── input.txt
-├── config/
-│   └── pipeline.yaml
-├── schema/
-│   └── schema_spec.yaml
+├── config.yaml
+├── schema_spec.yaml
 └── experiments/
-    └── my_experiment/
+    └── my_first_extraction/
+        ├── delm_data/
+        ├── delm_logs/
+        └── cost_summary.json
 </code></pre></div>
 <ul>
-<li><strong>Pipeline configuration</strong> controls providers, preprocessing, and batching.</li>
-<li><strong>Schema specification</strong> declares the fields you want to extract.</li>
-<li><strong>Experiments directory</strong> stores run artifacts, logs, and summaries.</li>
+<li><strong>Pipeline configuration</strong> (<code>config.yaml</code>) controls providers, preprocessing, and batching</li>
+<li><strong>Schema specification</strong> (<code>schema_spec.yaml</code>) declares the fields you want to extract</li>
+<li><strong>Experiments directory</strong> stores run artifacts, logs, and summaries</li>
 </ul>
+<h2 id="understanding-your-results">Understanding Your Results<a class="headerlink" href="#understanding-your-results" title="Permanent link">&para;</a></h2>
+<p>After running extraction, you'll get:</p>
+<h3 id="extraction-results">Extraction Results<a class="headerlink" href="#extraction-results" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">results</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">get_extraction_results</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</code></pre></div>
+<p>The results DataFrame contains:
+- <code>delm_raw_data</code>: Original text chunks
+- <code>delm_extracted_data_json</code>: Extracted JSON for each chunk
+- <code>delm_chunk_id</code>: Unique identifier for each chunk</p>
+<h3 id="cost-summary">Cost Summary<a class="headerlink" href="#cost-summary" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">cost_summary</span> <span class="o">=</span> <span class="n">pipeline</span><span class="o">.</span><span class="n">get_cost_summary</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total cost: $</span><span class="si">{</span><span class="n">cost_summary</span><span class="p">[</span><span class="s1">&#39;total_cost&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Input tokens: </span><span class="si">{</span><span class="n">cost_summary</span><span class="p">[</span><span class="s1">&#39;total_input_tokens&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Output tokens: </span><span class="si">{</span><span class="n">cost_summary</span><span class="p">[</span><span class="s1">&#39;total_output_tokens&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="example-output">Example Output<a class="headerlink" href="#example-output" title="Permanent link">&para;</a></h3>
+<p>For a text chunk about "Oil prices rose to $75 per barrel", your schema would extract:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;commodities&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;commodity_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;oil&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;price_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">75</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Review <a href="../usage/pipeline-configuration/">Pipeline Configuration</a> to understand every option in the YAML config.</li>
-<li>Explore the <a href="../schema/reference/">Schema Reference</a> for guidance on designing robust schemas.</li>
-<li>Check the <code>examples/</code> directory for sample configs covering common extraction scenarios.</li>
-</ol>
+<p>Now that you've run your first extraction, explore these advanced workflows:</p>
+<h3 id="cost-estimation">Cost Estimation<a class="headerlink" href="#cost-estimation" title="Permanent link">&para;</a></h3>
+<p>Before running large extractions, estimate costs to stay within budget:
+- <a href="../tutorials/cost-estimation/">Cost Estimation Tutorial</a> - Learn to estimate costs before running full extractions</p>
+<h3 id="performance-evaluation">Performance Evaluation<a class="headerlink" href="#performance-evaluation" title="Permanent link">&para;</a></h3>
+<p>Evaluate extraction quality against human-labeled data:
+- <a href="../tutorials/performance-evaluation/">Performance Evaluation Tutorial</a> - Learn to measure precision, recall, and F1 scores</p>
+<h3 id="advanced-configuration">Advanced Configuration<a class="headerlink" href="#advanced-configuration" title="Permanent link">&para;</a></h3>
+<p>Customize your pipeline for production use:
+- <a href="../configuration/pipeline-config/">Pipeline Configuration</a> - Complete reference for all configuration options
+- <a href="../configuration/schema-design/">Schema Design</a> - Advanced schema patterns and validation features</p>
+<h3 id="built-in-features">Built-in Features<a class="headerlink" href="#built-in-features" title="Permanent link">&para;</a></h3>
+<p>Explore DELM's production-ready features:
+- <a href="../features/caching/">Caching</a> - Reduce costs with semantic caching
+- <a href="../features/text-processing/">Text Processing</a> - Advanced splitting and scoring strategies
+- <a href="../features/batch-processing/">Batch Processing</a> - Optimize performance with batching and checkpointing
+- <a href="../features/cost-tracking/">Cost Tracking</a> - Monitor spending and set budget limits
+- <a href="../features/post-processing/">Post-Processing</a> - Transform results into tabular format
+- <a href="../features/file-formats/">File Formats</a> - Supported input formats and requirements</p>
               
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
         <a href=".." class="btn btn-neutral float-left" title="Overview"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../usage/pipeline-configuration/" class="btn btn-neutral float-right" title="Pipeline Configuration">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../tutorials/cost-estimation/" class="btn btn-neutral float-right" title="Cost Estimation">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -205,7 +332,7 @@ TOGETHER_API_KEY=...
       <span><a href=".." style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../usage/pipeline-configuration/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../tutorials/cost-estimation/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>

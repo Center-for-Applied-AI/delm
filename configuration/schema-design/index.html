@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <link rel="shortcut icon" href="../../img/favicon.ico" />
-    <title>Schema Reference - DELM Documentation</title>
+    <title>Schema Design - DELM Documentation</title>
     <link rel="stylesheet" href="../../css/theme.css" />
     <link rel="stylesheet" href="../../css/theme_extra.css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" />
@@ -13,8 +13,8 @@
     
       <script>
         // Current page data
-        var mkdocs_page_name = "Schema Reference";
-        var mkdocs_page_input_path = "schema/reference.md";
+        var mkdocs_page_name = "Schema Design";
+        var mkdocs_page_input_path = "configuration/schema-design.md";
         var mkdocs_page_url = null;
       </script>
     
@@ -49,13 +49,18 @@
                 <li class="toctree-l1"><a class="reference internal" href="../../getting-started/">Getting Started</a>
                 </li>
               </ul>
-              <p class="caption"><span class="caption-text">Usage</span></p>
+              <p class="caption"><span class="caption-text">Tutorials</span></p>
               <ul>
-                  <li class="toctree-l1"><a class="reference internal" href="../../usage/pipeline-configuration/">Pipeline Configuration</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorials/cost-estimation/">Cost Estimation</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../tutorials/performance-evaluation/">Performance Evaluation</a>
                   </li>
               </ul>
+              <p class="caption"><span class="caption-text">Configuration</span></p>
               <ul class="current">
-                <li class="toctree-l1 current"><a class="reference internal current" href="#">Schema Reference</a>
+                  <li class="toctree-l1"><a class="reference internal" href="../pipeline-config/">Pipeline Configuration</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">Schema Design</a>
     <ul class="current">
     <li class="toctree-l2"><a class="reference internal" href="#table-of-contents">Table of Contents</a>
     </li>
@@ -106,7 +111,24 @@
         </ul>
     </li>
     </ul>
-                </li>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Features</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/caching/">Caching</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/text-processing/">Text Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/batch-processing/">Batch Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/checkpointing/">Checkpointing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/cost-tracking/">Cost Tracking</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/post-processing/">Post-Processing</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../../features/file-formats/">File Formats</a>
+                  </li>
               </ul>
               <p class="caption"><span class="caption-text">Reference</span></p>
               <ul>
@@ -135,9 +157,10 @@
         <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
   <ul class="wy-breadcrumbs">
     <li><a href="../.." class="icon icon-home" aria-label="Docs"></a></li>
-      <li class="breadcrumb-item active">Schema Reference</li>
+          <li class="breadcrumb-item">Configuration</li>
+      <li class="breadcrumb-item active">Schema Design</li>
     <li class="wy-breadcrumbs-aside">
-          <a href="https://github.com/Center-for-Applied-AI/delm/edit/main/docs/schema/reference.md">Edit on Center-for-Applied-AI/delm</a>
+          <a href="https://github.com/Center-for-Applied-AI/delm/edit/main/docs/configuration/schema-design.md">Edit on Center-for-Applied-AI/delm</a>
     </li>
   </ul>
   <hr/>
@@ -432,11 +455,10 @@
 <li><code>schema.prompt_template</code>: A Python <code>str.format</code>‑style template rendered per chunk, with placeholders:</li>
 <li><code>{variables}</code>: A human‑readable list of variables with types and allowed values</li>
 <li><code>{text}</code>: The current text chunk</li>
-<li><code>{context}</code>: Optional extra key‑values (if provided by advanced flows)</li>
 </ul>
 <p>Examples:</p>
 <div class="highlight"><pre><span></span><code>System: {schema.system_prompt}
-User: {schema.prompt_template.format(variables=..., text=..., context=...)}
+User: {schema.prompt_template.format(variables=..., text=...)}
 </code></pre></div>
 <p>Notes:
 - For Multiple schemas, the prompt is built by concatenating sub‑schema prompts under headings.
@@ -583,8 +605,8 @@ User: {schema.prompt_template.format(variables=..., text=..., context=...)}
             </div>
           </div><footer>
     <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
-        <a href="../../usage/pipeline-configuration/" class="btn btn-neutral float-left" title="Pipeline Configuration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
-        <a href="../../reference/" class="btn btn-neutral float-right" title="API Overview">Next <span class="icon icon-circle-arrow-right"></span></a>
+        <a href="../pipeline-config/" class="btn btn-neutral float-left" title="Pipeline Configuration"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../../features/caching/" class="btn btn-neutral float-right" title="Caching">Next <span class="icon icon-circle-arrow-right"></span></a>
     </div>
 
   <hr/>
@@ -611,10 +633,10 @@ User: {schema.prompt_template.format(variables=..., text=..., context=...)}
         </span>
     
     
-      <span><a href="../../usage/pipeline-configuration/" style="color: #fcfcfc">&laquo; Previous</a></span>
+      <span><a href="../pipeline-config/" style="color: #fcfcfc">&laquo; Previous</a></span>
     
     
-      <span><a href="../../reference/" style="color: #fcfcfc">Next &raquo;</a></span>
+      <span><a href="../../features/caching/" style="color: #fcfcfc">Next &raquo;</a></span>
     
   </span>
 </div>
