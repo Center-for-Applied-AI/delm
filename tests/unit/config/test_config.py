@@ -38,7 +38,6 @@ from delm.constants import (
     DEFAULT_BASE_DELAY,
     DEFAULT_TRACK_COST,
     DEFAULT_MAX_BUDGET,
-    DEFAULT_DOTENV_PATH,
     DEFAULT_FIXED_WINDOW_SIZE,
     DEFAULT_FIXED_WINDOW_STRIDE,
     DEFAULT_REGEX_PATTERN,
@@ -58,9 +57,6 @@ from delm.constants import (
 )
 
 
-
-
-
 class TestLLMExtractionConfig:
     """Test LLM extraction configuration."""
 
@@ -74,7 +70,6 @@ class TestLLMExtractionConfig:
         assert config.batch_size == DEFAULT_BATCH_SIZE
         assert config.max_workers == DEFAULT_MAX_WORKERS
         assert config.base_delay == DEFAULT_BASE_DELAY
-        assert config.dotenv_path == DEFAULT_DOTENV_PATH
         assert config.track_cost == DEFAULT_TRACK_COST
         assert config.max_budget == DEFAULT_MAX_BUDGET
 
@@ -183,7 +178,9 @@ class TestLLMExtractionConfig:
     def test_validate_max_budget_without_track_cost(self):
         """Test validation when max_budget is set but track_cost is False."""
         config = LLMExtractionConfig(track_cost=False, max_budget=100.0)
-        with pytest.raises(ValueError, match="track_cost must be True if max_budget is specified"):
+        with pytest.raises(
+            ValueError, match="track_cost must be True if max_budget is specified"
+        ):
             config.validate()
 
     def test_validate_invalid_max_budget(self):
@@ -216,7 +213,6 @@ class TestLLMExtractionConfig:
             "batch_size": 5,
             "max_workers": 2,
             "base_delay": 0.5,
-            "dotenv_path": None,
             "track_cost": True,
             "max_budget": 50.0,
             "model_input_cost_per_1M_tokens": 10.0,
@@ -274,7 +270,9 @@ class TestSplittingConfig:
     def test_validate_invalid_strategy(self):
         """Test validation with invalid strategy."""
         config = SplittingConfig(strategy="invalid")
-        with pytest.raises(ValueError, match="strategy must be a SplitStrategy instance"):
+        with pytest.raises(
+            ValueError, match="strategy must be a SplitStrategy instance"
+        ):
             config.validate()
 
     def test_to_dict_no_strategy(self):
@@ -379,7 +377,9 @@ class TestScoringConfig:
     def test_validate_invalid_scorer(self):
         """Test validation with invalid scorer."""
         config = ScoringConfig(scorer="invalid")
-        with pytest.raises(ValueError, match="scorer must be a RelevanceScorer instance"):
+        with pytest.raises(
+            ValueError, match="scorer must be a RelevanceScorer instance"
+        ):
             config.validate()
 
     def test_to_dict_no_scorer(self):
@@ -423,7 +423,9 @@ class TestScoringConfig:
             "type": "KeywordScorer",
             "keywords": [],
         }
-        with pytest.raises(ValueError, match="KeywordScorer requires a non-empty keywords list"):
+        with pytest.raises(
+            ValueError, match="KeywordScorer requires a non-empty keywords list"
+        ):
             ScoringConfig.from_dict(data)
 
     def test_from_dict_fuzzy_scorer(self):
@@ -442,7 +444,9 @@ class TestScoringConfig:
             "type": "FuzzyScorer",
             "keywords": [],
         }
-        with pytest.raises(ValueError, match="FuzzyScorer requires a non-empty keywords list"):
+        with pytest.raises(
+            ValueError, match="FuzzyScorer requires a non-empty keywords list"
+        ):
             ScoringConfig.from_dict(data)
 
     def test_from_dict_unknown_scorer(self):
@@ -486,11 +490,15 @@ class TestDataPreprocessingConfig:
     def test_validate_invalid_target_column(self):
         """Test validation with invalid target_column."""
         config = DataPreprocessingConfig(target_column="")
-        with pytest.raises(ValueError, match="target_column must be a non-empty string"):
+        with pytest.raises(
+            ValueError, match="target_column must be a non-empty string"
+        ):
             config.validate()
 
         config = DataPreprocessingConfig(target_column=123)
-        with pytest.raises(ValueError, match="target_column must be a non-empty string"):
+        with pytest.raises(
+            ValueError, match="target_column must be a non-empty string"
+        ):
             config.validate()
 
     def test_validate_invalid_drop_target_column(self):
@@ -502,73 +510,90 @@ class TestDataPreprocessingConfig:
     def test_validate_invalid_pandas_score_filter(self):
         """Test validation with invalid pandas_score_filter."""
         config = DataPreprocessingConfig(pandas_score_filter=123)
-        with pytest.raises(ValueError, match="pandas_score_filter must be a string or None"):
+        with pytest.raises(
+            ValueError, match="pandas_score_filter must be a string or None"
+        ):
             config.validate()
 
     def test_validate_invalid_pandas_query(self):
         """Test validation with invalid pandas query."""
         config = DataPreprocessingConfig(pandas_score_filter="invalid query")
-        with pytest.raises(ValueError, match="pandas_score_filter is not a valid pandas query"):
+        with pytest.raises(
+            ValueError, match="pandas_score_filter is not a valid pandas query"
+        ):
             config.validate()
 
     def test_validate_valid_pandas_query(self):
         """Test validation with valid pandas query."""
-        config = DataPreprocessingConfig(pandas_score_filter=f"{SYSTEM_SCORE_COLUMN} > 0.5")
+        config = DataPreprocessingConfig(
+            pandas_score_filter=f"{SYSTEM_SCORE_COLUMN} > 0.5"
+        )
         config.validate()  # Should not raise
 
     def test_validate_preprocessed_data_path_not_feather(self):
         """Test validation with non-feather preprocessed data path."""
         config = DataPreprocessingConfig(preprocessed_data_path="data.csv")
-        with pytest.raises(ValueError, match="preprocessed_data_path must be a feather file"):
+        with pytest.raises(
+            ValueError, match="preprocessed_data_path must be a feather file"
+        ):
             config.validate()
 
     def test_validate_preprocessed_data_path_missing_columns(self):
         """Test validation with preprocessed data missing required columns."""
         # Create a temporary feather file with wrong columns
         import pandas as pd
-        
+
         with tempfile.NamedTemporaryFile(suffix=".feather", delete=False) as f:
             temp_path = f.name
-        
+
         try:
             # Create a DataFrame with wrong columns and save as feather
             df = pd.DataFrame({"wrong_column": [1]})
             df.to_feather(temp_path)
-            
+
             config = DataPreprocessingConfig(preprocessed_data_path=temp_path)
-            with pytest.raises(ValueError, match="Failed to read preprocessed data file"):
+            with pytest.raises(
+                ValueError, match="Failed to read preprocessed data file"
+            ):
                 config.validate()
         finally:
             Path(temp_path).unlink()
 
-    @patch('pandas.read_feather')
+    @patch("pandas.read_feather")
     def test_validate_preprocessed_data_path_valid(self, mock_read_feather):
         """Test validation with valid preprocessed data path."""
-        mock_df = pd.DataFrame({
-            SYSTEM_CHUNK_COLUMN: ["chunk1"],
-            SYSTEM_CHUNK_ID_COLUMN: [1],
-        })
+        mock_df = pd.DataFrame(
+            {
+                SYSTEM_CHUNK_COLUMN: ["chunk1"],
+                SYSTEM_CHUNK_ID_COLUMN: [1],
+            }
+        )
         mock_read_feather.return_value = mock_df
-        
+
         config = DataPreprocessingConfig(preprocessed_data_path="data.feather")
         config.validate()  # Should not raise
 
-    @patch('pandas.read_feather')
+    @patch("pandas.read_feather")
     def test_validate_preprocessed_data_conflicts(self, mock_read_feather):
         """Test validation when preprocessed data conflicts with other settings."""
-        mock_df = pd.DataFrame({
-            SYSTEM_CHUNK_COLUMN: ["chunk1"],
-            SYSTEM_CHUNK_ID_COLUMN: [1],
-        })
+        mock_df = pd.DataFrame(
+            {
+                SYSTEM_CHUNK_COLUMN: ["chunk1"],
+                SYSTEM_CHUNK_ID_COLUMN: [1],
+            }
+        )
         mock_read_feather.return_value = mock_df
-        
+
         config = DataPreprocessingConfig(
             preprocessed_data_path="data.feather",
             target_column="custom_column",
         )
         config._explicitly_set_fields = {"target_column"}
-        
-        with pytest.raises(ValueError, match="Cannot specify target_column when preprocessed_data_path is set"):
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot specify target_column when preprocessed_data_path is set",
+        ):
             config.validate()
 
     def test_to_dict_with_preprocessed_data(self):
@@ -638,7 +663,7 @@ class TestSchemaConfig:
         with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
             f.write(b"test: data")
             temp_path = f.name
-        
+
         try:
             config = SchemaConfig(spec_path=temp_path)
             config.validate()  # Should not raise
@@ -648,11 +673,15 @@ class TestSchemaConfig:
     def test_validate_invalid_spec_path(self):
         """Test validation with invalid spec_path."""
         config = SchemaConfig(spec_path="")
-        with pytest.raises(ValueError, match="spec_path must be a valid Path or string"):
+        with pytest.raises(
+            ValueError, match="spec_path must be a valid Path or string"
+        ):
             config.validate()
 
         config = SchemaConfig(spec_path=123)
-        with pytest.raises(ValueError, match="spec_path must be a valid Path or string"):
+        with pytest.raises(
+            ValueError, match="spec_path must be a valid Path or string"
+        ):
             config.validate()
 
     def test_validate_nonexistent_file(self):
@@ -666,7 +695,7 @@ class TestSchemaConfig:
         with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
             f.write(b"test: data")
             temp_path = f.name
-        
+
         try:
             config = SchemaConfig(spec_path=temp_path, prompt_template=123)
             with pytest.raises(ValueError, match="prompt_template must be a string"):
@@ -679,7 +708,7 @@ class TestSchemaConfig:
         with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
             f.write(b"test: data")
             temp_path = f.name
-        
+
         try:
             config = SchemaConfig(spec_path=temp_path, system_prompt=123)
             with pytest.raises(ValueError, match="system_prompt must be a string"):
@@ -761,27 +790,37 @@ class TestSemanticCacheConfig:
     def test_validate_invalid_backend(self):
         """Test validation with invalid backend."""
         config = SemanticCacheConfig(backend="invalid")
-        with pytest.raises(ValueError, match="cache.backend must be 'sqlite', 'lmdb', or 'filesystem'"):
+        with pytest.raises(
+            ValueError, match="cache.backend must be 'sqlite', 'lmdb', or 'filesystem'"
+        ):
             config.validate()
 
     def test_validate_invalid_max_size_mb(self):
         """Test validation with invalid max_size_mb."""
         config = SemanticCacheConfig(max_size_mb=0)
-        with pytest.raises(ValueError, match="cache.max_size_mb must be a positive integer"):
+        with pytest.raises(
+            ValueError, match="cache.max_size_mb must be a positive integer"
+        ):
             config.validate()
 
         config = SemanticCacheConfig(max_size_mb=-1)
-        with pytest.raises(ValueError, match="cache.max_size_mb must be a positive integer"):
+        with pytest.raises(
+            ValueError, match="cache.max_size_mb must be a positive integer"
+        ):
             config.validate()
 
         config = SemanticCacheConfig(max_size_mb="100")
-        with pytest.raises(ValueError, match="cache.max_size_mb must be a positive integer"):
+        with pytest.raises(
+            ValueError, match="cache.max_size_mb must be a positive integer"
+        ):
             config.validate()
 
     def test_validate_invalid_synchronous_sqlite(self):
         """Test validation with invalid synchronous for SQLite."""
         config = SemanticCacheConfig(backend="sqlite", synchronous="invalid")
-        with pytest.raises(ValueError, match="cache.synchronous must be 'normal' or 'full' for SQLite"):
+        with pytest.raises(
+            ValueError, match="cache.synchronous must be 'normal' or 'full' for SQLite"
+        ):
             config.validate()
 
     def test_validate_valid_synchronous_sqlite(self):
@@ -841,14 +880,14 @@ class TestDELMConfig:
         data_config = DataPreprocessingConfig()
         schema_config = SchemaConfig()
         cache_config = SemanticCacheConfig()
-        
+
         config = DELMConfig(
             llm_extraction=llm_config,
             data_preprocessing=data_config,
             schema=schema_config,
             semantic_cache=cache_config,
         )
-        
+
         assert config.llm_extraction == llm_config
         assert config.data_preprocessing == data_config
         assert config.schema == schema_config
@@ -860,17 +899,17 @@ class TestDELMConfig:
         data_config = DataPreprocessingConfig()
         schema_config = SchemaConfig()
         cache_config = SemanticCacheConfig()
-        
+
         config = DELMConfig(
             llm_extraction=llm_config,
             data_preprocessing=data_config,
             schema=schema_config,
             semantic_cache=cache_config,
         )
-        
+
         # Should not raise if all sub-configs are valid
         # Note: This will fail if schema.spec_path doesn't exist, so we'll mock it
-        with patch.object(schema_config, 'validate'):
+        with patch.object(schema_config, "validate"):
             config.validate()
 
     def test_to_serialized_config_dict(self):
@@ -879,14 +918,14 @@ class TestDELMConfig:
         data_config = DataPreprocessingConfig(target_column="custom_column")
         schema_config = SchemaConfig(spec_path="test.yaml")
         cache_config = SemanticCacheConfig(backend="sqlite")
-        
+
         config = DELMConfig(
             llm_extraction=llm_config,
             data_preprocessing=data_config,
             schema=schema_config,
             semantic_cache=cache_config,
         )
-        
+
         result = config.to_serialized_config_dict()
         expected = {
             "llm_extraction": llm_config.to_dict(),
@@ -899,11 +938,11 @@ class TestDELMConfig:
     def test_to_serialized_schema_spec_dict_yaml(self):
         """Test to_serialized_schema_spec_dict with YAML file."""
         schema_data = {"test": "data", "nested": {"key": "value"}}
-        
-        with tempfile.NamedTemporaryFile(suffix=".yaml", mode='w', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(suffix=".yaml", mode="w", delete=False) as f:
             yaml.dump(schema_data, f)
             temp_path = f.name
-        
+
         try:
             schema_config = SchemaConfig(spec_path=temp_path)
             config = DELMConfig(
@@ -912,7 +951,7 @@ class TestDELMConfig:
                 schema=schema_config,
                 semantic_cache=SemanticCacheConfig(),
             )
-            
+
             result = config.to_serialized_schema_spec_dict()
             assert result == schema_data
         finally:
@@ -921,12 +960,13 @@ class TestDELMConfig:
     def test_to_serialized_schema_spec_dict_json(self):
         """Test to_serialized_schema_spec_dict with JSON file."""
         import json
+
         schema_data = {"test": "data", "nested": {"key": "value"}}
-        
-        with tempfile.NamedTemporaryFile(suffix=".json", mode='w', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(suffix=".json", mode="w", delete=False) as f:
             json.dump(schema_data, f)
             temp_path = f.name
-        
+
         try:
             schema_config = SchemaConfig(spec_path=temp_path)
             config = DELMConfig(
@@ -935,7 +975,7 @@ class TestDELMConfig:
                 schema=schema_config,
                 semantic_cache=SemanticCacheConfig(),
             )
-            
+
             result = config.to_serialized_schema_spec_dict()
             assert result == schema_data
         finally:
@@ -950,7 +990,7 @@ class TestDELMConfig:
             schema=schema_config,
             semantic_cache=SemanticCacheConfig(),
         )
-        
+
         with pytest.raises(ValueError, match="Schema spec path is None"):
             config.to_serialized_schema_spec_dict()
 
@@ -963,7 +1003,7 @@ class TestDELMConfig:
             schema=schema_config,
             semantic_cache=SemanticCacheConfig(),
         )
-        
+
         with pytest.raises(FileNotFoundError, match="Schema spec file does not exist"):
             config.to_serialized_schema_spec_dict()
 
@@ -972,7 +1012,7 @@ class TestDELMConfig:
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
             f.write(b"test data")
             temp_path = f.name
-        
+
         try:
             schema_config = SchemaConfig(spec_path=temp_path)
             config = DELMConfig(
@@ -981,7 +1021,7 @@ class TestDELMConfig:
                 schema=schema_config,
                 semantic_cache=SemanticCacheConfig(),
             )
-            
+
             with pytest.raises(ValueError, match="Unsupported schema file format"):
                 config.to_serialized_schema_spec_dict()
         finally:
@@ -995,7 +1035,7 @@ class TestDELMConfig:
             schema=SchemaConfig(),
             semantic_cache=SemanticCacheConfig(),
         )
-        
+
         result = config.to_dict()
         expected = config.to_serialized_config_dict()
         assert result == expected
@@ -1017,7 +1057,7 @@ class TestDELMConfig:
                 "backend": "sqlite",
             },
         }
-        
+
         config = DELMConfig.from_dict(data)
         assert config.llm_extraction.provider == "openai"
         assert config.llm_extraction.name == "gpt-4"
@@ -1050,11 +1090,11 @@ class TestDELMConfig:
                 "backend": "lmdb",
             },
         }
-        
-        with tempfile.NamedTemporaryFile(suffix=".yaml", mode='w', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(suffix=".yaml", mode="w", delete=False) as f:
             yaml.dump(config_data, f)
             temp_path = f.name
-        
+
         try:
             config = DELMConfig.from_yaml(Path(temp_path))
             assert config.llm_extraction.provider == "anthropic"
@@ -1078,7 +1118,7 @@ class TestDELMConfig:
             schema=SchemaConfig(),
             semantic_cache=SemanticCacheConfig(),
         )
-        
+
         result = DELMConfig.from_any(original_config)
         assert result is original_config
 
@@ -1090,7 +1130,7 @@ class TestDELMConfig:
             "schema": {"spec_path": "schema.yaml"},
             "semantic_cache": {"backend": "sqlite"},
         }
-        
+
         config = DELMConfig.from_any(data)
         assert isinstance(config, DELMConfig)
         assert config.llm_extraction.provider == "openai"
@@ -1103,11 +1143,11 @@ class TestDELMConfig:
             "schema": {"spec_path": "schema.yaml"},
             "semantic_cache": {"backend": "lmdb"},
         }
-        
-        with tempfile.NamedTemporaryFile(suffix=".yaml", mode='w', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(suffix=".yaml", mode="w", delete=False) as f:
             yaml.dump(config_data, f)
             temp_path = f.name
-        
+
         try:
             config = DELMConfig.from_any(temp_path)
             assert isinstance(config, DELMConfig)
@@ -1117,5 +1157,7 @@ class TestDELMConfig:
 
     def test_from_any_invalid_type(self):
         """Test from_any with invalid type."""
-        with pytest.raises(ValueError, match="config must be a DELMConfig, dict, or path to YAML"):
-            DELMConfig.from_any(123) 
+        with pytest.raises(
+            ValueError, match="config must be a DELMConfig, dict, or path to YAML"
+        ):
+            DELMConfig.from_any(123)

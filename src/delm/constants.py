@@ -29,9 +29,6 @@ DEFAULT_MAX_WORKERS = 1  # Number of concurrent worker processes
 DEFAULT_TRACK_COST = True  # Whether to track API call costs
 DEFAULT_MAX_BUDGET = None  # Maximum budget limit (None = no limit)
 
-# Environment Settings
-DEFAULT_DOTENV_PATH = None  # Path to .env file
-
 # =============================================================================
 # DATA PROCESSING DEFAULTS
 # =============================================================================

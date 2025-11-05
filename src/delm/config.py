@@ -27,7 +27,6 @@ from delm.constants import (
     DEFAULT_MAX_WORKERS,
     DEFAULT_TRACK_COST,
     DEFAULT_MAX_BUDGET,
-    DEFAULT_DOTENV_PATH,
     # Data Processing
     # Splitting
     DEFAULT_FIXED_WINDOW_SIZE,
@@ -87,7 +86,6 @@ class LLMExtractionConfig(BaseConfig):
     batch_size: int = DEFAULT_BATCH_SIZE
     max_workers: int = DEFAULT_MAX_WORKERS
     base_delay: float = DEFAULT_BASE_DELAY
-    dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
     track_cost: bool = DEFAULT_TRACK_COST
     max_budget: Optional[float] = DEFAULT_MAX_BUDGET
     model_input_cost_per_1M_tokens: Optional[float] = None
@@ -135,10 +133,6 @@ class LLMExtractionConfig(BaseConfig):
             raise ValueError(
                 f"base_delay must be non-negative. base_delay: {self.base_delay}, Suggestion: Use a non-negative float"
             )
-        if self.dotenv_path is not None and not Path(self.dotenv_path).exists():
-            raise ValueError(
-                f"dotenv_path does not exist: {self.dotenv_path}, Suggestion: Check the file path or create the .env file"
-            )
         if not isinstance(self.track_cost, bool):
             raise ValueError(
                 f"track_cost must be a boolean. track_cost: {self.track_cost}, Suggestion: Use True or False"
@@ -162,7 +156,6 @@ class LLMExtractionConfig(BaseConfig):
             "batch_size": self.batch_size,
             "max_workers": self.max_workers,
             "base_delay": self.base_delay,
-            "dotenv_path": str(self.dotenv_path) if self.dotenv_path else None,
             "track_cost": self.track_cost,
             "max_budget": self.max_budget,
             "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,

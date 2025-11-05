@@ -34,7 +34,6 @@ class TestDELMPreviewPrompt:
         llm_extraction.provider = "openai"
         llm_extraction.name = "gpt-4"
         llm_extraction.track_cost = False
-        llm_extraction.dotenv_path = None
         llm_extraction.batch_size = 32
         config.llm_extraction = llm_extraction
 

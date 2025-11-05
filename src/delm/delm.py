@@ -6,7 +6,6 @@ from datetime import datetime
 import logging
 import time
 from pathlib import Path
-import dotenv
 import pandas as pd
 
 # Module-level logger
@@ -342,13 +341,6 @@ class DELM:
     def _initialize_components(self) -> None:
         """Initialize all components using composition."""
         log.debug("Initializing DELM components")
-
-        # Environment & secrets -------------------------------------------- #
-        if self.config.llm_extraction.dotenv_path:
-            log.debug(
-                "Loading environment from %s", self.config.llm_extraction.dotenv_path
-            )
-            dotenv.load_dotenv(self.config.llm_extraction.dotenv_path)
 
         # Initialize components
         log.debug("Initializing data processor")
