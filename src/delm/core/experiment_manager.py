@@ -21,7 +21,6 @@ import yaml
 from delm.config import DELMConfig
 from delm.constants import (
     DATA_DIR_NAME,
-    CACHE_DIR_NAME,
     PROCESSING_CACHE_DIR_NAME,
     BATCH_FILE_PREFIX,
     BATCH_FILE_SUFFIX,
@@ -242,7 +241,7 @@ class DiskExperimentManager(BaseExperimentManager):
 
     @property
     def cache_dir(self) -> Path:
-        d = self.experiment_dir / CACHE_DIR_NAME / PROCESSING_CACHE_DIR_NAME
+        d = self.experiment_dir / PROCESSING_CACHE_DIR_NAME
         d.mkdir(parents=True, exist_ok=True)
         return d
 
