@@ -1,5 +1,4 @@
-"""Implements LLM-In-the-Loop PRompt Optimization (LILPRO) using DELM.
-"""
+"""Implements LLM-In-the-Loop PRompt Optimization (LILPRO) using DELM."""
 
 from __future__ import annotations
 
@@ -54,6 +53,7 @@ EVAL_SAMPLE_RATIO = 0.10
 # helpers
 # ----------------------------------------------------------------------------
 
+
 def build_expected_df(record_labeled_df: pd.DataFrame) -> pd.DataFrame:
     """Create nested expected JSON per id, aggregating duplicates.
 
@@ -86,7 +86,9 @@ def build_expected_df(record_labeled_df: pd.DataFrame) -> pd.DataFrame:
         .reset_index(name="items")
     )
 
-    grouped["expected_json"] = grouped["items"].apply(lambda items: {CONTAINER_NAME: items})
+    grouped["expected_json"] = grouped["items"].apply(
+        lambda items: {CONTAINER_NAME: items}
+    )
     return grouped[["id", "expected_json"]]
 
 
@@ -94,8 +96,16 @@ def _count_price_expectation(items: List[Dict[str, Any]] | None) -> Tuple[int, i
     """Return counts of True/False for price_expectation across items."""
     if not items:
         return 0, 0
-    true_count = sum(1 for it in items if isinstance(it, dict) and it.get("price_expectation") is True)
-    false_count = sum(1 for it in items if isinstance(it, dict) and it.get("price_expectation") is False)
+    true_count = sum(
+        1
+        for it in items
+        if isinstance(it, dict) and it.get("price_expectation") is True
+    )
+    false_count = sum(
+        1
+        for it in items
+        if isinstance(it, dict) and it.get("price_expectation") is False
+    )
     return true_count, false_count
 
 
@@ -103,7 +113,9 @@ def _extract_items(d: Dict[str, Any] | None) -> List[Dict[str, Any]]:
     if not isinstance(d, dict):
         return []
     items = d.get(CONTAINER_NAME)
-    return [it for it in items if isinstance(it, dict)] if isinstance(items, list) else []
+    return (
+        [it for it in items if isinstance(it, dict)] if isinstance(items, list) else []
+    )
 
 
 def _normalize_good(value: Any) -> str:
@@ -212,14 +224,24 @@ def annotate_price_expectation_counts(record_pairs_df: pd.DataFrame) -> pd.DataF
         ),
         axis=1,
     )
-    counts_df = pd.DataFrame(list(counts), columns=["expected_counts", "predicted_counts"], index=df.index)
+    counts_df = pd.DataFrame(
+        list(counts), columns=["expected_counts", "predicted_counts"], index=df.index
+    )
     out = pd.DataFrame(
         {
             "id": df["id"].tolist(),
-            "exp_true": counts_df["expected_counts"].apply(lambda x: int(x[0]) if isinstance(x, tuple) else 0),
-            "exp_false": counts_df["expected_counts"].apply(lambda x: int(x[1]) if isinstance(x, tuple) else 0),
-            "pred_true": counts_df["predicted_counts"].apply(lambda x: int(x[0]) if isinstance(x, tuple) else 0),
-            "pred_false": counts_df["predicted_counts"].apply(lambda x: int(x[1]) if isinstance(x, tuple) else 0),
+            "exp_true": counts_df["expected_counts"].apply(
+                lambda x: int(x[0]) if isinstance(x, tuple) else 0
+            ),
+            "exp_false": counts_df["expected_counts"].apply(
+                lambda x: int(x[1]) if isinstance(x, tuple) else 0
+            ),
+            "pred_true": counts_df["predicted_counts"].apply(
+                lambda x: int(x[0]) if isinstance(x, tuple) else 0
+            ),
+            "pred_false": counts_df["predicted_counts"].apply(
+                lambda x: int(x[1]) if isinstance(x, tuple) else 0
+            ),
         }
     )
     return out
@@ -259,7 +281,12 @@ def compute_batch_stats(
 
     # Total extractions (total predicted items across all records)
     n_extractions = int(
-        sum(len(_extract_items(d)) for d in record_pairs_df.get("extracted_dict", pd.Series([{}] * len(record_pairs_df))) )
+        sum(
+            len(_extract_items(d))
+            for d in record_pairs_df.get(
+                "extracted_dict", pd.Series([{}] * len(record_pairs_df))
+            )
+        )
     )
 
     # Wrong price_expectation among matched (id+good) pairs (boolean inequality)
@@ -291,7 +318,9 @@ def append_metrics_row(csv_path: Path, row: Dict[str, Any]) -> None:
     df.to_csv(csv_path, mode="a", header=header, index=False)
 
 
-def save_precision_plot(csv_path: Path, out_path: Path, series: str = "presence") -> None:
+def save_precision_plot(
+    csv_path: Path, out_path: Path, series: str = "presence"
+) -> None:
     """Render precision-vs-batch plot from CSV with dynamic y-limits.
 
     series: "presence" to plot estimator precision; "matched" to plot matched_precision
@@ -305,18 +334,20 @@ def save_precision_plot(csv_path: Path, out_path: Path, series: str = "presence"
         return
     # ICLR-friendly style similar to cost_vs_coverage
     sns.set_theme(style="whitegrid", font_scale=1.2)
-    plt.rcParams.update({
-        "figure.figsize": (3.0, 2.0),
-        "font.size": 8,
-        "axes.labelsize": 8,
-        "axes.titlesize": 9,
-        "legend.fontsize": 7,
-        "xtick.labelsize": 7,
-        "ytick.labelsize": 7,
-        "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.02,
-        "pdf.fonttype": 42,
-    })
+    plt.rcParams.update(
+        {
+            "figure.figsize": (3.0, 2.0),
+            "font.size": 8,
+            "axes.labelsize": 8,
+            "axes.titlesize": 9,
+            "legend.fontsize": 7,
+            "xtick.labelsize": 7,
+            "ytick.labelsize": 7,
+            "savefig.bbox": "tight",
+            "savefig.pad_inches": 0.02,
+            "pdf.fonttype": 42,
+        }
+    )
     plt.figure()
     if series == "presence":
         y = df["precision"]
@@ -395,10 +426,14 @@ def set_price_expectation_description(schema_path: Path, new_description: str) -
             changed = True
             break
     if changed:
-        schema_path.write_text(yaml.safe_dump(spec, sort_keys=False, allow_unicode=True))
+        schema_path.write_text(
+            yaml.safe_dump(spec, sort_keys=False, allow_unicode=True)
+        )
 
 
-def run_optimizer_and_get_guidance(current_definition: str, examples_text: str) -> Dict[str, Any]:
+def run_optimizer_and_get_guidance(
+    current_definition: str, examples_text: str
+) -> Dict[str, Any]:
     """Run optimizer to produce a refined definition from wrong examples."""
     cfg = DELMConfig.from_yaml(OPTIMIZER_CONFIG_PATH)
     cfg.schema.spec_path = OPTIMIZER_SCHEMA_PATH
@@ -441,6 +476,7 @@ def run_optimizer_and_get_guidance(current_definition: str, examples_text: str) 
 # main flow
 # ----------------------------------------------------------------------------
 
+
 def main() -> None:
     """Run iterative optimization and plot precision across batches."""
     random.seed(RANDOM_SEED)
@@ -465,7 +501,9 @@ def main() -> None:
     metrics_csv_path = EXPERIMENT_ROOT_DIR / "precision_by_batch.csv"
 
     # Determine 10% evaluation sample size (at least 1 record)
-    eval_record_sample_size = max(1, int(np.ceil(EVAL_SAMPLE_RATIO * len(record_expected_df))))
+    eval_record_sample_size = max(
+        1, int(np.ceil(EVAL_SAMPLE_RATIO * len(record_expected_df)))
+    )
 
     for batch_idx in tqdm(range(NUM_BATCHES + 1), desc="batches", leave=True):
         cfg = DELMConfig.from_dict(base_cfg.to_serialized_config_dict())
@@ -501,12 +539,24 @@ def main() -> None:
         )
 
         # Append to in-memory list for reference
-        batch_records.append({"batch": batch_idx, "precision": precision, "matched_precision": matched_precision, **stats})
+        batch_records.append(
+            {
+                "batch": batch_idx,
+                "precision": precision,
+                "matched_precision": matched_precision,
+                **stats,
+            }
+        )
 
         # Persist/update the metrics CSV after each batch
         append_metrics_row(
             metrics_csv_path,
-            {"batch": batch_idx, "precision": precision, "matched_precision": matched_precision, **stats},
+            {
+                "batch": batch_idx,
+                "precision": precision,
+                "matched_precision": matched_precision,
+                **stats,
+            },
         )
 
         # Save the per-record trace for price_expectation counts
@@ -518,13 +568,31 @@ def main() -> None:
             json.dump(metrics_dict, fh, ensure_ascii=False, indent=2)
 
         record_pairs_out_df = record_pairs_df.copy()
-        record_pairs_out_df.to_json(exp_dir / "record_pairs.json", orient="records", force_ascii=False, indent=2)
+        record_pairs_out_df.to_json(
+            exp_dir / "record_pairs.json", orient="records", force_ascii=False, indent=2
+        )
 
         # Save or update the precision plots incrementally (PNG + PDF)
-        save_precision_plot(metrics_csv_path, EXPERIMENT_ROOT_DIR / "precision_vs_batch_presence.png", series="presence")
-        save_precision_plot(metrics_csv_path, EXPERIMENT_ROOT_DIR / "precision_vs_batch_presence.pdf", series="presence")
-        save_precision_plot(metrics_csv_path, EXPERIMENT_ROOT_DIR / "precision_vs_batch_matched.png", series="matched")
-        save_precision_plot(metrics_csv_path, EXPERIMENT_ROOT_DIR / "precision_vs_batch_matched.pdf", series="matched")
+        save_precision_plot(
+            metrics_csv_path,
+            EXPERIMENT_ROOT_DIR / "precision_vs_batch_presence.png",
+            series="presence",
+        )
+        save_precision_plot(
+            metrics_csv_path,
+            EXPERIMENT_ROOT_DIR / "precision_vs_batch_presence.pdf",
+            series="presence",
+        )
+        save_precision_plot(
+            metrics_csv_path,
+            EXPERIMENT_ROOT_DIR / "precision_vs_batch_matched.png",
+            series="matched",
+        )
+        save_precision_plot(
+            metrics_csv_path,
+            EXPERIMENT_ROOT_DIR / "precision_vs_batch_matched.pdf",
+            series="matched",
+        )
 
         if batch_idx < NUM_BATCHES:
             wrong_df = find_wrong_price_expectation_records(record_pairs_df)
@@ -551,10 +619,26 @@ def main() -> None:
                 set_price_expectation_description(BASE_SCHEMA_PATH, new_def)
 
     # Final plot refresh from accumulated CSV (PNG + PDF)
-    save_precision_plot(metrics_csv_path, EXPERIMENT_ROOT_DIR / "precision_vs_batch_presence.png", series="presence")
-    save_precision_plot(metrics_csv_path, EXPERIMENT_ROOT_DIR / "precision_vs_batch_presence.pdf", series="presence")
-    save_precision_plot(metrics_csv_path, EXPERIMENT_ROOT_DIR / "precision_vs_batch_matched.png", series="matched")
-    save_precision_plot(metrics_csv_path, EXPERIMENT_ROOT_DIR / "precision_vs_batch_matched.pdf", series="matched")
+    save_precision_plot(
+        metrics_csv_path,
+        EXPERIMENT_ROOT_DIR / "precision_vs_batch_presence.png",
+        series="presence",
+    )
+    save_precision_plot(
+        metrics_csv_path,
+        EXPERIMENT_ROOT_DIR / "precision_vs_batch_presence.pdf",
+        series="presence",
+    )
+    save_precision_plot(
+        metrics_csv_path,
+        EXPERIMENT_ROOT_DIR / "precision_vs_batch_matched.png",
+        series="matched",
+    )
+    save_precision_plot(
+        metrics_csv_path,
+        EXPERIMENT_ROOT_DIR / "precision_vs_batch_matched.pdf",
+        series="matched",
+    )
 
 
 if __name__ == "__main__":

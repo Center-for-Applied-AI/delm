@@ -6,7 +6,6 @@ from datetime import datetime
 import logging
 import time
 from pathlib import Path
-import dotenv
 import pandas as pd
 
 # Module-level logger
@@ -319,18 +318,29 @@ class DELM:
         log.debug("Cost summary retrieved: %s", cost_summary)
         return cost_summary
 
+    def preview_prompt(
+        self,
+        text: Optional[str] = None,
+    ) -> str:
+        """Preview the compiled prompt for the extraction schema.
+
+        Returns:
+            A string containing the compiled prompt.
+        """
+        target_column_name = self.config.data_preprocessing.target_column
+        if text is None:
+            text = f"<{target_column_name}>"
+        prompt = self.schema_manager.extraction_schema.create_prompt(
+            text=text,
+            prompt_template=self.schema_manager.prompt_template,
+        )
+        return prompt
+
     ## ------------------------------ Private API ------------------------------- ##
 
     def _initialize_components(self) -> None:
         """Initialize all components using composition."""
         log.debug("Initializing DELM components")
-
-        # Environment & secrets -------------------------------------------- #
-        if self.config.llm_extraction.dotenv_path:
-            log.debug(
-                "Loading environment from %s", self.config.llm_extraction.dotenv_path
-            )
-            dotenv.load_dotenv(self.config.llm_extraction.dotenv_path)
 
         # Initialize components
         log.debug("Initializing data processor")

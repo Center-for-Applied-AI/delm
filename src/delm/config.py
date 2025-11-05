@@ -12,43 +12,37 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Union, TypeVar
 import yaml
 
-T = TypeVar('T', bound='BaseConfig')
+T = TypeVar("T", bound="BaseConfig")
 
 from delm.strategies import RelevanceScorer, KeywordScorer, FuzzyScorer
 from delm.strategies import SplitStrategy, ParagraphSplit, FixedWindowSplit, RegexSplit
 from delm.constants import (
     # LLM/API Configuration
-    DEFAULT_PROVIDER, 
-    DEFAULT_MODEL_NAME, 
+    DEFAULT_PROVIDER,
+    DEFAULT_MODEL_NAME,
     DEFAULT_TEMPERATURE,
-    DEFAULT_MAX_RETRIES, 
-    DEFAULT_BASE_DELAY, 
-    DEFAULT_BATCH_SIZE, 
+    DEFAULT_MAX_RETRIES,
+    DEFAULT_BASE_DELAY,
+    DEFAULT_BATCH_SIZE,
     DEFAULT_MAX_WORKERS,
-    DEFAULT_TRACK_COST, 
-    DEFAULT_MAX_BUDGET, 
-    DEFAULT_DOTENV_PATH,
-    
+    DEFAULT_TRACK_COST,
+    DEFAULT_MAX_BUDGET,
     # Data Processing
     # Splitting
     DEFAULT_FIXED_WINDOW_SIZE,
     DEFAULT_FIXED_WINDOW_STRIDE,
     DEFAULT_REGEX_PATTERN,
-
-    DEFAULT_DROP_TARGET_COLUMN, 
-    DEFAULT_PANDAS_SCORE_FILTER, 
-    
+    DEFAULT_DROP_TARGET_COLUMN,
+    DEFAULT_PANDAS_SCORE_FILTER,
     # Schema Configuration
-    DEFAULT_SCHEMA_PATH, 
-    DEFAULT_PROMPT_TEMPLATE, 
+    DEFAULT_SCHEMA_PATH,
+    DEFAULT_PROMPT_TEMPLATE,
     DEFAULT_SYSTEM_PROMPT,
-    
     # Semantic Cache
-    DEFAULT_SEMANTIC_CACHE_BACKEND, 
+    DEFAULT_SEMANTIC_CACHE_BACKEND,
     DEFAULT_SEMANTIC_CACHE_PATH,
-    DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB, 
+    DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB,
     DEFAULT_SEMANTIC_CACHE_SYNCHRONOUS,
-    
     # System Constants
     SYSTEM_RAW_DATA_COLUMN,
     DEFAULT_FIXED_WINDOW_SIZE,
@@ -63,18 +57,18 @@ class BaseConfig:
     Subclasses should implement ``validate`` and ``to_dict`` to provide strict
     validation and stable serialization.
     """
-    
+
     def validate(self):
         """Validate configuration.
 
         Subclasses should raise ``ValueError`` when fields are invalid.
         """
         pass
-    
+
     def to_dict(self) -> dict:
         """Convert configuration to a serializable dictionary."""
         return {}
-    
+
     @classmethod
     def from_dict(cls: type[T], data: Dict[str, Any]) -> T:
         """Create configuration instance from a dictionary."""
@@ -84,6 +78,7 @@ class BaseConfig:
 @dataclass
 class LLMExtractionConfig(BaseConfig):
     """Configuration for the LLM extraction process."""
+
     provider: str = DEFAULT_PROVIDER
     name: str = DEFAULT_MODEL_NAME
     temperature: float = DEFAULT_TEMPERATURE
@@ -91,7 +86,6 @@ class LLMExtractionConfig(BaseConfig):
     batch_size: int = DEFAULT_BATCH_SIZE
     max_workers: int = DEFAULT_MAX_WORKERS
     base_delay: float = DEFAULT_BASE_DELAY
-    dotenv_path: Optional[Union[str, Path]] = DEFAULT_DOTENV_PATH
     track_cost: bool = DEFAULT_TRACK_COST
     max_budget: Optional[float] = DEFAULT_MAX_BUDGET
     model_input_cost_per_1M_tokens: Optional[float] = None
@@ -139,10 +133,6 @@ class LLMExtractionConfig(BaseConfig):
             raise ValueError(
                 f"base_delay must be non-negative. base_delay: {self.base_delay}, Suggestion: Use a non-negative float"
             )
-        if self.dotenv_path is not None and not Path(self.dotenv_path).exists():
-            raise ValueError(
-                f"dotenv_path does not exist: {self.dotenv_path}, Suggestion: Check the file path or create the .env file"
-            )
         if not isinstance(self.track_cost, bool):
             raise ValueError(
                 f"track_cost must be a boolean. track_cost: {self.track_cost}, Suggestion: Use True or False"
@@ -166,7 +156,6 @@ class LLMExtractionConfig(BaseConfig):
             "batch_size": self.batch_size,
             "max_workers": self.max_workers,
             "base_delay": self.base_delay,
-            "dotenv_path": str(self.dotenv_path) if self.dotenv_path else None,
             "track_cost": self.track_cost,
             "max_budget": self.max_budget,
             "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,
@@ -177,6 +166,7 @@ class LLMExtractionConfig(BaseConfig):
 @dataclass
 class SplittingConfig(BaseConfig):
     """Configuration for text splitting strategy."""
+
     strategy: Optional[SplitStrategy] = field(default=None)
 
     def validate(self):
@@ -226,12 +216,15 @@ class SplittingConfig(BaseConfig):
         """
         if cfg == {} or cfg is None:
             return None
-        
+
         split_type = cfg.get("type", None)
         if split_type == "ParagraphSplit":
             return ParagraphSplit()
         elif split_type == "FixedWindowSplit":
-            return FixedWindowSplit(cfg.get("window", DEFAULT_FIXED_WINDOW_SIZE), cfg.get("stride", DEFAULT_FIXED_WINDOW_STRIDE))
+            return FixedWindowSplit(
+                cfg.get("window", DEFAULT_FIXED_WINDOW_SIZE),
+                cfg.get("stride", DEFAULT_FIXED_WINDOW_STRIDE),
+            )
         elif split_type == "RegexSplit":
             return RegexSplit(cfg.get("pattern", DEFAULT_REGEX_PATTERN))
         elif split_type in ("None", None):
@@ -239,13 +232,17 @@ class SplittingConfig(BaseConfig):
         else:
             raise ValueError(
                 f"Unknown split strategy: {split_type}",
-                {"split_type": split_type, "suggestion": "Use 'ParagraphSplit', 'FixedWindowSplit', 'RegexSplit', or 'None'"}
+                {
+                    "split_type": split_type,
+                    "suggestion": "Use 'ParagraphSplit', 'FixedWindowSplit', 'RegexSplit', or 'None'",
+                },
             )
 
 
 @dataclass
 class ScoringConfig(BaseConfig):
     """Configuration for relevance scoring strategy."""
+
     scorer: Optional[RelevanceScorer] = field(default=None)
 
     def validate(self):
@@ -291,7 +288,7 @@ class ScoringConfig(BaseConfig):
         """
         if cfg == {} or cfg is None:
             return None
-        
+
         scorer_type = cfg.get("type", None)
         if scorer_type == "KeywordScorer":
             keywords = cfg.get("keywords", [])
@@ -318,10 +315,15 @@ class ScoringConfig(BaseConfig):
 @dataclass
 class DataPreprocessingConfig(BaseConfig):
     """Configuration for the data preprocessing pipeline."""
+
     target_column: str = SYSTEM_RAW_DATA_COLUMN
     drop_target_column: bool = DEFAULT_DROP_TARGET_COLUMN
-    splitting: SplittingConfig = field(default_factory=SplittingConfig) # use default factory because these types are mutable
-    scoring: ScoringConfig = field(default_factory=ScoringConfig) # use default factory because these types are mutable
+    splitting: SplittingConfig = field(
+        default_factory=SplittingConfig
+    )  # use default factory because these types are mutable
+    scoring: ScoringConfig = field(
+        default_factory=ScoringConfig
+    )  # use default factory because these types are mutable
     pandas_score_filter: Optional[str] = DEFAULT_PANDAS_SCORE_FILTER
     preprocessed_data_path: Optional[str] = None
     _explicitly_set_fields: set = field(default_factory=set, init=False)
@@ -337,7 +339,7 @@ class DataPreprocessingConfig(BaseConfig):
             self._validate_preprocessed_data_path()
             self._validate_no_conflicts_with_preprocessed_data()
             return
-        
+
         self._validate_basic_fields()
         self.splitting.validate()
         self.scoring.validate()
@@ -350,18 +352,22 @@ class DataPreprocessingConfig(BaseConfig):
         """
         if self.preprocessed_data_path is None:
             return
-            
+
         if not self.preprocessed_data_path.endswith(".feather"):
             raise ValueError(
                 f"preprocessed_data_path must be a feather file. preprocessed_data_path: {self.preprocessed_data_path}, Suggestion: Provide a valid feather file path"
             )
-        
+
         # Verify file has correct columns
         import pandas as pd
         from .constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN
+
         try:
             df = pd.read_feather(self.preprocessed_data_path)
-            if not all(col in df.columns for col in [SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN]):
+            if not all(
+                col in df.columns
+                for col in [SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN]
+            ):
                 raise ValueError(
                     f"preprocessed_data_path must have the correct columns. preprocessed_data_path: {self.preprocessed_data_path}, Suggestion: Provide a valid feather file path with the correct columns"
                 )
@@ -387,7 +393,7 @@ class DataPreprocessingConfig(BaseConfig):
             conflicting.append("splitting")
         if self.scoring.scorer is not None:
             conflicting.append("scoring")
-        
+
         if conflicting:
             raise ValueError(
                 f"Cannot specify {', '.join(conflicting)} when preprocessed_data_path is set. preprocessed_data_path: {self.preprocessed_data_path}, Suggestion: Remove other data fields when using preprocessed_data_path."
@@ -415,6 +421,7 @@ class DataPreprocessingConfig(BaseConfig):
             # Validate pandas query syntax
             import pandas as pd
             from .constants import SYSTEM_SCORE_COLUMN
+
             try:
                 pd.DataFrame({SYSTEM_SCORE_COLUMN: [1]}).query(self.pandas_score_filter)
             except Exception as e:
@@ -430,7 +437,7 @@ class DataPreprocessingConfig(BaseConfig):
         """
         if self.preprocessed_data_path:
             return {"preprocessed_data_path": self.preprocessed_data_path}
-        
+
         return {
             "target_column": self.target_column,
             "drop_target_column": self.drop_target_column,
@@ -454,13 +461,17 @@ class DataPreprocessingConfig(BaseConfig):
         """
         # Track explicitly set fields
         explicitly_set_fields = set(data.keys())
-        
+
         instance = cls(
             target_column=data.get("target_column", SYSTEM_RAW_DATA_COLUMN),
-            drop_target_column=data.get("drop_target_column", DEFAULT_DROP_TARGET_COLUMN),
+            drop_target_column=data.get(
+                "drop_target_column", DEFAULT_DROP_TARGET_COLUMN
+            ),
             splitting=SplittingConfig.from_dict(data.get("splitting", {})),
             scoring=ScoringConfig.from_dict(data.get("scoring", {})),
-            pandas_score_filter=data.get("pandas_score_filter", DEFAULT_PANDAS_SCORE_FILTER),
+            pandas_score_filter=data.get(
+                "pandas_score_filter", DEFAULT_PANDAS_SCORE_FILTER
+            ),
             preprocessed_data_path=data.get("preprocessed_data_path", None),
         )
         instance._explicitly_set_fields = explicitly_set_fields
@@ -478,6 +489,7 @@ class SchemaConfig(BaseConfig):
     The actual schema definition (including container_name) is stored in the
     separate schema_spec.yaml file.
     """
+
     spec_path: Optional[Union[str, Path]] = DEFAULT_SCHEMA_PATH
     prompt_template: str = DEFAULT_PROMPT_TEMPLATE
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
@@ -522,21 +534,22 @@ class SchemaConfig(BaseConfig):
         """Construct a ``SchemaConfig`` from a mapping."""
         if data is None:
             data = {}
-        
+
         spec_path = data.get("spec_path", "")
         if isinstance(spec_path, str):
             spec_path = Path(spec_path)
-        
+
         return cls(
             spec_path=spec_path,
             prompt_template=data.get("prompt_template", DEFAULT_PROMPT_TEMPLATE),
-            system_prompt=data.get("system_prompt", DEFAULT_SYSTEM_PROMPT)
+            system_prompt=data.get("system_prompt", DEFAULT_SYSTEM_PROMPT),
         )
 
 
 @dataclass
 class SemanticCacheConfig(BaseConfig):
     """Persistent semantic‑cache settings."""
+
     backend: str = DEFAULT_SEMANTIC_CACHE_BACKEND
     path: Union[str, Path] = DEFAULT_SEMANTIC_CACHE_PATH
     max_size_mb: int = DEFAULT_SEMANTIC_CACHE_MAX_SIZE_MB
@@ -579,7 +592,7 @@ class SemanticCacheConfig(BaseConfig):
         """Construct a ``SemanticCacheConfig`` from a mapping."""
         if data is None:
             data = {}
-        
+
         return cls(
             backend=data.get("backend", DEFAULT_SEMANTIC_CACHE_BACKEND),
             path=data.get("path", DEFAULT_SEMANTIC_CACHE_PATH),
@@ -600,6 +613,7 @@ class DELMConfig(BaseConfig):
     - A single pipeline config file (config.yaml) that references a schema file
     - Separate pipeline config and schema spec files
     """
+
     llm_extraction: LLMExtractionConfig
     data_preprocessing: DataPreprocessingConfig
     schema: SchemaConfig
@@ -625,46 +639,50 @@ class DELMConfig(BaseConfig):
         """Load and return the schema spec as a dictionary (schema_spec.yaml)."""
         import yaml
         import json
-        
+
         path = self.schema.spec_path
         if path is None:
             raise ValueError("Schema spec path is None")
-        
+
         if isinstance(path, str):
             path = Path(path)
-        
+
         if not path.exists():
             raise FileNotFoundError(f"Schema spec file does not exist: {path}")
-        
+
         if path.suffix.lower() in {".yml", ".yaml"}:
             return yaml.safe_load(path.read_text()) or {}
         elif path.suffix.lower() == ".json":
             return json.loads(path.read_text())
         else:
             raise ValueError(f"Unsupported schema file format: {path.suffix}")
-        
 
     # Backward compatibility aliases
     def to_dict(self) -> dict:
         """Alias for ``to_serialized_config_dict`` for backward compatibility."""
         return self.to_serialized_config_dict()
 
-
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DELMConfig":
         """Create ``DELMConfig`` from a mapping."""
         if data is None:
             data = {}
-        
+
         return cls(
-            llm_extraction=LLMExtractionConfig.from_dict(data.get("llm_extraction", {})),
-            data_preprocessing=DataPreprocessingConfig.from_dict(data.get("data_preprocessing", {})),
+            llm_extraction=LLMExtractionConfig.from_dict(
+                data.get("llm_extraction", {})
+            ),
+            data_preprocessing=DataPreprocessingConfig.from_dict(
+                data.get("data_preprocessing", {})
+            ),
             schema=SchemaConfig.from_dict(data.get("schema", {})),
-            semantic_cache=SemanticCacheConfig.from_dict(data.get("semantic_cache", {})),
+            semantic_cache=SemanticCacheConfig.from_dict(
+                data.get("semantic_cache", {})
+            ),
         )
 
     @classmethod
-    def from_yaml(cls, path: Path) -> "DELMConfig":
+    def from_yaml(cls, path: Union[str, Path]) -> "DELMConfig":
         """Create ``DELMConfig`` from a pipeline config YAML file.
 
         Args:
@@ -676,14 +694,14 @@ class DELMConfig(BaseConfig):
         Raises:
             FileNotFoundError: If the file does not exist.
         """
+        if isinstance(path, str):
+            path = Path(path)
         if not path.exists():
-            raise FileNotFoundError(
-                f"YAML config file does not exist: {path}"
-            )
-        
-        with open(path, "r") as f:
+            raise FileNotFoundError(f"YAML config file does not exist: {path}")
+
+        with path.open("r") as f:
             data = yaml.safe_load(f)
-        
+
         return cls.from_dict(data)
 
     @staticmethod
@@ -708,4 +726,6 @@ class DELMConfig(BaseConfig):
         elif isinstance(config_like, dict):
             return DELMConfig.from_dict(config_like)
         else:
-            raise ValueError(f"config must be a DELMConfig, dict, or path to YAML. config_type: {type(config_like).__name__}") 
+            raise ValueError(
+                f"config must be a DELMConfig, dict, or path to YAML. config_type: {type(config_like).__name__}"
+            )

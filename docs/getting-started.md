@@ -26,15 +26,40 @@ pip install -e .[dev]
 
 ## Configure Environment Variables
 
-Create an `.env` file (or export in your shell) with credentials for the LLM providers you use. A minimal configuration:
+DELM requires API keys for the LLM providers you use. You are responsible for loading these environment variables in whatever way works best for your workflow.
 
-```env
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=...
-TOGETHER_API_KEY=...
+### Required Environment Variables by Provider
+
+- **OpenAI**: `OPENAI_API_KEY`
+- **Anthropic**: `ANTHROPIC_API_KEY`
+- **Google**: `GOOGLE_API_KEY`
+- **Groq**: `GROQ_API_KEY`
+- **Together AI**: `TOGETHER_API_KEY`
+- **Fireworks AI**: `FIREWORKS_API_KEY`
+
+### Option 1: Export in Your Shell
+
+```bash
+export OPENAI_API_KEY="sk-..."
+export ANTHROPIC_API_KEY="..."
 ```
 
-Replace the values with your credentials. DELM only loads providers that have available keys.
+### Option 2: Use python-dotenv (Optional)
+
+If you prefer using `.env` files, install and use `python-dotenv`:
+
+```bash
+pip install python-dotenv
+```
+
+Then in your script:
+
+```python
+from dotenv import load_dotenv
+load_dotenv()  # Load from .env file in current directory
+```
+
+**Note**: You only need to set the API key for the provider you're using. DELM accesses environment variables directly via the LLM client libraries (OpenAI, Anthropic, etc.).
 
 ## Create Your Pipeline Configuration
 
