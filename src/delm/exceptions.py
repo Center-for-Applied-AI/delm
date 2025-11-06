@@ -34,6 +34,11 @@ class ProcessingError(DELMError):
     """Raised when LLM processing fails."""
     pass
 
+
+class BudgetExceededError(DELMError):
+    """Raised when extraction budget is exceeded."""
+    pass
+
 # class ConfigurationError(DELMError):
 #     """Raised when configuration operations fail."""
 #     pass

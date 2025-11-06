@@ -19,7 +19,11 @@ from delm.config import (
     SplittingConfig,
     ScoringConfig,
 )
-from delm.exceptions import DELMError, ExperimentManagementError, InstructorError
+from delm.exceptions import DELMError, ExperimentManagementError, InstructorError, BudgetExceededError
+from delm.schema_helpers import variable, simple_schema, nested_schema, multiple_schema
+from delm.result import ExtractionResult
+from delm.models import ExtractionVariable
+from delm.schemas.schemas import SimpleSchema, NestedSchema, MultipleSchema, BaseSchema
 from .constants import (
     # LLM/API Configuration
     DEFAULT_PROVIDER,
@@ -87,10 +91,23 @@ __all__ = [
     "SchemaConfig",
     "SplittingConfig",
     "ScoringConfig",
+    # Schema Helpers
+    "variable",
+    "simple_schema",
+    "nested_schema",
+    "multiple_schema",
+    "ExtractionVariable",
+    "SimpleSchema",
+    "NestedSchema",
+    "MultipleSchema",
+    "BaseSchema",
+    # Result Classes
+    "ExtractionResult",
     # Exceptions
     "DELMError",
     "ExperimentManagementError",
     "InstructorError",
+    "BudgetExceededError",
     # LLM/API Configuration
     "DEFAULT_PROVIDER",
     "DEFAULT_MODEL_NAME",

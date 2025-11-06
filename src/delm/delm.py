@@ -35,7 +35,9 @@ from delm.constants import (
 )
 from delm.utils.cost_tracker import CostTracker
 from delm.utils.semantic_cache import SemanticCacheFactory
-from typing import Any, Dict, Union, Optional
+from delm.result import ExtractionResult
+from typing import Any, Dict, Union, Optional, List
+from delm.strategies import SplitStrategy, RelevanceScorer, ParagraphSplit, KeywordScorer
 
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
@@ -56,37 +58,112 @@ class DELM:
     def __init__(
         self,
         *,
-        config: DELMConfig,
-        experiment_name: str,
-        experiment_directory: Path,
+        # New API parameters (optional)
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        schema: Optional[Union[Dict[str, Any], str, Path]] = None,
+        temperature: Optional[float] = None,
+        batch_size: Optional[int] = None,
+        max_workers: Optional[int] = None,
+        max_budget: Optional[float] = None,
+        splitting: Optional[Union[str, SplitStrategy]] = None,
+        scoring: Optional[Union[List[str], RelevanceScorer]] = None,
+        score_filter: Optional[str] = None,
+        target_column: Optional[str] = None,
+        experiment: Optional[str] = None,
+        prompt_template: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        # Old API parameters (for backward compatibility)
+        config: Optional[DELMConfig] = None,
+        experiment_name: Optional[str] = None,
+        experiment_directory: Optional[Path] = None,
         overwrite_experiment: bool = False,
         auto_checkpoint_and_resume_experiment: bool = True,
         use_disk_storage: bool = True,
         save_file_log: bool = True,
-        log_dir: Union[str, Optional][Path] = None,
+        log_dir: Optional[Union[str, Path]] = None,
         console_log_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
         file_log_level: str = DEFAULT_FILE_LOG_LEVEL,
         override_logging: bool = True,
     ) -> None:
         """Initialize the DELM extraction pipeline.
 
+        Can be initialized in two ways:
+        
+        1. New API (direct parameters):
+            DELM(provider="openai", model="gpt-4o-mini", schema=schema)
+        
+        2. Old API (config object):
+            DELM(config=config, experiment_name="test", experiment_directory=Path("."))
+
         Args:
-            config: DELM configuration for this pipeline.
-            experiment_name: Name of the experiment.
-            experiment_directory: Base directory for experiment outputs.
+            provider: LLM provider (e.g., "openai", "anthropic").
+            model: Model name (e.g., "gpt-4o-mini").
+            schema: Schema definition (dict, path to YAML, or Schema object).
+            temperature: Temperature for LLM responses.
+            batch_size: Number of records per batch.
+            max_workers: Number of concurrent workers.
+            max_budget: Maximum budget for extraction.
+            splitting: Splitting strategy (string or SplitStrategy object).
+            scoring: Scoring strategy (list of keywords or RelevanceScorer object).
+            score_filter: Pandas query string for filtering by score.
+            target_column: Column name containing text to extract from.
+            experiment: Experiment name (for new API).
+            prompt_template: Custom prompt template.
+            system_prompt: Custom system prompt.
+            config: DELM configuration (old API).
+            experiment_name: Name of the experiment (old API).
+            experiment_directory: Base directory for experiment outputs (old API).
             overwrite_experiment: Whether to overwrite existing experiment data.
             auto_checkpoint_and_resume_experiment: Whether to auto‑resume from checkpoints.
             use_disk_storage: If True, use disk‑based experiment manager; otherwise in‑memory.
             save_file_log: If True, write a rotating log file under ``log_dir``.
-            log_dir: Directory for log files. If None and ``save_file_log`` is True, defaults
-                to ``DEFAULT_LOG_DIR/<experiment_name>``.
+            log_dir: Directory for log files.
             console_log_level: Log level for console output.
             file_log_level: Log level for file output.
             override_logging: If True, force reconfiguration of logging for the process.
 
         Raises:
-            ValueError: If the provided ``config`` is invalid.
+            ValueError: If the provided parameters are invalid.
         """
+        # Determine which API is being used
+        using_new_api = config is None and (provider is not None or schema is not None)
+        
+        if using_new_api:
+            # New API: build config from parameters
+            config = self._build_config_from_params(
+                provider=provider,
+                model=model,
+                schema=schema,
+                temperature=temperature,
+                batch_size=batch_size,
+                max_workers=max_workers,
+                max_budget=max_budget,
+                splitting=splitting,
+                scoring=scoring,
+                score_filter=score_filter,
+                target_column=target_column,
+                prompt_template=prompt_template,
+                system_prompt=system_prompt,
+            )
+            # Use experiment parameter as experiment_name
+            if experiment is None:
+                experiment = "delm_extraction"
+            experiment_name = experiment
+            # Use default experiment directory
+            if experiment_directory is None:
+                from delm.constants import DEFAULT_EXPERIMENT_DIR
+                experiment_directory = DEFAULT_EXPERIMENT_DIR
+        else:
+            # Old API: use provided config
+            if config is None:
+                raise ValueError(
+                    "Must provide either 'config' (old API) or 'provider'+'schema' (new API)"
+                )
+            if experiment_name is None:
+                raise ValueError("experiment_name is required when using config parameter")
+            if experiment_directory is None:
+                raise ValueError("experiment_directory is required when using config parameter")
         # Configure logging
         if save_file_log:
             if log_dir is None:
@@ -128,6 +205,73 @@ class DELM:
         self._initialize_components()
 
         log.debug("DELM pipeline initialized successfully")
+
+    @classmethod
+    def from_config(
+        cls,
+        config_path: Union[str, Path, DELMConfig],
+        **overrides: Any,
+    ) -> "DELM":
+        """Create a DELM instance from a config file with optional overrides.
+
+        Args:
+            config_path: Path to YAML config file or DELMConfig object.
+            **overrides: Parameters to override from config (e.g., temperature=0.5).
+
+        Returns:
+            Configured DELM instance.
+
+        Example:
+            >>> delm = DELM.from_config("config.yaml", temperature=0.5)
+        """
+        log.debug("Creating DELM instance from config with overrides")
+        
+        # Load config if it's a path
+        if isinstance(config_path, (str, Path)):
+            base_config = DELMConfig.from_yaml(Path(config_path))
+        else:
+            base_config = config_path
+        
+        # Extract experiment-related overrides
+        experiment = overrides.pop("experiment", None)
+        experiment_directory = overrides.pop("experiment_directory", None)
+        
+        # Build parameters dict from config
+        params = {
+            "provider": base_config.llm_extraction.provider,
+            "model": base_config.llm_extraction.name,
+            "temperature": base_config.llm_extraction.temperature,
+            "batch_size": base_config.llm_extraction.batch_size,
+            "max_workers": base_config.llm_extraction.max_workers,
+            "max_budget": base_config.llm_extraction.max_budget,
+            "target_column": base_config.data_preprocessing.target_column,
+            "score_filter": base_config.data_preprocessing.pandas_score_filter,
+            "prompt_template": base_config.schema.prompt_template,
+            "system_prompt": base_config.schema.system_prompt,
+        }
+        
+        # Load schema from file
+        if base_config.schema.spec_path:
+            params["schema"] = base_config.schema.spec_path
+        
+        # Add splitting strategy
+        if base_config.data_preprocessing.splitting.strategy:
+            params["splitting"] = base_config.data_preprocessing.splitting.strategy
+        
+        # Add scoring strategy
+        if base_config.data_preprocessing.scoring.scorer:
+            params["scoring"] = base_config.data_preprocessing.scoring.scorer
+        
+        # Apply overrides
+        params.update(overrides)
+        
+        # Add experiment info
+        if experiment:
+            params["experiment"] = experiment
+        if experiment_directory:
+            params["experiment_directory"] = Path(experiment_directory)
+        
+        return cls(**params)
 
     @classmethod
     def from_yaml(
@@ -194,6 +338,62 @@ class DELM:
         )
 
     ## ------------------------------- Public API ------------------------------- ##
+
+    def extract(
+        self,
+        data: Union[str, Path, pd.DataFrame],
+        sample_size: Optional[int] = None,
+    ) -> ExtractionResult:
+        """Extract structured data from text (single-step method).
+
+        This is the recommended method for most use cases. It combines
+        prep_data() and process_via_llm() into a single call.
+
+        Args:
+            data: Input data as DataFrame, file path, or directory path.
+            sample_size: Optional number of records to sample (for testing).
+
+        Returns:
+            ExtractionResult object with data, cost, and statistics.
+
+        Example:
+            >>> delm = DELM(provider="openai", model="gpt-4o-mini", schema=schema)
+            >>> result = delm.extract(df)
+            >>> print(result.data)
+        """
+        log.debug("Starting extraction pipeline")
+        
+        # Step 1: Prep data
+        sample = sample_size if sample_size else -1
+        prepped_df = self.prep_data(data, sample_size=sample)
+        log.debug(f"Data prep completed: {len(prepped_df)} chunks")
+        
+        # Step 2: Process via LLM
+        result_df = self.process_via_llm()
+        log.debug(f"LLM processing completed: {len(result_df)} results")
+        
+        # Step 3: Get statistics
+        num_records = len(result_df[SYSTEM_RECORD_ID_COLUMN].unique())
+        num_chunks = len(result_df[SYSTEM_CHUNK_ID_COLUMN].unique())
+        num_errors = len(result_df[result_df[SYSTEM_ERRORS_COLUMN].notna()])
+        
+        # Step 4: Get cost summary (if tracking enabled)
+        cost_summary = None
+        if self.config.llm_extraction.track_cost:
+            cost_summary = self.get_cost_summary()
+        
+        log.info(
+            f"Extraction completed: {num_records} records, {num_chunks} chunks, "
+            f"{num_errors} errors"
+        )
+        
+        return ExtractionResult(
+            data=result_df,
+            cost=cost_summary,
+            num_records=num_records,
+            num_chunks=num_chunks,
+            num_errors=num_errors,
+        )
 
     def process_via_llm(
         self, preprocessed_file_path: Optional[Path] = None
@@ -337,6 +537,149 @@ class DELM:
         return prompt
 
     ## ------------------------------ Private API ------------------------------- ##
+
+    @staticmethod
+    def _build_config_from_params(
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+        schema: Optional[Union[Dict[str, Any], str, Path]] = None,
+        temperature: Optional[float] = None,
+        batch_size: Optional[int] = None,
+        max_workers: Optional[int] = None,
+        max_budget: Optional[float] = None,
+        splitting: Optional[Union[str, SplitStrategy]] = None,
+        scoring: Optional[Union[List[str], RelevanceScorer]] = None,
+        score_filter: Optional[str] = None,
+        target_column: Optional[str] = None,
+        prompt_template: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+    ) -> DELMConfig:
+        """Build a DELMConfig from individual parameters.
+
+        Args:
+            provider: LLM provider.
+            model: Model name.
+            schema: Schema definition.
+            temperature: Temperature setting.
+            batch_size: Batch size.
+            max_workers: Max workers.
+            max_budget: Max budget.
+            splitting: Splitting strategy.
+            scoring: Scoring strategy.
+            score_filter: Score filter.
+            target_column: Target column.
+            prompt_template: Prompt template.
+            system_prompt: System prompt.
+
+        Returns:
+            DELMConfig object.
+
+        Raises:
+            ValueError: If schema is not provided.
+        """
+        from delm.config import (
+            DELMConfig,
+            LLMExtractionConfig,
+            DataPreprocessingConfig,
+            SchemaConfig,
+            SplittingConfig,
+            ScoringConfig,
+            SemanticCacheConfig,
+        )
+        from delm.constants import (
+            DEFAULT_PROVIDER,
+            DEFAULT_MODEL_NAME,
+            DEFAULT_TEMPERATURE,
+            DEFAULT_BATCH_SIZE,
+            DEFAULT_MAX_WORKERS,
+            DEFAULT_PROMPT_TEMPLATE,
+            DEFAULT_SYSTEM_PROMPT,
+            SYSTEM_RAW_DATA_COLUMN,
+        )
+        import tempfile
+        import yaml
+        
+        if schema is None:
+            raise ValueError("schema parameter is required")
+        
+        # Handle schema parameter
+        schema_path = None
+        if isinstance(schema, dict):
+            # Write dict to temporary YAML file
+            temp_file = tempfile.NamedTemporaryFile(
+                mode='w', suffix='.yaml', delete=False
+            )
+            yaml.dump(schema, temp_file)
+            temp_file.close()
+            schema_path = Path(temp_file.name)
+        elif isinstance(schema, (str, Path)):
+            schema_path = Path(schema)
+        else:
+            raise ValueError(
+                f"schema must be dict, str, or Path, got {type(schema)}"
+            )
+        
+        # Build LLM config
+        llm_config = LLMExtractionConfig(
+            provider=provider or DEFAULT_PROVIDER,
+            name=model or DEFAULT_MODEL_NAME,
+            temperature=temperature if temperature is not None else DEFAULT_TEMPERATURE,
+            batch_size=batch_size or DEFAULT_BATCH_SIZE,
+            max_workers=max_workers or DEFAULT_MAX_WORKERS,
+            max_budget=max_budget,
+        )
+        
+        # Handle splitting parameter
+        split_strategy = None
+        if splitting is not None:
+            if isinstance(splitting, str):
+                # String shortcut
+                if splitting.lower() == "paragraph":
+                    split_strategy = ParagraphSplit()
+                elif splitting.lower() == "sentence":
+                    from delm.strategies import RegexSplit
+                    split_strategy = RegexSplit(r'\. ')
+                elif splitting.lower() == "fixed-window":
+                    from delm.strategies import FixedWindowSplit
+                    split_strategy = FixedWindowSplit()
+                else:
+                    raise ValueError(f"Unknown splitting strategy: {splitting}")
+            else:
+                split_strategy = splitting
+        
+        # Handle scoring parameter
+        scorer = None
+        if scoring is not None:
+            if isinstance(scoring, list):
+                # List of keywords
+                scorer = KeywordScorer(keywords=scoring)
+            else:
+                scorer = scoring
+        
+        # Build preprocessing config
+        preprocessing_config = DataPreprocessingConfig(
+            target_column=target_column or SYSTEM_RAW_DATA_COLUMN,
+            splitting=SplittingConfig(strategy=split_strategy),
+            scoring=ScoringConfig(scorer=scorer),
+            pandas_score_filter=score_filter,
+        )
+        
+        # Build schema config
+        schema_config = SchemaConfig(
+            spec_path=schema_path,
+            prompt_template=prompt_template or DEFAULT_PROMPT_TEMPLATE,
+            system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
+        )
+        
+        # Build semantic cache config (use defaults)
+        cache_config = SemanticCacheConfig()
+        
+        return DELMConfig(
+            llm_extraction=llm_config,
+            data_preprocessing=preprocessing_config,
+            schema=schema_config,
+            semantic_cache=cache_config,
+        )
 
     def _initialize_components(self) -> None:
         """Initialize all components using composition."""
