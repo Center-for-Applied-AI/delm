@@ -336,7 +336,6 @@ If using providers not present in the built-in pricing DB, set both `model_input
 ### Strategy classes
 - SplitStrategy: Text chunking (Paragraph, FixedWindow, Regex)
 - RelevanceScorer: Content scoring (Keyword, Fuzzy)
-- SchemaRegistry: Schema type management
 
 ### Estimation functions
 - estimate_input_token_cost: Estimate input token costs without API calls

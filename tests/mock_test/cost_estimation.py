@@ -1,17 +1,29 @@
-from copy import deepcopy
 import pandas as pd
-from pathlib import Path
 from delm.config import DELMConfig
-from delm.strategies.splitting_strategies import RegexSplit
+from delm.models import ExtractionVariable
+from delm.schemas import Schema
 from delm.utils.cost_estimation import estimate_input_token_cost, estimate_total_cost
 import numpy as np
 from datetime import datetime, timedelta
 import json
+from dotenv import load_dotenv
+
 
 def mock_data():
     np.random.seed(42)
-    firms = ["Goldman Sachs", "Morgan Stanley", "JP Morgan", "Barclays", "Deutsche Bank"]
-    report_types = ["Market Analysis", "Economic Outlook", "Sector Review", "Investment Strategy"]
+    firms = [
+        "Goldman Sachs",
+        "Morgan Stanley",
+        "JP Morgan",
+        "Barclays",
+        "Deutsche Bank",
+    ]
+    report_types = [
+        "Market Analysis",
+        "Economic Outlook",
+        "Sector Review",
+        "Investment Strategy",
+    ]
     end_date = datetime.now()
     start_date = end_date - timedelta(days=365)
     dates = [start_date + timedelta(days=np.random.randint(0, 365)) for _ in range(20)]
@@ -36,50 +48,131 @@ def mock_data():
         "International trade agreements are reshaping global supply chains. Companies are adapting their strategies to navigate new regulations. Brent crude imports have been affected by trade policies.",
         "The automotive industry is undergoing a major transformation. Electric vehicle adoption is accelerating across all markets. Traditional automakers are investing heavily in new technologies.",
         "Renewable energy investments are reaching record levels. Solar and wind power projects are becoming increasingly cost-effective. LNG infrastructure development is expanding globally.",
-        "The telecommunications sector is experiencing rapid technological change. 5G networks are being deployed across major markets. Infrastructure investment volumes are at all-time highs."
+        "The telecommunications sector is experiencing rapid technological change. 5G networks are being deployed across major markets. Infrastructure investment volumes are at all-time highs.",
     ]
     data = []
     for i in range(20):
         report_type = np.random.choice(report_types)
-        quarter = np.random.choice(['Q1', 'Q2', 'Q3', 'Q4'])
+        quarter = np.random.choice(["Q1", "Q2", "Q3", "Q4"])
         year = np.random.randint(2022, 2024)
         firm = np.random.choice(firms)
         text = np.random.choice(mock_texts)
-        data.append({
-            "report": f"REP_{(i+1):03d}",
-            "date": dates[i],
-            "title": f"{report_type} - {quarter} {year}",
-            "subtitle": f"Market Analysis Report by {firm}",
-            "firm_name": firm,
-            "text": text
-        })
+        data.append(
+            {
+                "report": f"REP_{(i+1):03d}",
+                "date": dates[i],
+                "title": f"{report_type} - {quarter} {year}",
+                "subtitle": f"Market Analysis Report by {firm}",
+                "firm_name": firm,
+                "text": text,
+            }
+        )
     report_text_df = pd.DataFrame(data)
     return report_text_df
 
+
 def main():
-    base_config_path = Path("tests/mock_test/config.yaml")
-    config = DELMConfig.from_yaml(base_config_path)
-    # Second config: RegexSplit by sentence
-    config2 = config.to_dict()
-    config2["data_preprocessing"]["splitting"] = {
-        "type": "RegexSplit",
-        "pattern": r"(?<=[.!?])\s+"
-    }
-    config2 = DELMConfig.from_dict(config2)
+    load_dotenv(".env")
+
+    schema = Schema.nested(
+        container_name="commodities",
+        variables_list=[
+            ExtractionVariable(
+                name="commodity_type",
+                description="Type of commodity mentioned",
+                data_type="string",
+                required=True,
+                allowed_values=[
+                    "oil",
+                    "gas",
+                    "copper",
+                    "gold",
+                    "silver",
+                    "steel",
+                    "aluminum",
+                ],
+            ),
+            ExtractionVariable(
+                name="price_mention",
+                description="Whether a specific price is mentioned",
+                data_type="boolean",
+            ),
+            ExtractionVariable(
+                name="price_value",
+                description="Numeric price value if mentioned",
+                data_type="number",
+            ),
+            ExtractionVariable(
+                name="price_unit",
+                description="Unit of the price (e.g., barrel, ton, MMBtu)",
+                data_type="string",
+            ),
+            ExtractionVariable(
+                name="expectation_type",
+                description="Type of price expectation mentioned",
+                data_type="string",
+                allowed_values=[
+                    "forecast",
+                    "guidance",
+                    "estimate",
+                    "projection",
+                    "outlook",
+                ],
+            ),
+            ExtractionVariable(
+                name="company_mention",
+                description="Company names mentioned in relation to the commodity",
+                data_type="[string]",
+            ),
+        ],
+    )
+
+    splitting_strategies = [
+        {
+            "type": "ParagraphSplit",
+        },
+        {
+            "type": "RegexSplit",
+            "pattern": r"(?<=[.!?])\s+",
+        },
+    ]
+
+    cfg1 = DELMConfig(
+        schema=schema,
+        provider="openai",
+        model="gpt-4o-mini",
+        temperature=0.0,
+        splitting_strategy=splitting_strategies[0],
+    )
+
+    cfg2 = DELMConfig(
+        schema=schema,
+        provider="openai",
+        model="gpt-4o-mini",
+        temperature=0.0,
+        splitting_strategy=splitting_strategies[1],
+    )
 
     # Heuristic estimation
     results_heuristic = [
-        estimate_input_token_cost(config, mock_data()),
-        estimate_input_token_cost(config2, mock_data())
+        estimate_input_token_cost(cfg1, mock_data(), save_file_log=True),
+        estimate_input_token_cost(cfg2, mock_data(), save_file_log=True),
     ]
+
     print("Heuristic cost estimation results:")
-    for res in results_heuristic:
+    for i, res in enumerate(results_heuristic):
+        print(f"Config {i+1}:")
         print(json.dumps(res, indent=2, default=str))
 
-    # API estimation (just for the default config)
-    res = estimate_total_cost(config, mock_data(), sample_size=3)
+    # API estimation
+    res = estimate_total_cost(cfg1, mock_data(), sample_size=3)
     print("API cost estimation result:")
     print(json.dumps(res, indent=2, default=str))
 
+    res = estimate_total_cost(cfg2, mock_data(), sample_size=3)
+    print("API cost estimation result:")
+    print(json.dumps(res, indent=2, default=str))
+
+
 if __name__ == "__main__":
-    main() 
+    main()

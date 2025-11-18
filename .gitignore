@@ -202,6 +202,7 @@ data/
 delm_experiments/
 test_experiments/
 experiments/
+.delm
 .delm_cache/
 .delm_cache/*
 examples/commodity_data*

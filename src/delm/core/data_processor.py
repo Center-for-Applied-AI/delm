@@ -15,27 +15,28 @@ log = logging.getLogger(__name__)
 from delm.strategies import loader_factory
 from delm.config import DataPreprocessingConfig
 from delm.constants import (
-    SYSTEM_CHUNK_COLUMN, 
-    SYSTEM_SCORE_COLUMN, 
+    SYSTEM_CHUNK_COLUMN,
+    SYSTEM_SCORE_COLUMN,
     SYSTEM_CHUNK_ID_COLUMN,
     SYSTEM_RECORD_ID_COLUMN,
-    SYSTEM_RAW_DATA_COLUMN
+    SYSTEM_RAW_DATA_COLUMN,
 )
+
 
 class DataProcessor:
     """Handles data loading, preprocessing, chunking, and scoring."""
-    
+
     def __init__(self, config: DataPreprocessingConfig):
         self.config = config
-        self.splitter = config.splitting.strategy
-        self.scorer = config.scoring.scorer
+        self.splitter = config.splitting_strategy
+        self.scorer = config.relevance_scorer
         self.target_column = config.target_column
         self.drop_target_column = config.drop_target_column
-        self.pandas_score_filter = config.pandas_score_filter
-    
-    def load_data(self, data_source: Union[str,Path, pd.DataFrame]) -> pd.DataFrame:
+        self.pandas_score_filter = config.score_filter
+
+    def load_data(self, data_source: Union[str, Path, pd.DataFrame]) -> pd.DataFrame:
         """Load data from various sources.
-        
+
         Args:
             data_source: The data source to load. Can be a path to a file or directory (str or Path), or a DataFrame.
 
@@ -51,10 +52,10 @@ class DataProcessor:
             # Handle file loading
             path = Path(data_source)
             log.debug("Loading data from path: %s", path)
-            
+
             if not path.exists():
                 raise FileNotFoundError(f"Data Source path does not exist: {path}")
-            
+
             # Check if file or directory
             if path.is_file():
                 log.debug("Loading single file: %s", path)
@@ -65,24 +66,31 @@ class DataProcessor:
                 log.debug("Loading directory: %s", path)
                 # Load directory
                 loaded_df, extension = loader_factory.load_directory(path)
-            self.extension_requires_target_column = loader_factory.requires_target_column(extension)
-            
+            self.extension_requires_target_column = (
+                loader_factory.requires_target_column(extension)
+            )
+
             log.debug("Loaded %d records with extension %s", len(loaded_df), extension)
-            
-            if self.extension_requires_target_column and (not self.target_column or self.target_column == ""):
-                raise ValueError(
-                    f"Target column is required for {path.suffix} files, file_path: {str(path)}, file_type: {path.suffix}, suggestion: Specify target_column in config"
+
+            # Handle target column based on whether extension requires it
+            if self.extension_requires_target_column:
+                # For structured data (CSV, Parquet, etc.) - target column must be provided and exist
+                if not self.target_column or self.target_column == "":
+                    raise ValueError(
+                        f"Target column is required for {extension} files, file_path: {str(path)}, file_type: {extension}, suggestion: Specify target_column in config"
+                    )
+                if self.target_column not in loaded_df.columns:
+                    raise ValueError(
+                        f"Target column '{self.target_column}' not found in data columns {list(loaded_df.columns)}, path: {str(path)}, extension: {extension}, suggestion: Specify a valid target_column in config"
+                    )
+            else:
+                # For unstructured data (PDF, TXT, etc.) - automatically use SYSTEM_RAW_DATA_COLUMN
+                self.target_column = SYSTEM_RAW_DATA_COLUMN
+                log.debug(
+                    "Extension %s does not require target column, using system column: %s",
+                    extension,
+                    SYSTEM_RAW_DATA_COLUMN,
                 )
-            if self.target_column not in loaded_df.columns:
-                log.error("Target column '%s' not found in columns: %s", self.target_column, loaded_df.columns)
-                if self.target_column == SYSTEM_RAW_DATA_COLUMN:
-                    raise ValueError(
-                        f"Target column {self.target_column} is not allowed for {extension} files, path: {str(path)}, extension: {extension}, suggestion: Remove target_column from config"
-                    )
-                else:
-                    raise ValueError(
-                        f"Target column {self.target_column} not found in data columns {loaded_df.columns}, path: {str(path)}, extension: {extension}, suggestion: Specify target_column in config"
-                    )
         else:
             # Handle DataFrame input
             log.debug("Loading data from DataFrame with %d records", len(data_source))
@@ -90,15 +98,15 @@ class DataProcessor:
                 raise ValueError(
                     f"Target column {self.target_column} not found in data source, data_source_columns: {data_source.columns}, target_column: {self.target_column}, suggestion: Specify valid target_column in config"
                 )
-            
+
             loaded_df = data_source.copy()
         loaded_df[SYSTEM_RECORD_ID_COLUMN] = range(len(loaded_df))
         log.debug("Data loading completed. Total records: %d", len(loaded_df))
         return loaded_df
-    
+
     def process_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
         """Apply chunking and scoring to DataFrame.
-        
+
         Args:
             df: The DataFrame to process.
 
@@ -108,7 +116,7 @@ class DataProcessor:
         Raises:
             ValueError: If drop_target_column is True and no splitting strategy is specified.
         """
-        
+
         log.debug("Processing DataFrame with %d records", len(df))
         df = df.copy()
 
@@ -122,16 +130,18 @@ class DataProcessor:
         if self.splitter is not None:
             log.debug("Applying splitting strategy: %s", type(self.splitter).__name__)
             # Apply splitting strategy - use system chunk column name
-            df.loc[:, SYSTEM_CHUNK_COLUMN] = df[self.target_column].apply(self.splitter.split)
+            df.loc[:, SYSTEM_CHUNK_COLUMN] = df[self.target_column].apply(
+                self.splitter.split
+            )
             df = df.explode(SYSTEM_CHUNK_COLUMN).reset_index(drop=True)
             log.debug("Splitting completed. Generated %d chunks", len(df))
         else:
             log.debug("No splitting strategy specified, using target column as chunks")
             # No splitting - use target column name as chunk column (no duplication)
             df = df.rename(columns={self.target_column: SYSTEM_CHUNK_COLUMN})
-        
+
         df[SYSTEM_CHUNK_ID_COLUMN] = range(len(df))
-        
+
         # Drop target column if requested (only when splitting was done)
         if self.drop_target_column and self.splitter is not None:
             log.debug("Dropping target column: %s", self.target_column)
@@ -148,9 +158,15 @@ class DataProcessor:
                 log.debug("Applying score filter: %s", self.pandas_score_filter)
                 original_count = len(df)
                 df = df.query(self.pandas_score_filter)
-                log.debug("Score filtering completed. Filtered from %d to %d chunks", original_count, len(df))
+                log.debug(
+                    "Score filtering completed. Filtered from %d to %d chunks",
+                    original_count,
+                    len(df),
+                )
             else:
-                log.warning("Scoring strategy is used but filter is not. This means all chunks will be used for extraction.")
+                log.warning(
+                    "Scoring strategy is used but filter is not. This means all chunks will be used for extraction."
+                )
 
         log.debug("DataFrame processing completed. Final chunks: %d", len(df))
-        return df 
+        return df

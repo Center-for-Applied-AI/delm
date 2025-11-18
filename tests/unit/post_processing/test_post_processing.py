@@ -55,40 +55,34 @@ class TestMergeJsonsForRecord:
     
     def setup_method(self):
         """Set up test schemas."""
-        self.simple_schema = SimpleSchema({
-            "variables": [
-                {"name": "source", "data_type": "string", "required": True, "description": ""},
-                {"name": "ratings", "data_type": "[integer]", "required": False, "description": ""},
-                {"name": "price", "data_type": "number", "required": False, "description": ""},
-            ]
-        })
+        self.simple_schema = SimpleSchema([
+            ExtractionVariable(name="source", data_type="string", required=True, description=""),
+            ExtractionVariable(name="ratings", data_type="[integer]", required=False, description=""),
+            ExtractionVariable(name="price", data_type="number", required=False, description=""),
+        ])
         
-        self.nested_schema = NestedSchema({
-            "container_name": "books",
-            "variables": [
-                {"name": "title", "data_type": "string", "required": True, "description": ""},
-                {"name": "author", "data_type": "string", "required": True, "description": ""},
-                {"name": "sales", "data_type": "[integer]", "required": False, "description": ""},
+        self.nested_schema = NestedSchema(
+            container_name="books",
+            variables=[
+                ExtractionVariable(name="title", data_type="string", required=True, description=""),
+                ExtractionVariable(name="author", data_type="string", required=True, description=""),
+                ExtractionVariable(name="sales", data_type="[integer]", required=False, description=""),
             ]
-        })
+        )
         
         self.multiple_schema = MultipleSchema({
-            "info": {
-                "schema_type": "simple",
-                "variables": [
-                    {"name": "source", "data_type": "string", "required": True, "description": ""},
-                    {"name": "ratings", "data_type": "[integer]", "required": False, "description": ""},
+            "info": SimpleSchema([
+                ExtractionVariable(name="source", data_type="string", required=True, description=""),
+                ExtractionVariable(name="ratings", data_type="[integer]", required=False, description=""),
+            ]),
+            "books": NestedSchema(
+                container_name="entries",
+                variables=[
+                    ExtractionVariable(name="title", data_type="string", required=True, description=""),
+                    ExtractionVariable(name="author", data_type="string", required=True, description=""),
+                    ExtractionVariable(name="sales", data_type="[integer]", required=False, description=""),
                 ]
-            },
-            "books": {
-                "schema_type": "nested",
-                "container_name": "entries",
-                "variables": [
-                    {"name": "title", "data_type": "string", "required": True, "description": ""},
-                    {"name": "author", "data_type": "string", "required": True, "description": ""},
-                    {"name": "sales", "data_type": "[integer]", "required": False, "description": ""},
-                ]
-            }
+            )
         })
     
     def test_merge_simple_schema_scalars(self):
@@ -208,41 +202,37 @@ class TestExplodeJsonResults:
     
     def setup_method(self):
         """Set up test schemas."""
-        self.simple_schema = SimpleSchema({
-            "variables": [
-                {"name": "company", "description": "Company name", "data_type": "string", "required": True},
-                {"name": "price", "description": "Price value", "data_type": "number", "required": False},
-                {"name": "tags", "description": "Tags", "data_type": "[string]", "required": False},
-            ]
-        })
+        self.simple_schema = SimpleSchema([
+            ExtractionVariable(name="company", description="Company name", data_type="string", required=True),
+            ExtractionVariable(name="price", description="Price value", data_type="number", required=False),
+            ExtractionVariable(name="tags", description="Tags", data_type="[string]", required=False),
+        ])
         
-        self.nested_schema = NestedSchema({
-            "container_name": "books",
-            "variables": [
-                {"name": "title", "description": "Book title", "data_type": "string", "required": True},
-                {"name": "author", "description": "Book author", "data_type": "string", "required": True},
-                {"name": "price", "description": "Book price", "data_type": "number", "required": False},
-                {"name": "genres", "description": "Book genres", "data_type": "[string]", "required": False},
+        self.nested_schema = NestedSchema(
+            container_name="books",
+            variables=[
+                ExtractionVariable(name="title", description="Book title", data_type="string", required=True),
+                ExtractionVariable(name="author", description="Book author", data_type="string", required=True),
+                ExtractionVariable(name="price", description="Book price", data_type="number", required=False),
+                ExtractionVariable(name="genres", description="Book genres", data_type="[string]", required=False),
             ]
-        })
+        )
         
         self.multiple_schema = MultipleSchema({
-            "books": {
-                "schema_type": "nested",
-                "container_name": "books",
-                "variables": [
-                    {"name": "title", "description": "Book title", "data_type": "string", "required": True},
-                    {"name": "author", "description": "Book author", "data_type": "string", "required": True},
+            "books": NestedSchema(
+                container_name="books",
+                variables=[
+                    ExtractionVariable(name="title", description="Book title", data_type="string", required=True),
+                    ExtractionVariable(name="author", description="Book author", data_type="string", required=True),
                 ]
-            },
-            "authors": {
-                "schema_type": "nested",
-                "container_name": "authors",
-                "variables": [
-                    {"name": "name", "description": "Author name", "data_type": "string", "required": True},
-                    {"name": "genre", "description": "Author genre", "data_type": "string", "required": False},
+            ),
+            "authors": NestedSchema(
+                container_name="authors",
+                variables=[
+                    ExtractionVariable(name="name", description="Author name", data_type="string", required=True),
+                    ExtractionVariable(name="genre", description="Author genre", data_type="string", required=False),
                 ]
-            }
+            )
         })
     
     def test_explode_simple_schema(self):
@@ -344,50 +334,14 @@ class TestExplodeJsonResults:
             explode_json_results(input_df, self.simple_schema, json_column="json")
     
     def test_explode_with_schema_path(self):
-        """Test exploding with schema path instead of schema object."""
-        input_df = pd.DataFrame({
-            "chunk_id": [1],
-            "json": ['{"company": "Apple", "price": 150.0, "tags": ["tech", "hardware"]}']
-        })
+        """Test exploding with schema path instead of schema object.
         
-        # Create a temporary schema file
-        schema_content = """
-schema_type: simple
-variables:
-  - name: company
-    description: Company name
-    data_type: string
-    required: true
-  - name: price
-    description: Price value
-    data_type: number
-    required: false
-  - name: tags
-    description: Tags
-    data_type: "[string]"
-    required: false
-"""
-        
-        with patch('builtins.open', create=True) as mock_open:
-            mock_open.return_value.__enter__.return_value.read.return_value = schema_content
-            
-            with patch('delm.schemas.schema_manager.SchemaManager._load_schema_spec') as mock_load:
-                mock_load.return_value = {
-                    "schema_type": "simple",
-                    "variables": [
-                        {"name": "company", "description": "Company name", "data_type": "string", "required": True},
-                        {"name": "price", "description": "Price value", "data_type": "number", "required": False},
-                        {"name": "tags", "description": "Tags", "data_type": "[string]", "required": False},
-                    ]
-                }
-                
-                with patch('delm.schemas.schemas.SchemaRegistry.create') as mock_create:
-                    mock_create.return_value = self.simple_schema
-                    
-                    result = explode_json_results(input_df, "schema.yaml", json_column="json")
-                    
-                    assert len(result) == 1
-                    assert result.iloc[0]["company"] == "Apple"
+        NOTE: This functionality is no longer supported in the new API.
+        The explode_json_results function now requires an ExtractionSchema object,
+        not a file path. If you need to load from a file, use Schema.from_yaml()
+        first to get the schema object, then pass that to explode_json_results.
+        """
+        pytest.skip("Schema path loading is no longer supported - use Schema.from_yaml() first")
 
 
 class TestExtractionVariableIsList:

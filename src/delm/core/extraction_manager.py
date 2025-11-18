@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 # Module-level logger
 log = logging.getLogger(__name__)
 
-from delm.schemas import SchemaManager
+from delm.schemas import ExtractionSchema
 from delm.utils import RetryHandler, ConcurrentProcessor
 from delm.config import LLMExtractionConfig
 from delm.constants import (
@@ -37,7 +37,7 @@ class ExtractionManager:
     def __init__(
         self,
         model_config: LLMExtractionConfig,
-        schema_manager: "SchemaManager",
+        extraction_schema: ExtractionSchema,
         cost_tracker: "CostTracker",
         semantic_cache: "SemanticCache",
     ):
@@ -55,7 +55,7 @@ class ExtractionManager:
         self.temperature = model_config.temperature
 
         log.debug(
-            f"Model config: {self.model_config.name}, temperature: {self.temperature}"
+            f"Model config: {self.model_config.model}, temperature: {self.temperature}"
         )
 
         # Use Instructor's universal provider interface
@@ -63,9 +63,7 @@ class ExtractionManager:
         log.debug(f"Creating Instructor client with provider: {provider_string}")
         self.client = instructor.from_provider(provider_string)
 
-        self.schema_manager = schema_manager
-        self.extraction_schema = self.schema_manager.get_extraction_schema()
-        log.debug(f"Extraction schema loaded: {type(self.extraction_schema).__name__}")
+        self.extraction_schema = extraction_schema
 
         log.debug(
             f"Creating ConcurrentProcessor with max_workers: {model_config.max_workers}"
@@ -76,6 +74,9 @@ class ExtractionManager:
 
         log.debug(f"Creating RetryHandler with max_retries: {model_config.max_retries}")
         self.retry_handler = RetryHandler(max_retries=model_config.max_retries)
+
+        self.prompt_template = model_config.prompt_template
+        self.system_prompt = model_config.system_prompt
 
         self.track_cost = model_config.track_cost
         self.cost_tracker = cost_tracker
@@ -355,10 +356,8 @@ class ExtractionManager:
         schema = self.extraction_schema.create_pydantic_schema()
 
         log.debug("Creating prompt for text chunk")
-        prompt = self.extraction_schema.create_prompt(
-            text_chunk, self.schema_manager.prompt_template
-        )
-        system_prompt = self.schema_manager.system_prompt
+        prompt = self.extraction_schema.create_prompt(text_chunk, self.prompt_template)
+        system_prompt = self.system_prompt
         provider_and_model = self.model_config.get_provider_string()
 
         log.debug(
@@ -377,11 +376,11 @@ class ExtractionManager:
             try:
                 log.debug(
                     "Making LLM API call: model=%s, temperature=%s",
-                    self.model_config.name,
+                    self.model_config.model,
                     self.temperature,
                 )
                 response = self.client.chat.completions.create(
-                    model=self.model_config.name,
+                    model=self.model_config.model,
                     temperature=self.temperature,
                     response_model=schema,
                     messages=[

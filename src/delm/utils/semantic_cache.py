@@ -42,6 +42,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Union, Optional, Mapping
 
+from delm.config import SemanticCacheConfig
+
 # Module-level logger
 log = logging.getLogger(__name__)
 
@@ -556,7 +558,7 @@ class SemanticCacheFactory:
     """Create a cache instance from a config mapping (dict or attr‑access)."""
 
     @staticmethod
-    def from_config(cfg) -> SemanticCache:
+    def from_config(cfg: SemanticCacheConfig) -> SemanticCache:
         log.debug("Creating SemanticCache from config: %s", cfg)
 
         if cfg is None:
