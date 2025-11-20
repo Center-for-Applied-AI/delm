@@ -2,11 +2,32 @@ site_name: DELM Documentation
 site_description: Documentation for the DELM (Data Extraction with Language Models) toolkit.
 repo_url: https://github.com/Center-for-Applied-AI/delm
 repo_name: Center-for-Applied-AI/delm
-edit_uri: edit/main/docs/
+edit_uri: ""
 
 theme:
-  name: readthedocs
+  name: material
   logo: assets/delm_logo.png
+  features:
+    - navigation.footer
+    - content.code.copy
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 markdown_extensions:
   - admonition
@@ -42,23 +63,32 @@ plugins:
 nav:
   - Overview: index.md
   - Getting Started: getting-started.md
-  - Tutorials:
-      - Cost Estimation: tutorials/cost-estimation.md
-      - Performance Evaluation: tutorials/performance-evaluation.md
-  - Configuration:
-      - Pipeline Configuration: configuration/pipeline-config.md
-      - Schema Design: configuration/schema-design.md
-  - Features:
-      - Caching: features/caching.md
-      - Text Processing: features/text-processing.md
-      - Batch Processing: features/batch-processing.md
-      - Checkpointing: features/checkpointing.md
-      - Cost Tracking: features/cost-tracking.md
-      - Post-Processing: features/post-processing.md
-      - File Formats: features/file-formats.md
+
+  - User Guide:
+      - Defining Schemas: user-guide/schemas.md
+      - Customizing Prompts: user-guide/prompt-customization.md
+      - Loading Data: user-guide/input-data.md
+      - Preprocessing Text: user-guide/text-preprocessing.md
+      - Cost Management: user-guide/cost-management.md
+      - Caching: user-guide/caching.md
+      - Evaluation: user-guide/evaluation.md
+      - Output Data: user-guide/output-data.md
+
+  - Advanced:
+      - Large Jobs & Checkpointing: advanced/large-jobs.md
+      - Configuration Files: advanced/config-files.md
+      - Logging & Debugging: advanced/logging.md
+      - Two-Stage Processing: advanced/two-stage.md
+
   - Reference:
       - API Overview: reference/index.md
-      - Pipeline API: reference/pipeline.md
-      - Configuration Objects: reference/config.md
-      - Core Managers: reference/managers.md
-      - Utilities: reference/utilities.md
+      - DELM: reference/delm.md
+      - Schema: reference/schema.md
+      - ExtractionVariable: reference/extraction-variable.md
+      - DELMConfig: reference/config.md
+      - Cost Estimation: reference/cost-estimation.md
+      - Performance Evaluation: reference/performance-evaluation.md
+      - Post-Processing: reference/post-processing.md
+      - Splitting Strategies: reference/splitting-strategies.md
+      - Relevance Scorers: reference/relevance-scorers.md
+      - System Constants: reference/constants.md

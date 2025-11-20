@@ -1,13 +1,25 @@
 # API Reference
 
-Browse the APIs for DELM’s core modules. Use these pages to find constructors,
-parameters, return types, and guidance for composing pipelines and extensions.
+Complete reference for DELM's public API.
 
-## Reference Guide
+## Core Classes
 
-- [Pipeline API](pipeline.md) – High-level orchestration class that coordinates the end-to-end extraction workflow.
-- [Configuration Objects](config.md) – Typed configuration classes that validate pipeline settings.
-- [Core Managers](managers.md) – Batching, experiment tracking, and schema helpers that power the pipeline internals.
-- [Utility Modules](utilities.md) – Supporting helpers such as the cost tracker, concurrency primitives, and type utilities.
+- **[DELM](delm.md)** - Main extraction pipeline
+- **[Schema](schema.md)** - Schema definition and factory methods  
+- **[ExtractionVariable](extraction-variable.md)** - Field definitions for extraction
+- **[DELMConfig](config.md)** - Configuration objects
 
-Improvements to inline documentation appear automatically with new releases.
+## Utilities
+
+- **[Cost Estimation](cost-estimation.md)** - Estimate API costs before running
+- **[Performance Evaluation](performance-evaluation.md)** - Evaluate extraction quality
+- **[Post-Processing](post-processing.md)** - Transform and flatten results
+
+## Preprocessing Strategies
+
+- **[Splitting Strategies](splitting-strategies.md)** - Text chunking strategies
+- **[Relevance Scorers](relevance-scorers.md)** - Text relevance scoring
+
+## Constants
+
+- **[System Constants](constants.md)** - Column names and system defaults
