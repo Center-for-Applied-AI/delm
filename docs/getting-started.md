@@ -115,9 +115,3 @@ The results DataFrame includes all your original columns plus extraction results
 |------|--------------|--------------|-------------------------|
 | Oil prices rose to $75 per barrel... | 0 | 0 | {"commodities": [{"commodity_type": "oil", "price_value": 75.0}, ...]} |
 | ... | ... | ... | ... |
-
-Key columns:
-  - **All original metadata columns**: Your input data is preserved
-  - **`delm_record_id`**: Unique identifier for each record prior to any splitting
-  - **`delm_chunk_id`**: Unique identifier for each processed text chunk
-  - **`delm_extracted_data_json`**: Raw JSON extraction results

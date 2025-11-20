@@ -1,65 +1,87 @@
 # DELM
 
-DELM (Data Extraction with Language Models) is a Python toolkit for extracting structured data from unstructured text using language models. It provides a configurable pipeline with cost tracking, caching, and evaluation capabilities.
+**Data Extraction with Language Models** – A Python toolkit for extracting structured data from unstructured text using LLMs.
 
 ## Why DELM?
 
-- **Schema-first extraction** – declare the structure you want, from simple key-value pairs to deeply nested objects, and let DELM handle prompting and validation.
-- **Flexible ingestion** – process TXT, HTML, Markdown, DOCX, PDF, CSV, Excel, Parquet, and Feather sources with built-in preprocessing.
-- **Provider agnostic** – switch between OpenAI, Anthropic, Google, Groq, Together AI, and Fireworks AI without changing your pipeline.
-- **Production ready** – built-in caching, batching, checkpointing, and resume support keep long-running jobs manageable.
-- **Built for observability** – monitor token usage and budget, review extraction logs, and evaluate accuracy with the bundled metrics utilities.
+Extracting structured data from documents at scale is harder than it should be. You need consistent prompts, validation logic, retry handling, cost tracking, and robust file processing—before you even get to your actual research questions.
 
-## Key Capabilities
+DELM provides the infrastructure layer so you can focus on defining *what* to extract, not *how* to extract it:
 
-### Configurable processing
+- **Declare your schema, not your prompts** – Specify fields with types, validation rules, and descriptions. DELM generates prompts, validates outputs, and handles malformed responses.
+- **Test before you spend** – Estimate costs on sample data, set hard budget limits, and automatically cache results to avoid paying for the same extraction twice.
+- **Scale without breaking** – Process 100K+ documents with automatic checkpointing, concurrent batching, and text preprocessing (splitting, relevance filtering) built in.
+- **Model independence** – Switch between OpenAI, Anthropic, Google, or any provider Instructor supports without rewriting code.
+- **Measure quality** – Built-in precision/recall evaluation against ground truth, with field-level metrics for debugging.
 
-Text splitting, relevance scoring, filtering, and extraction logic in one YAML
+## Quick Example
 
-### Progressive Schema System
+```python
+from delm import DELM, Schema, ExtractionVariable
 
-Start with simple fields and grow to nested schemas or multiple schemas per prompt. Validation rules and enums keep results clean.
+# Define what to extract
+schema = Schema.simple(
+    ExtractionVariable("company", "Company name", "string"),
+    ExtractionVariable("price", "Stock price", "number")
+)
 
-### Cost management
+# Configure extraction
+delm = DELM(
+    schema=schema,
+    provider="openai",
+    model="gpt-4o-mini"
+)
 
-Cost tracking, caching, budget limits
+# Extract from data
+results = delm.extract("financial_reports.csv")
+```
 
-### Extensible Architecture
+## Getting Started
 
-Add custom scorers, schema components, or post-processing hooks. DELM integrates into larger data workflows.
+**[→ Installation & First Extraction](getting-started.md)**
 
-## Quick Start
+Install DELM, set up API keys, and run your first extraction in under 5 minutes.
 
-Get up and running with DELM in minutes:
+## Documentation
 
-1. **[Getting Started](getting-started.md)** - Install DELM, create your first config and schema files, and run your first extraction
-2. **[Cost Estimation Tutorial](tutorials/cost-estimation.md)** - Learn to estimate costs before running large extractions  
-3. **[Performance Evaluation Tutorial](tutorials/performance-evaluation.md)** - Learn to measure extraction quality with precision, recall, and F1 metrics
+### User Guide
 
-## Configuration
+Core concepts and common workflows:
 
-Customize your extraction pipeline:
+- **[Defining Schemas](user-guide/schemas.md)** – Simple, nested, and multiple extraction structures
+- **[Customizing Prompts](user-guide/prompt-customization.md)** – Control prompt templates and system messages
+- **[Loading Data](user-guide/input-data.md)** – Supported file formats and input methods
+- **[Preprocessing Text](user-guide/text-preprocessing.md)** – Splitting and relevance scoring strategies
+- **[Cost Management](user-guide/cost-management.md)** – Estimate, track, and limit API costs
+- **[Caching](user-guide/caching.md)** – Reduce costs with automatic result caching
+- **[Evaluation](user-guide/evaluation.md)** – Measure extraction quality with precision/recall
+- **[Output Data](user-guide/output-data.md)** – Understanding and transforming results
 
-- **[Pipeline Configuration](configuration/pipeline-config.md)** - Complete reference for all configuration options
-- **[Schema Design](configuration/schema-design.md)** - Advanced schema patterns, validation features, and examples
+### Advanced Topics
 
-## Features
+Power user features for large-scale deployments:
 
-Explore DELM's production-ready capabilities:
+- **[Large Jobs & Checkpointing](advanced/large-jobs.md)** – Robust extraction for 100K+ records
+- **[Configuration Files](advanced/config-files.md)** – YAML-based configuration for reproducibility
+- **[Logging & Debugging](advanced/logging.md)** – Control logging output and verbosity
+- **[Two-Stage Processing](advanced/two-stage.md)** – Separate preprocessing from extraction
 
-- **[Caching](features/caching.md)** - Reduce costs with semantic caching
-- **[Text Processing](features/text-processing.md)** - Advanced splitting and scoring strategies  
-- **[Batch Processing](features/batch-processing.md)** - Optimize performance with batching and checkpointing
-- **[Cost Tracking](features/cost-tracking.md)** - Monitor costs and budget limits
-- **[Post-Processing](features/post-processing.md)** - Transform results into tabular format
-- **[File Formats](features/file-formats.md)** - Supported input formats and requirements
+### API Reference
 
-## API Reference
+Complete technical documentation:
 
-Complete API documentation for developers:
+- **[DELM](reference/delm.md)** – Main pipeline class
+- **[Schema](reference/schema.md)** – Schema factory methods
+- **[ExtractionVariable](reference/extraction-variable.md)** – Field definitions
+- **[Cost Estimation](reference/cost-estimation.md)** – Cost utilities
+- **[Performance Evaluation](reference/performance-evaluation.md)** – Evaluation metrics
+- **[Post-Processing](reference/post-processing.md)** – Result transformation
+- **[Splitting Strategies](reference/splitting-strategies.md)** – Text chunking
+- **[Relevance Scorers](reference/relevance-scorers.md)** – Relevance scoring
+- **[System Constants](reference/constants.md)** – Column names and defaults
 
-- **[API Overview](reference/index.md)** - Browse all available APIs
-- **[Pipeline API](reference/pipeline.md)** - High-level orchestration class
-- **[Configuration Objects](reference/config.md)** - Typed configuration classes
-- **[Core Managers](reference/managers.md)** - Internal pipeline components
-- **[Utilities](reference/utilities.md)** - Supporting helper functions
+## Support
+
+- **GitHub**: [Center-for-Applied-AI/delm](https://github.com/Center-for-Applied-AI/delm)
+- **Issues**: Report bugs or request features on GitHub
+- **PyPI**: [pypi.org/project/delm](https://pypi.org/project/delm/)
