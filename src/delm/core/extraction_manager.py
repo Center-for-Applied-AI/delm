@@ -369,9 +369,6 @@ class ExtractionManager:
 
         def _instructor_extract():
             log.debug("Starting LLM extraction with schema")
-            if self.track_cost:
-                log.debug("Tracking input text for cost calculation")
-                self.cost_tracker.track_input_text(system_prompt + "\n" + prompt)
 
             try:
                 log.debug(
@@ -379,15 +376,17 @@ class ExtractionManager:
                     self.model_config.model,
                     self.temperature,
                 )
-                response = self.client.chat.completions.create(
-                    model=self.model_config.model,
-                    temperature=self.temperature,
-                    response_model=schema,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
-                    max_retries=0,
+                response, completion = (
+                    self.client.chat.completions.create_with_completion(
+                        model=self.model_config.model,
+                        temperature=self.temperature,
+                        response_model=schema,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": prompt},
+                        ],
+                        max_retries=0,
+                    )
                 )
                 log.debug("LLM API call completed successfully")
             except Exception as e:
@@ -401,8 +400,27 @@ class ExtractionManager:
                 raise ValueError(f"Unsupported response type: {type(response)}")
 
             if self.track_cost:
-                log.debug("Tracking output for cost calculation")
-                self.cost_tracker.track_output_pydantic(response)
+                usage = getattr(completion, "usage", None)
+                prompt_tokens = (
+                    getattr(usage, "prompt_tokens", None) if usage is not None else None
+                )
+                completion_tokens = (
+                    getattr(usage, "completion_tokens", None)
+                    if usage is not None
+                    else None
+                )
+                if isinstance(prompt_tokens, int) and isinstance(
+                    completion_tokens, int
+                ):
+                    self.cost_tracker.track_token_usage(
+                        prompt_tokens, completion_tokens
+                    )
+                else:
+                    # Fallback: system + user + JSON schema of Pydantic model
+                    self.cost_tracker.track_input_text(
+                        system_prompt + "\n" + prompt + "\n", schema
+                    )
+                    self.cost_tracker.track_output_pydantic(response)
 
             log.debug("Extraction with schema completed successfully")
             return response
@@ -422,7 +440,10 @@ class ExtractionManager:
                 pydantic_result = schema(**loaded)
                 if self.track_cost and self.cost_tracker.count_cache_hits_towards_cost:
                     log.debug("Tracking cache hit for cost calculation")
-                    self.cost_tracker.track_input_text(system_prompt + "\n" + prompt)
+                    # Track system prompt + user prompt + JSON schema of Pydantic model
+                    self.cost_tracker.track_input_text(
+                        system_prompt + "\n" + prompt + "\n", schema
+                    )
                     self.cost_tracker.track_output_pydantic(pydantic_result)
                 log.debug("Returning cached extraction result")
                 return pydantic_result
