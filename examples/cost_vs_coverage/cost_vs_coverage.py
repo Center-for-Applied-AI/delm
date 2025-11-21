@@ -1,19 +1,19 @@
-"""Builds a Pareto frontier of cost vs coverage using DELM.
-"""
+"""Builds a Pareto frontier of cost vs coverage using DELM."""
 
 from __future__ import annotations
 
 from pathlib import Path
 import json
-from typing import Any
+from typing import Any, Dict, List, Tuple, Optional
 import pandas as pd
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import dotenv
 
-from delm import DELM, DELMConfig
+from delm import DELM, DELMConfig, Schema, ExtractionVariable
 from delm.utils.performance_estimation import estimate_performance
 from delm.utils.cost_estimation import estimate_total_cost
 
@@ -27,21 +27,10 @@ RANDOM_SEED = 42
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
 
+# Load API keys and config from .env at project root (override any existing env vars)
+dotenv.load_dotenv(PROJECT_ROOT / ".env", override=True)
+
 SOURCE_DATA_PATH = PROJECT_ROOT / "data" / "commodity_data.csv"
-CONFIG_PATH = CURRENT_DIR / "config.yaml"
-
-SCHEMA_PATH = next(
-    (
-        p.resolve()
-        for p in [
-            CURRENT_DIR / "commodity_schema.yaml",
-            CURRENT_DIR.parent / "commodity_schema.yaml",
-        ]
-        if p.is_file()
-    ),
-    None,
-)
-
 
 EXPERIMENT_NAME = "cost_coverage_greedy"
 EXPERIMENT_DIR = CURRENT_DIR / "experiments"
@@ -67,8 +56,118 @@ TEST_SIZE = 0.2
 
 
 # ----------------------------------------------------------------------------
+# Schemas & Configs
+# ----------------------------------------------------------------------------
+
+COMMODITY_SCHEMA = Schema.nested(
+    CONTAINER_NAME,
+    ExtractionVariable(
+        name="good",
+        data_type="string",
+        required=True,
+        description="The name of the good or commodity mentioned",
+        allowed_values=[
+            "silver",
+            "gold",
+            "soybeans",
+            "heating oil",
+            "copper",
+            "gasoline",
+            "natural gas",
+            "aluminum",
+            "iron ore",
+            "corn",
+            "cotton",
+            "palm",
+            "gas",
+            "oil",
+            "nickel",
+            "sugar",
+            "cattle",
+            "wheat",
+            "coal",
+            "zinc",
+            "coffee",
+            "emissions",
+            "tin",
+            "hogs",
+            "cocoa",
+            "lead",
+            "diesel",
+            "uranium",
+            "ethanol",
+            "platinum",
+            "electricity",
+            "fuel",
+            "energy",
+            "other",
+        ],
+        validate_in_text=True,
+    ),
+    ExtractionVariable(
+        name="good_subtype",
+        data_type="string",
+        required=False,
+        description="Subtype or specific variety of the good if applicable",
+    ),
+    ExtractionVariable(
+        name="price_expectation",
+        data_type="boolean",
+        required=True,
+        description="Whether this is a price expectation (future price) or current price",
+    ),
+    ExtractionVariable(
+        name="price_lower",
+        data_type="number",
+        required=False,
+        description="Lower bound of the price range if specified",
+    ),
+    ExtractionVariable(
+        name="price_upper",
+        data_type="number",
+        required=False,
+        description="Upper bound of the price range if specified",
+    ),
+    ExtractionVariable(
+        name="unit",
+        data_type="string",
+        required=False,
+        description="Unit of measurement for the price (e.g., per ton, per barrel, per unit)",
+    ),
+    ExtractionVariable(
+        name="currency",
+        data_type="string",
+        required=False,
+        description="Currency of the price (e.g., USD, EUR, GBP)",
+    ),
+    ExtractionVariable(
+        name="horizon",
+        data_type="string",
+        required=False,
+        description="Time horizon for the price (e.g., Q1 2024, end of year, next quarter)",
+    ),
+)
+
+PROMPT_TEMPLATE = """# Instructions
+  Given an excerpt from an investor call transcript, identify and record all instances where a firm representative mentions a definite numeric price for a good. A good is something you can reasonably assume is traded in a market. Ignore instances without a numeric price.
+
+  ## Guidelines
+
+  ### Speaker Verification
+  - Ensure the statement comes from a firm representative (e.g., CEO, CFO), not from a third party like an external analyst or an unidentified speaker. The speaker's name and affiliation are often mentioned at the start.
+  - Exclude any prices mentioned by external analysts or third parties; only include prices mentioned by firm representatives.
+
+  ### Capture Multiple Instances
+  - If a statement contains multiple prices or goods, record each instance separately.
+{variables}
+
+{text}"""
+
+
+# ----------------------------------------------------------------------------
 # helpers
 # ----------------------------------------------------------------------------
+
 
 def build_expected_df(record_labeled_df: pd.DataFrame) -> pd.DataFrame:
     """Create a nested expected JSON per id, aggregating duplicates.
@@ -125,13 +224,16 @@ def stringify_dict_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame
     result_df = df.copy()
     for col in columns:
         if col in result_df.columns:
-            result_df[col] = result_df[col].apply(lambda v: json.dumps(v, ensure_ascii=False))
+            result_df[col] = result_df[col].apply(
+                lambda v: json.dumps(v, ensure_ascii=False)
+            )
     return result_df
 
 
 # ----------------------------------------------------------------------------
 # keyword selection utilities
 # ----------------------------------------------------------------------------
+
 
 def _split_train_test_ids(
     record_text_df: pd.DataFrame,
@@ -168,12 +270,17 @@ def _clone_config_with_keywords(
     Returns:
         New DELMConfig with updated scoring keywords.
     """
-    cfg_dict = base_config.to_serialized_config_dict()
-    cfg_dict["data_preprocessing"]["scoring"] = {
+    # Use to_dict() which returns a flat dictionary of all config parameters
+    cfg_dict = base_config.to_dict()
+
+    # Update the relevance_scorer field
+    cfg_dict["relevance_scorer"] = {
         "type": "KeywordScorer",
         "keywords": list(keywords),
     }
-    cfg_dict["schema"]["spec_path"] = str(SCHEMA_PATH)
+
+    # Create new config from the updated dictionary
+    # DELMConfig.from_dict handles flat dictionaries
     return DELMConfig.from_dict(cfg_dict)
 
 
@@ -196,8 +303,11 @@ def _evaluate_recall_and_cost(
     Returns:
         Tuple of (recall, estimated_total_cost).
     """
+    # Create a DELM instance from config
+    delm = DELM.from_config(config)
+
     metrics, _ = estimate_performance(
-        config=config,
+        delm_instance=delm,
         data_source=text_df,
         expected_extraction_output_df=expected_df,
         true_json_column="expected_json",
@@ -208,7 +318,7 @@ def _evaluate_recall_and_cost(
     recall = float(metrics.get(target_key, {}).get("recall", 0.0))
 
     total_cost = estimate_total_cost(
-        config=config,
+        delm_instance=delm,
         data_source=text_df,
         sample_size=cost_est_sample_size,
     )
@@ -241,7 +351,9 @@ def _greedy_keyword_selection(
         DataFrame with one row per k including selected keywords, recalls, and costs.
     """
     selected: list[str] = []
-    remaining: list[str] = list(dict.fromkeys([kw.lower() for kw in candidate_keywords]))
+    remaining: list[str] = list(
+        dict.fromkeys([kw.lower() for kw in candidate_keywords])
+    )
     train_recall_cache: dict[tuple[str, ...], float] = {}
 
     records: list[dict[str, Any]] = []
@@ -303,7 +415,9 @@ def _greedy_keyword_selection(
     if not result_df.empty:
         train_max = result_df["train_estimated_total_cost"].max()
         test_max = result_df["test_estimated_total_cost"].max()
-        result_df["train_cost_pct"] = result_df["train_estimated_total_cost"] / train_max
+        result_df["train_cost_pct"] = (
+            result_df["train_estimated_total_cost"] / train_max
+        )
         result_df["test_cost_pct"] = result_df["test_estimated_total_cost"] / test_max
     return result_df
 
@@ -311,6 +425,7 @@ def _greedy_keyword_selection(
 # ----------------------------------------------------------------------------
 # plotting utilities
 # ----------------------------------------------------------------------------
+
 
 def _fit_concave_quadratic(x: np.ndarray, y: np.ndarray) -> np.poly1d | None:
     """Fit y ≈ a x^2 + b x + c with a ≤ 0 via grid search on a and least squares for b, c.
@@ -328,10 +443,10 @@ def _fit_concave_quadratic(x: np.ndarray, y: np.ndarray) -> np.poly1d | None:
     best_sse = None
     best_params = None
     for a_candidate in a_grid:
-        y_tilde = y - a_candidate * (x ** 2)
+        y_tilde = y - a_candidate * (x**2)
         sol, *_ = np.linalg.lstsq(M, y_tilde, rcond=None)
         b_cand, c_cand = float(sol[0]), float(sol[1])
-        pred = a_candidate * (x ** 2) + b_cand * x + c_cand
+        pred = a_candidate * (x**2) + b_cand * x + c_cand
         sse = float(np.sum((y - pred) ** 2))
         if best_sse is None or sse < best_sse:
             best_sse = sse
@@ -340,17 +455,55 @@ def _fit_concave_quadratic(x: np.ndarray, y: np.ndarray) -> np.poly1d | None:
         return None
     a_best, b_best, c_best = best_params
     return np.poly1d([a_best, b_best, c_best])
+
+
 # ----------------------------------------------------------------------------
 # main flow
 # ----------------------------------------------------------------------------
+
 
 def main() -> None:
     """Run greedy keyword selection with train/test split, CSV, and Pareto plot."""
 
     EXPERIMENT_DIR.mkdir(parents=True, exist_ok=True)
 
-    config_obj = DELMConfig.from_yaml(CONFIG_PATH)
-    config_obj.schema.spec_path = SCHEMA_PATH
+    # Initialize config using flat arguments as per new API
+    config_obj = DELMConfig(
+        schema=COMMODITY_SCHEMA,
+        provider="openai",
+        model="gpt-4o-mini",
+        temperature=1.0,
+        max_retries=3,
+        batch_size=10,
+        max_workers=25,
+        base_delay=1.0,
+        track_cost=True,
+        max_budget=50.0,
+        target_column="text",
+        drop_target_column=False,
+        score_filter="delm_score > 0",
+        splitting_strategy={"type": "ParagraphSplit"},
+        relevance_scorer={
+            "type": "KeywordScorer",
+            "keywords": [
+                "price",
+                "cost",
+                "market",
+                "commodity",
+                "oil",
+                "gas",
+                "steel",
+                "copper",
+                "aluminum",
+                "gold",
+            ],
+        },
+        prompt_template=PROMPT_TEMPLATE,
+        cache_backend="sqlite",
+        cache_path=".delm/kirill_cache",
+        cache_max_size_mb=256,
+        cache_synchronous="normal",
+    )
 
     record_labeled_df = pd.read_csv(SOURCE_DATA_PATH)
 
@@ -374,12 +527,17 @@ def main() -> None:
         record_labeled_df[record_labeled_df["id"].isin(test_ids)].copy()
     )
 
-    scorer = config_obj.data_preprocessing.scoring.scorer
-    if scorer is None or not hasattr(scorer, "keywords"):
+    scorer = config_obj.data_preprocessing_cfg.relevance_scorer
+
+    candidate_keywords: list[str] = []
+    if isinstance(scorer, dict):
+        candidate_keywords = list(scorer.get("keywords", []))
+    elif hasattr(scorer, "keywords"):
+        candidate_keywords = list(scorer.keywords)
+    else:
         raise ValueError(
             "Config must define a KeywordScorer with a non-empty keywords list."
         )
-    candidate_keywords: list[str] = list(scorer.keywords)
 
     selection_df = _greedy_keyword_selection(
         base_config=config_obj,
@@ -397,18 +555,20 @@ def main() -> None:
     if not selection_df.empty:
         # ICLR-friendly base style
         sns.set_theme(style="whitegrid", font_scale=1.2)
-        plt.rcParams.update({
-            "figure.figsize": (3.0, 2.0),
-            "font.size": 8,
-            "axes.labelsize": 8,
-            "axes.titlesize": 9,
-            "legend.fontsize": 7,
-            "xtick.labelsize": 7,
-            "ytick.labelsize": 7,
-            "savefig.bbox": "tight",
-            "savefig.pad_inches": 0.02,
-            "pdf.fonttype": 42,
-        })
+        plt.rcParams.update(
+            {
+                "figure.figsize": (3.0, 2.0),
+                "font.size": 8,
+                "axes.labelsize": 8,
+                "axes.titlesize": 9,
+                "legend.fontsize": 7,
+                "xtick.labelsize": 7,
+                "ytick.labelsize": 7,
+                "savefig.bbox": "tight",
+                "savefig.pad_inches": 0.02,
+                "pdf.fonttype": 42,
+            }
+        )
         color_palette = sns.color_palette("colorblind")
 
         selection_df_sorted_train = selection_df.sort_values("train_cost_pct")
@@ -503,5 +663,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
