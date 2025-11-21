@@ -1,4 +1,7 @@
 from __future__ import annotations
+from typing_extensions import List
+
+from pandas.core.frame import deprecate_nonkeyword_arguments
 
 """DELM extraction pipeline core module.
 """
@@ -6,7 +9,6 @@ from datetime import datetime
 import logging
 import time
 from pathlib import Path
-import dotenv
 import pandas as pd
 
 # Module-level logger
@@ -19,7 +21,7 @@ from delm.core.experiment_manager import (
     InMemoryExperimentManager,
 )
 from delm.core.extraction_manager import ExtractionManager
-from delm.schemas import SchemaManager
+from delm.schemas import Schema
 from delm.logging import configure as _configure_logging
 from delm.constants import (
     SYSTEM_RECORD_ID_COLUMN,
@@ -28,12 +30,11 @@ from delm.constants import (
     SYSTEM_CHUNK_ID_COLUMN,
     SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
     SYSTEM_ERRORS_COLUMN,
-    DEFAULT_CONSOLE_LOG_LEVEL,
-    DEFAULT_FILE_LOG_LEVEL,
     SYSTEM_LOG_FILE_PREFIX,
     SYSTEM_LOG_FILE_SUFFIX,
-    DEFAULT_LOG_DIR,
 )
+from delm.schemas import ExtractionSchema
+from delm.strategies import SplitStrategy, RelevanceScorer
 from delm.utils.cost_tracker import CostTracker
 from delm.utils.semantic_cache import SemanticCacheFactory
 from typing import Any, Dict, Union, Optional
@@ -44,56 +45,94 @@ from typing import Any, Dict, Union, Optional
 
 
 class DELM:
-    """Extraction pipeline with pluggable strategies.
-
-    Attributes:
-        config: DELMConfig instance for this pipeline.
-        experiment_name: Name of the experiment.
-        experiment_directory: Directory for experiment outputs.
-        overwrite_experiment: Whether to overwrite existing experiment data.
-        auto_checkpoint_and_resume_experiment: Whether to auto-resume experiments.
+    """
+    Data Extraction with Language Model (DELM) pipeline.
     """
 
     def __init__(
         self,
+        schema: Union[str, Path, dict, Schema],
         *,
-        config: DELMConfig,
-        experiment_name: str,
-        experiment_directory: Path,
+        # LLM Settings (flat)
+        provider: str = "openai",
+        model: str = "gpt-4o-mini",
+        temperature: float = 0.0,
+        batch_size: int = 10,
+        max_workers: int = 1,
+        max_retries: int = 3,
+        base_delay: float = 1.0,
+        track_cost: bool = True,
+        max_budget: Optional[float] = None,
+        model_input_cost_per_1M_tokens: Optional[float] = None,
+        model_output_cost_per_1M_tokens: Optional[float] = None,
+        # Data Preprocessing (flat)
+        target_column: str = "text",
+        drop_target_column: bool = False,
+        splitting_strategy: Optional[Union[dict, SplitStrategy]] = None,
+        relevance_scorer: Optional[Union[dict, RelevanceScorer]] = None,
+        score_filter: Optional[str] = None,  # pandas query syntax
+        # Prompt Settings
+        prompt_template: Optional[
+            str
+        ] = "Extract the following information from the text:\n\n{variables}\n\nText to analyze:\n{text}",
+        system_prompt: Optional[str] = "You are a precise data-extraction assistant.",
+        # Semantic Cache Settings
+        cache_backend: str = "sqlite",
+        cache_path: Union[str, Path] = ".delm/cache",
+        cache_max_size_mb: int = 512,
+        cache_synchronous: str = "normal",
+        # =============================================
+        # Non-DELMConfig Settings
+        # Experiment Settings (if using disk storage)
+        use_disk_storage: bool = False,
+        experiment_path: Optional[
+            Union[str, Path]
+        ] = None,  # experiment directory and path
         overwrite_experiment: bool = False,
         auto_checkpoint_and_resume_experiment: bool = True,
-        use_disk_storage: bool = True,
-        save_file_log: bool = True,
-        log_dir: Union[str, Optional][Path] = None,
-        console_log_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
-        file_log_level: str = DEFAULT_FILE_LOG_LEVEL,
+        # Logging Settings
+        save_log_file: bool = False,
+        log_dir: Optional[Union[str, Path]] = ".delm/logs",
+        log_file_prefix: str = "",
+        console_log_level: str = "INFO",
+        file_log_level: str = "DEBUG",
         override_logging: bool = True,
     ) -> None:
-        """Initialize the DELM extraction pipeline.
-
-        Args:
-            config: DELM configuration for this pipeline.
-            experiment_name: Name of the experiment.
-            experiment_directory: Base directory for experiment outputs.
-            overwrite_experiment: Whether to overwrite existing experiment data.
-            auto_checkpoint_and_resume_experiment: Whether to auto‑resume from checkpoints.
-            use_disk_storage: If True, use disk‑based experiment manager; otherwise in‑memory.
-            save_file_log: If True, write a rotating log file under ``log_dir``.
-            log_dir: Directory for log files. If None and ``save_file_log`` is True, defaults
-                to ``DEFAULT_LOG_DIR/<experiment_name>``.
-            console_log_level: Log level for console output.
-            file_log_level: Log level for file output.
-            override_logging: If True, force reconfiguration of logging for the process.
-
-        Raises:
-            ValueError: If the provided ``config`` is invalid.
         """
+        Initialize DELM.
+        """
+        config = DELMConfig(
+            schema=schema,
+            provider=provider,
+            model=model,
+            temperature=temperature,
+            batch_size=batch_size,
+            max_workers=max_workers,
+            max_retries=max_retries,
+            base_delay=base_delay,
+            track_cost=track_cost,
+            max_budget=max_budget,
+            model_input_cost_per_1M_tokens=model_input_cost_per_1M_tokens,
+            model_output_cost_per_1M_tokens=model_output_cost_per_1M_tokens,
+            target_column=target_column,
+            drop_target_column=drop_target_column,
+            splitting_strategy=splitting_strategy,
+            relevance_scorer=relevance_scorer,
+            score_filter=score_filter,
+            prompt_template=prompt_template,
+            system_prompt=system_prompt,
+            cache_backend=cache_backend,
+            cache_path=cache_path,
+            cache_max_size_mb=cache_max_size_mb,
+            cache_synchronous=cache_synchronous,
+        )
+
         # Configure logging
-        if save_file_log:
+        if save_log_file:
             if log_dir is None:
-                log_dir = Path(DEFAULT_LOG_DIR) / experiment_name
+                log_dir = log_dir
             current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            log_file_name = f"{SYSTEM_LOG_FILE_PREFIX}{experiment_name}_{current_time}{SYSTEM_LOG_FILE_SUFFIX}"
+            log_file_name = f"{log_file_prefix}{current_time}{SYSTEM_LOG_FILE_SUFFIX}"
         else:
             log_file_name = None
 
@@ -106,21 +145,13 @@ class DELM:
         )
 
         log = logging.getLogger(__name__)
-        log.debug(
-            "Initialising DELM…",
-            extra={
-                "experiment_name": experiment_name,
-                "experiment_directory": str(experiment_directory),
-                "use_disk_storage": use_disk_storage,
-            },
-        )
+        log.debug("Initialising DELM…")
 
         # Validate configuration before proceeding
         config.validate()
-
         self.config = config
-        self.experiment_name = experiment_name
-        self.experiment_directory = experiment_directory
+
+        self.experiment_path = experiment_path
         self.overwrite_experiment = overwrite_experiment
         self.auto_checkpoint_and_resume_experiment = (
             auto_checkpoint_and_resume_experiment
@@ -131,70 +162,118 @@ class DELM:
         log.debug("DELM pipeline initialized successfully")
 
     @classmethod
-    def from_yaml(
+    def from_config(
         cls,
-        config_path: Union[str, Path],
-        experiment_name: str,
-        experiment_directory: Path,
-        **kwargs: Any,
-    ) -> "DELM":
-        """Create a DELM instance from a YAML configuration file.
-
-        Args:
-            config_path: Path to YAML configuration file.
-            experiment_name: Name of the experiment.
-            experiment_directory: Base directory for experiment outputs.
-            **kwargs: Additional keyword arguments for DELM constructor.
-
-        Returns:
-            Configured DELM instance.
+        config: Union[str, Path, DELMConfig],
+        *,
+        # =============================================
+        # Non-DELMConfig Settings
+        # Experiment Settings (if using disk storage)
+        use_disk_storage: bool = False,
+        experiment_path: Optional[
+            Union[str, Path]
+        ] = None,  # experiment directory and path
+        overwrite_experiment: bool = False,
+        auto_checkpoint_and_resume_experiment: bool = True,
+        # Logging Settings
+        save_log_file: bool = False,
+        log_dir: Optional[Union[str, Path]] = ".delm/logs",
+        log_file_prefix: str = "",
+        console_log_level: str = "INFO",
+        file_log_level: str = "DEBUG",
+        override_logging: bool = True,
+    ) -> DELM:
         """
-        log.debug("Creating DELM instance from YAML config: %s", config_path)
-        config = DELMConfig.from_yaml(Path(config_path))
-        log.debug(
-            "Config loaded from YAML: %s",
-            config.name if hasattr(config, "name") else "unknown",
-        )
-        return cls(
-            config=config,
-            experiment_name=experiment_name,
-            experiment_directory=experiment_directory,
-            **kwargs,
-        )
-
-    @classmethod
-    def from_dict(
-        cls,
-        config_dict: Dict[str, Any],
-        experiment_name: str,
-        experiment_directory: Path,
-        **kwargs: Any,
-    ) -> "DELM":
-        """Create a DELM instance from a configuration dictionary.
-
-        Args:
-            config_dict: Configuration dictionary.
-            experiment_name: Name of the experiment.
-            experiment_directory: Base directory for experiment outputs.
-            **kwargs: Additional keyword arguments for DELM constructor.
-
-        Returns:
-            Configured DELM instance.
+        Create a DELM instance from a DELMConfig object.
         """
-        log.debug("Creating DELM instance from dict config")
-        config = DELMConfig.from_dict(config_dict)
-        log.debug(
-            "Config loaded from dict: %s",
-            config.name if hasattr(config, "name") else "unknown",
-        )
+        config = DELMConfig.from_any(config)
+
         return cls(
-            config=config,
-            experiment_name=experiment_name,
-            experiment_directory=experiment_directory,
-            **kwargs,
+            schema=config.schema,
+            provider=config.llm_extraction_cfg.provider,
+            model=config.llm_extraction_cfg.model,
+            temperature=config.llm_extraction_cfg.temperature,
+            prompt_template=config.llm_extraction_cfg.prompt_template,
+            system_prompt=config.llm_extraction_cfg.system_prompt,
+            batch_size=config.llm_extraction_cfg.batch_size,
+            max_workers=config.llm_extraction_cfg.max_workers,
+            max_retries=config.llm_extraction_cfg.max_retries,
+            base_delay=config.llm_extraction_cfg.base_delay,
+            track_cost=config.llm_extraction_cfg.track_cost,
+            max_budget=config.llm_extraction_cfg.max_budget,
+            model_input_cost_per_1M_tokens=config.llm_extraction_cfg.model_input_cost_per_1M_tokens,
+            model_output_cost_per_1M_tokens=config.llm_extraction_cfg.model_output_cost_per_1M_tokens,
+            target_column=config.data_preprocessing_cfg.target_column,
+            drop_target_column=config.data_preprocessing_cfg.drop_target_column,
+            splitting_strategy=config.data_preprocessing_cfg.splitting_strategy,
+            relevance_scorer=config.data_preprocessing_cfg.relevance_scorer,
+            score_filter=config.data_preprocessing_cfg.score_filter,
+            cache_backend=config.semantic_cache_cfg.backend,
+            cache_path=config.semantic_cache_cfg.path,
+            cache_max_size_mb=config.semantic_cache_cfg.max_size_mb,
+            cache_synchronous=config.semantic_cache_cfg.synchronous,
+            use_disk_storage=use_disk_storage,
+            experiment_path=experiment_path,
+            overwrite_experiment=overwrite_experiment,
+            auto_checkpoint_and_resume_experiment=auto_checkpoint_and_resume_experiment,
+            save_log_file=save_log_file,
+            log_dir=log_dir,
+            log_file_prefix=log_file_prefix,
+            console_log_level=console_log_level,
+            file_log_level=file_log_level,
+            override_logging=override_logging,
         )
 
     ## ------------------------------- Public API ------------------------------- ##
+
+    def extract(
+        self, data: str | Path | pd.DataFrame, sample_size: int = -1
+    ) -> pd.DataFrame:
+        """Extract data from the given data source.
+
+        Args:
+            data: The data source to extract data from.
+            sample_size: The number of records to sample from the data source.
+
+        Returns:
+            A DataFrame containing the extracted data.
+        """
+        self.prep_data(data, sample_size)
+        return self.process_via_llm()
+
+    def prep_data(
+        self, data: str | Path | pd.DataFrame, sample_size: int = -1
+    ) -> pd.DataFrame:
+        """Preprocess data using the instance config and always save to the experiment manager.
+
+        Args:
+            data: Input data as a string path, ``Path``, or ``DataFrame``.
+            sample_size: Optional number of records to sample before processing. ``-1``
+                (default) processes all rows; a positive value samples deterministically
+                using ``SYSTEM_RANDOM_SEED``.
+
+        Returns:
+            A DataFrame containing chunked (and optionally scored) data ready for extraction.
+        """
+        log.debug("Starting data preprocessing")
+        log.debug("Loading data from source: %s", data)
+
+        df = self.data_processor.load_data(data)
+        log.debug("Data loaded: %d rows", len(df))
+
+        if sample_size > 0 and sample_size < len(df):
+            log.debug("Sampling %d rows from %d total rows", sample_size, len(df))
+            df = df.sample(n=sample_size, random_state=SYSTEM_RANDOM_SEED)
+            log.debug("Sampling completed: %d rows", len(df))
+
+        log.debug("Processing dataframe with data processor")
+        df = self.data_processor.process_dataframe(df)  # type: ignore
+        log.info("Data processing completed: %d processed rows", len(df))
+
+        log.debug("Saving preprocessed data to experiment manager")
+        self.experiment_manager.save_preprocessed_data(df)
+        log.debug("Data preprocessing completed: %d processed rows saved", len(df))
+        return df
 
     def process_via_llm(
         self, preprocessed_file_path: Optional[Path] = None
@@ -221,12 +300,12 @@ class DELM:
 
         log.debug(
             "Starting batch processing with batch_size: %d",
-            self.config.llm_extraction.batch_size,
+            self.config.llm_extraction_cfg.batch_size,
         )
         final_df = self.extraction_manager.process_with_batching(
             text_chunks=text_chunks,
             text_chunk_ids=chunk_ids,
-            batch_size=self.config.llm_extraction.batch_size,
+            batch_size=self.config.llm_extraction_cfg.batch_size,
             experiment_manager=self.experiment_manager,
             auto_checkpoint=self.auto_checkpoint_and_resume_experiment,
         )
@@ -254,40 +333,6 @@ class DELM:
 
         return final_df
 
-    def prep_data(
-        self, data: Union[str, Path] | pd.DataFrame, sample_size: int = -1
-    ) -> pd.DataFrame:
-        """Preprocess data using the instance config and always save to the experiment manager.
-
-        Args:
-            data: Input data as a string path, ``Path``, or ``DataFrame``.
-            sample_size: Optional number of records to sample before processing. ``-1``
-                (default) processes all rows; a positive value samples deterministically
-                using ``SYSTEM_RANDOM_SEED``.
-
-        Returns:
-            A DataFrame containing chunked (and optionally scored) data ready for extraction.
-        """
-        log.debug("Starting data preprocessing")
-        log.debug("Loading data from source: %s", data)
-
-        df = self.data_processor.load_data(data)
-        log.debug("Data loaded: %d rows", len(df))
-
-        if sample_size > 0 and sample_size < len(df):
-            log.debug("Sampling %d rows from %d total rows", sample_size, len(df))
-            df = df.sample(n=sample_size, random_state=SYSTEM_RANDOM_SEED)
-            log.debug("Sampling completed: %d rows", len(df))
-
-        log.debug("Processing dataframe with data processor")
-        df = self.data_processor.process_dataframe(df)  # type: ignore
-        log.debug("Data processing completed: %d processed rows", len(df))
-
-        log.debug("Saving preprocessed data to experiment manager")
-        self.experiment_manager.save_preprocessed_data(df)
-        log.info("Data preprocessing completed: %d processed rows saved", len(df))
-        return df
-
     def get_extraction_results(self) -> pd.DataFrame:
         """Get the results from the experiment manager.
 
@@ -309,7 +354,7 @@ class DELM:
             ValueError: If cost tracking is not enabled in the configuration.
         """
         log.debug("Retrieving cost summary")
-        if not self.config.llm_extraction.track_cost:
+        if not self.config.llm_extraction_cfg.track_cost:
             log.error("Cost tracking not enabled in configuration")
             raise ValueError(
                 "Cost tracking is not enabled in the configuration. Please set `track_cost` to `True` in the configuration."
@@ -319,39 +364,44 @@ class DELM:
         log.debug("Cost summary retrieved: %s", cost_summary)
         return cost_summary
 
+    def preview_prompt(
+        self,
+        text: Optional[str] = None,
+    ) -> str:
+        """Preview the compiled prompt for the extraction schema.
+
+        Returns:
+            A string containing the compiled prompt.
+        """
+        target_column_name = self.config.data_preprocessing_cfg.target_column
+        if text is None:
+            text = f"<{target_column_name}>"
+        prompt = self.config.schema.schema.create_prompt(
+            text=text,
+            prompt_template=self.config.llm_extraction_cfg.prompt_template,
+        )
+        return prompt
+
     ## ------------------------------ Private API ------------------------------- ##
 
     def _initialize_components(self) -> None:
         """Initialize all components using composition."""
         log.debug("Initializing DELM components")
 
-        # Environment & secrets -------------------------------------------- #
-        if self.config.llm_extraction.dotenv_path:
-            log.debug(
-                "Loading environment from %s", self.config.llm_extraction.dotenv_path
-            )
-            dotenv.load_dotenv(self.config.llm_extraction.dotenv_path)
-
         # Initialize components
         log.debug("Initializing data processor")
-        self.data_processor = DataProcessor(self.config.data_preprocessing)
-
-        log.debug("Initializing schema manager")
-        self.schema_manager = SchemaManager(self.config.schema)
+        self.data_processor = DataProcessor(self.config.data_preprocessing_cfg)
 
         if self.use_disk_storage:
             log.debug("Initializing disk-based experiment manager")
             self.experiment_manager = DiskExperimentManager(
-                experiment_name=self.experiment_name,
-                experiment_directory=self.experiment_directory,
+                experiment_path=Path(self.experiment_path),
                 overwrite_experiment=self.overwrite_experiment,
                 auto_checkpoint_and_resume_experiment=self.auto_checkpoint_and_resume_experiment,
             )
         else:
             log.debug("Initializing in-memory experiment manager")
-            self.experiment_manager = InMemoryExperimentManager(
-                experiment_name=self.experiment_name
-            )
+            self.experiment_manager = InMemoryExperimentManager()
 
         # Initialize experiment with DELMConfig object
         log.debug("Initializing experiment")
@@ -360,12 +410,12 @@ class DELM:
         # Initialize cost tracker (may be loaded from state if resuming)
         log.debug("Initializing cost tracker")
         self.cost_tracker = CostTracker(
-            provider=self.config.llm_extraction.provider,
-            model=self.config.llm_extraction.name,
-            max_budget=self.config.llm_extraction.max_budget,
+            provider=self.config.llm_extraction_cfg.provider,
+            model=self.config.llm_extraction_cfg.model,
+            max_budget=self.config.llm_extraction_cfg.max_budget,
         )
 
-        # Load state if resuming
+        # Load cost tracker from experiment manager if resuming
         if self.auto_checkpoint_and_resume_experiment:
             log.debug("Checking for existing state to resume")
             loaded_cost_tracker = self.experiment_manager.load_state()
@@ -375,13 +425,13 @@ class DELM:
 
         log.debug("Initializing semantic cache")
         self.semantic_cache = SemanticCacheFactory.from_config(
-            self.config.semantic_cache
+            self.config.semantic_cache_cfg
         )
 
         log.debug("Initializing extraction manager")
         self.extraction_manager = ExtractionManager(
-            self.config.llm_extraction,
-            schema_manager=self.schema_manager,
+            self.config.llm_extraction_cfg,
+            extraction_schema=self.config.schema.schema,
             cost_tracker=self.cost_tracker,
             semantic_cache=self.semantic_cache,
         )

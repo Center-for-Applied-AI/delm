@@ -18,30 +18,28 @@ from delm.constants import (
     SYSTEM_RANDOM_SEED,
     SYSTEM_RECORD_ID_COLUMN,
     SYSTEM_CHUNK_ID_COLUMN,
-    DEFAULT_LOG_DIR,
     SYSTEM_LOG_FILE_PREFIX,
     SYSTEM_LOG_FILE_SUFFIX,
-    DEFAULT_CONSOLE_LOG_LEVEL,
-    DEFAULT_FILE_LOG_LEVEL,
 )
 from delm.utils.post_processing import merge_jsons_for_record
-from delm.schemas.schemas import BaseSchema
+from delm.schemas.schemas import ExtractionSchema
+from delm.delm import DELM
 
 # Module-level logger
 log = logging.getLogger(__name__)
 
 
 def estimate_performance(
-    config: Union[str, Dict[str, Any], DELMConfig],
+    config: Union[str, Dict[str, Any], DELMConfig, DELM],
     data_source: Union[str, Path, pd.DataFrame],
     expected_extraction_output_df: pd.DataFrame,
     true_json_column: str,
     matching_id_column: str,
     record_sample_size: int = -1,
-    save_file_log: bool = True,
-    log_dir: Optional[Union[str, Path]] = None,
-    console_log_level: str = DEFAULT_CONSOLE_LOG_LEVEL,
-    file_log_level: str = DEFAULT_FILE_LOG_LEVEL,
+    save_file_log: bool = False,
+    log_dir: Optional[Union[str, Path]] = Path(".delm/logs/performance_estimation"),
+    console_log_level: str = "INFO",
+    file_log_level: str = "DEBUG",
 ) -> tuple[dict[str, dict[str, float]], pd.DataFrame]:
     """
     Estimate the performance of the DELM pipeline.
@@ -64,9 +62,8 @@ def estimate_performance(
     from datetime import datetime
 
     # Configure logging
+    # Configure logging
     if save_file_log:
-        if log_dir is None:
-            log_dir = Path(DEFAULT_LOG_DIR) / "performance_estimation"
         current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         log_file_name = f"{SYSTEM_LOG_FILE_PREFIX}performance_estimation_{current_time}{SYSTEM_LOG_FILE_SUFFIX}"
     else:
@@ -91,20 +88,17 @@ def estimate_performance(
         record_sample_size,
     )
 
+    if isinstance(config, DELM):
+        config = config.config.to_dict()
     config_obj = DELMConfig.from_any(config)
     log.debug(
         "Config loaded: %s",
         config_obj.name if hasattr(config_obj, "name") else "unknown",
     )
 
-    delm = DELM(
+    delm = DELM.from_config(
         config=config_obj,
-        experiment_name="performance_estimation",
-        experiment_directory=Path(),
-        overwrite_experiment=False,
-        auto_checkpoint_and_resume_experiment=True,
         use_disk_storage=False,
-        override_logging=False,
     )
     log.debug("DELM instance created for performance estimation")
 
@@ -190,8 +184,7 @@ def estimate_performance(
         )
         raise ValueError("No results or missing DICT column.")
 
-    extraction_schema = delm.schema_manager.get_extraction_schema()
-    log.debug("Extraction schema loaded: %s", type(extraction_schema).__name__)
+    extraction_schema = delm.config.schema.schema
 
     # Parse expected JSON column if needed (if user provided as string)
     if isinstance(expected_extraction_output_df[true_json_column].iloc[0], str):
@@ -304,7 +297,7 @@ def _make_hashable(val: Any) -> Any:
 
 
 def _build_required_map(
-    schema: BaseSchema, parent: list[str] | None = None
+    schema: ExtractionSchema, parent: list[str] | None = None
 ) -> dict[str, bool]:
     """Build a map of required fields.
 
@@ -428,7 +421,7 @@ def _all_levels_precision_recall(
 def _aggregate_performance_metrics_across_records(
     expected_list: list[Any],
     predicted_list: list[Any],
-    schema: BaseSchema,
+    schema: ExtractionSchema,
 ) -> dict[str, dict[str, float]]:
     log.debug("Aggregating performance metrics across %d records", len(expected_list))
     required_map = _build_required_map(schema)

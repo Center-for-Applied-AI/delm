@@ -4,14 +4,19 @@ DELM Schema System
 Schema definitions and management for data extraction.
 """
 
-from .schemas import SchemaRegistry, BaseSchema, SimpleSchema, NestedSchema, MultipleSchema
-from .schema_manager import SchemaManager
+from .schemas import (
+    ExtractionSchema,
+    SimpleSchema,
+    NestedSchema,
+    MultipleSchema,
+    Schema,
+)
 
 __all__ = [
-    "SchemaRegistry",
-    "BaseSchema",
-    "SimpleSchema", 
+    "ExtractionSchema",
+    "SimpleSchema",
     "NestedSchema",
     "MultipleSchema",
+    "Schema",
     "SchemaManager",
-] 
+]

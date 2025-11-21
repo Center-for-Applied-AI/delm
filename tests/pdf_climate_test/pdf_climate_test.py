@@ -1,11 +1,15 @@
-from delm import DELM, DELMConfig
+from delm import DELM, Schema
+from delm.models import ExtractionVariable
 from pathlib import Path
+from dotenv import load_dotenv
+import json
+
+load_dotenv(".env")
 
 DATA_DIR = Path("tests/pdf_climate_test/data")
 EXPERIMENT_DIR = Path("test_experiments")
-CONFIG_PATH = Path("tests/pdf_climate_test/config.yaml")
 
-print("="*100)
+print("=" * 100)
 print("PDF Climate Test\n")
 print("Components Tested:")
 print("- PDF Data Loader")
@@ -14,36 +18,61 @@ print("Expected Outputs:")
 print("- Prepped Data")
 print("- Extracted Data")
 print("- Cost Summary")
-print("="*100 + "\n")
+print("=" * 100 + "\n")
 
-print("TXT DIR TEST")
+print("PDF CLIMATE TEST")
 
-config = DELMConfig.from_yaml(CONFIG_PATH)
-delm = DELM(
-    config = config,
-    experiment_name="pdf_climate_test",
-    experiment_directory=EXPERIMENT_DIR,
-    overwrite_experiment=True,
-    use_disk_storage=True,
+# Define schema
+schema = Schema.simple(
+    variables_list=[
+        ExtractionVariable(
+            name="climate_action_score",
+            description="""1 = Strong opposition to climate action by the regulator. Explicitly resists climate measures. May deny climate change or climate risks.
+2 = Skeptical or hesitant. Questions the need for special treatment or warns about costs and unintended consequences.
+3 = Neutral. Takes no strong position for or against climate action.
+4 = Supportive. Backs climate actions of the regulator. May support other climate measures. May advocate for more incremental steps.
+5 = Strong advocate. Fully supports ambitious, binding climate targets and broad reforms. May seek to strengthen proposed initiatives.""",
+            data_type="integer",
+            required=True,
+            allowed_values=[0, 1, 2, 3, 4, 5],
+        ),
+    ],
 )
 
-print("="*100)
-print("Prepping PDF Data")
-prepped_txt_df = delm.prep_data(DATA_DIR, sample_size=5)
+# Define custom prompt template
+custom_prompt_template = """You are a climate change expert who expects meticulous and reliable results.
 
-print("-"*100)
-print(prepped_txt_df)
-print("-"*100)
+Extract the following information from the text:
 
-print("="*100)
-print("Processing PDF Data")
-result_df = delm.process_via_llm()
-print("-"*100)
-print(result_df)
-print("-"*100)
+{variables}
 
-print("="*100)
-print("Getting Cost Summary")
+Text to analyze:
+{text}"""
+
+# Create DELM instance
+delm = DELM(
+    schema=schema,
+    provider="openai",
+    model="gpt-4o-mini",
+    temperature=0.0,
+    batch_size=10,
+    max_workers=1,
+    max_retries=3,
+    base_delay=1.0,
+    track_cost=True,
+    prompt_template=custom_prompt_template,
+)
+
+print("=" * 100)
+print("Extracting Data")
+extracted_df = delm.extract(DATA_DIR, sample_size=5)
+
+print("-" * 100)
+print(extracted_df)
+print("-" * 100)
+
+print("=" * 100)
+print("Cost Summary")
 cost_summary = delm.get_cost_summary()
-print("-"*100)
-print(cost_summary)
+print("-" * 100)
+print(json.dumps(cost_summary, indent=2))

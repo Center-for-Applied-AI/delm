@@ -30,7 +30,6 @@ dependencies = [
     "instructor>=0.4.0",
     "pydantic>=2.0.0",
     "pyyaml>=6.0",
-    "python-dotenv>=1.0.0",
     "tqdm>=4.64.0",
     "rapidfuzz>=3.0.0",
     "beautifulsoup4>=4.11.0",
@@ -39,16 +38,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+extras = [
+    "marker-pdf>=0.1.0",
+    "openpyxl>=3.0.0",
+    "zstandard>=0.21.0",
+    "lmdb>=1.3.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "black>=22.0.0",
     "flake8>=5.0.0",
     "mypy>=1.0.0",
-    "openpyxl>=3.0.0",
-    "marker-pdf>=0.1.0",
-    "zstandard>=0.21.0",
-    "lmdb>=1.3.0",
+    "mkdocs-material>=9.0.0",
 ]
 examples = [
     "scikit-learn>=1.1.0",
