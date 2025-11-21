@@ -43,6 +43,7 @@ from .constants import (
     IGNORE_FILES,
 )
 from delm.schemas import Schema
+from delm.models import ExtractionVariable
 
 __version__ = "0.1.3"
 __author__ = "Eric Fithian - Chicago Booth CAAI Lab"
@@ -52,6 +53,7 @@ __all__ = [
     "DELM",
     "DELMConfig",
     "Schema",
+    "ExtractionVariable",
     "LLMExtractionConfig",
     "DataPreprocessingConfig",
     "SemanticCacheConfig",

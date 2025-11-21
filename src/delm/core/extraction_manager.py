@@ -45,7 +45,7 @@ class ExtractionManager:
 
         Args:
             model_config: The model configuration.
-            schema_manager: The schema manager.
+            extraction_schema: The extraction schema.
             cost_tracker: The cost tracker.
             semantic_cache: The semantic cache.
         """

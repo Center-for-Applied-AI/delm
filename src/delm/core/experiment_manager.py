@@ -265,13 +265,13 @@ class DiskExperimentManager(BaseExperimentManager):
         return pd.read_feather(result_file)
 
     def initialize_experiment(self, delm_config: DELMConfig):
-        """Validate and create experiment directory structure; write config and schema files.
+        """Validate and create experiment directory structure; write config file.
 
         Raises:
             ExperimentManagementError: If the experiment directory exists and neither
                 overwrite nor checkpoint/resume is allowed.
             FileNotFoundError: If attempting to resume without config files present.
-            ValueError: If resume config or schema mismatches current configuration.
+            ValueError: If resume config mismatches current configuration.
         """
         experiment_dir_path = self.experiment_dir
         if experiment_dir_path.exists():
@@ -319,7 +319,7 @@ class DiskExperimentManager(BaseExperimentManager):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         log.debug(f"Experiment directory structure created: {experiment_dir_path}")
 
-        # Save pipeline config and schema spec files to experiment config directory
+        # Save pipeline config file to experiment config directory
         log.debug(
             f"Saving pipeline config and schema spec files to experiment config directory: {experiment_dir_path}"
         )
@@ -370,22 +370,19 @@ class DiskExperimentManager(BaseExperimentManager):
 
     def verify_resume_config(self, delm_config: DELMConfig):
         """Compare config/schema in config/ folder to user-supplied DELMConfig. Abort if they differ."""
-        config_yaml = self.config_dir / f"config_{self.experiment_name}.yaml"
-        schema_yaml = self.config_dir / f"schema_spec_{self.experiment_name}.yaml"
-        log.debug(f"Verifying resume configs from: {config_yaml} and {schema_yaml}")
-        if not config_yaml.exists() or not schema_yaml.exists():
+        config_yaml = self.config_dir / f"config.yaml"
+        log.debug(f"Verifying resume configs from: {config_yaml}")
+        if not config_yaml.exists():
             log.error(
-                f"Cannot resume experiment: config files not found: {config_yaml} and {schema_yaml}"
+                f"Cannot resume experiment: config files not found: {config_yaml}"
             )
             raise FileNotFoundError(
-                f"Cannot resume experiment: config files not found: {config_yaml} and {schema_yaml}"
+                f"Cannot resume experiment: config files not found: {config_yaml}"
             )
 
         file_config = yaml.safe_load(config_yaml.read_text())
-        file_schema = yaml.safe_load(schema_yaml.read_text())
 
-        current_config_dict = delm_config.to_serialized_config_dict()
-        current_schema_dict = delm_config.to_serialized_schema_spec_dict()
+        current_config_dict = delm_config.to_dict()
 
         if file_config != current_config_dict:
             differences = self._find_config_differences(
@@ -395,15 +392,6 @@ class DiskExperimentManager(BaseExperimentManager):
                 f"Config mismatch: current config does not match the one used for this experiment. \nMismatched fields:\n"
                 + "\n".join(f"  - {diff}" for diff in differences)
             )
-        if file_schema != current_schema_dict:
-            differences = self._find_config_differences(
-                current_schema_dict, file_schema
-            )
-            raise ValueError(
-                f"Schema mismatch: current schema does not match the one used for this experiment. \nMismatched fields:\n"
-                + "\n".join(f"  - {diff}" for diff in differences)
-            )
-
         log.debug(f"Resume config verified successfully")
 
     # --- Preprocessing Data ---
@@ -643,7 +631,7 @@ class InMemoryExperimentManager(BaseExperimentManager):
         return self._extracted_data
 
     def initialize_experiment(self, delm_config: DELMConfig):
-        """Initialize in-memory experiment by storing config and schema dicts."""
+        """Initialize in-memory experiment by storing config dict."""
         log.debug(f"Initializing experiment in InMemoryExperimentManager")
         self._config_dict = delm_config.to_dict()
 

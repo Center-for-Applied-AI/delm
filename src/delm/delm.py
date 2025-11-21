@@ -227,7 +227,7 @@ class DELM:
     ## ------------------------------- Public API ------------------------------- ##
 
     def extract(
-        self, data: Union[str, Path] | pd.DataFrame, sample_size: int = -1
+        self, data: str | Path | pd.DataFrame, sample_size: int = -1
     ) -> pd.DataFrame:
         """Extract data from the given data source.
 
@@ -242,7 +242,7 @@ class DELM:
         return self.process_via_llm()
 
     def prep_data(
-        self, data: Union[str, Path] | pd.DataFrame, sample_size: int = -1
+        self, data: str | Path | pd.DataFrame, sample_size: int = -1
     ) -> pd.DataFrame:
         """Preprocess data using the instance config and always save to the experiment manager.
 
