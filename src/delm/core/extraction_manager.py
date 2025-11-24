@@ -251,9 +251,16 @@ class ExtractionManager:
                     break
 
                 log.debug("Starting concurrent processing for batch %d", batch_id)
+
+                def _on_chunk_complete():
+                    pbar.update(1)
+                    pbar.refresh()
+
                 try:
                     results = self.concurrent_processor.process_concurrently(
-                        batch_chunks, lambda p: self._extract_from_text_chunk(p)
+                        batch_chunks,
+                        lambda p: self._extract_from_text_chunk(p),
+                        on_item_complete=_on_chunk_complete,
                     )
                 except Exception as e:
                     log.error(
@@ -276,7 +283,6 @@ class ExtractionManager:
                 log.debug(
                     "Batch %d parsed to DataFrame with %d rows", batch_id, len(batch_df)
                 )
-                pbar.update(len(batch_chunks))
 
                 if auto_checkpoint:
                     log.debug("Saving batch checkpoint %d", batch_id)
