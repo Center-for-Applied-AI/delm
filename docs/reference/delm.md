@@ -34,6 +34,9 @@ delm = DELM(
 | `max_workers` | `int` | `1` | Concurrent workers per batch |
 | `max_retries` | `int` | `3` | Retry attempts for failed requests |
 | `base_delay` | `float` | `1.0` | Exponential backoff base delay (seconds) |
+| `tokens_per_minute` | `int` | `null` | Maximum tokens per minute |
+| `requests_per_minute` | `int` | `null` | Maximum requests per minute |
+
 
 ### Cost Tracking
 

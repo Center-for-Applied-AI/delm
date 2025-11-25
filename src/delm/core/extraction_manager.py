@@ -3,13 +3,14 @@ ExtractionManager - Handles LLM extraction and result parsing.
 """
 
 import logging
-import re
 import json
-from typing import Any, Union, Optional, Dict, List
+from typing import Any, Optional, Dict, List
 
 import pandas as pd
 import instructor
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+from delm.utils.rate_limiter import RateLimiter
 
 # Module-level logger
 log = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ class ExtractionManager:
         extraction_schema: ExtractionSchema,
         cost_tracker: "CostTracker",
         semantic_cache: "SemanticCache",
+        rate_limiter: "RateLimiter",
     ):
         """Initialize the ExtractionManager.
 
@@ -48,6 +50,7 @@ class ExtractionManager:
             extraction_schema: The extraction schema.
             cost_tracker: The cost tracker.
             semantic_cache: The semantic cache.
+            rate_limiter: The rate limiter.
         """
 
         log.debug("Initializing ExtractionManager")
@@ -81,8 +84,12 @@ class ExtractionManager:
         self.track_cost = model_config.track_cost
         self.cost_tracker = cost_tracker
         self.semantic_cache = semantic_cache
+        self.rate_limiter = rate_limiter
+
+        self.max_output_tokens = 0
 
         log.debug(f"Cost tracking enabled: {self.track_cost}")
+        log.debug(f"Rate limiter: {type(self.rate_limiter).__name__}")
         log.debug("ExtractionManager initialized successfully")
 
     def process_with_batching(
@@ -366,15 +373,23 @@ class ExtractionManager:
         system_prompt = self.system_prompt
         provider_and_model = self.model_config.get_provider_string()
 
+        estimated_total_tokens = self._estimate_total_tokens(
+            system_prompt, prompt, schema, tokenize=True
+        )
+
         log.debug(
-            "Extraction setup: provider=%s, prompt_length=%d, system_prompt_length=%d",
+            "Extraction setup: provider=%s, prompt_length=%d, system_prompt_length=%d, estimated_total_tokens=%d",
             provider_and_model,
             len(prompt),
             len(system_prompt),
+            estimated_total_tokens,
         )
 
         def _instructor_extract():
             log.debug("Starting LLM extraction with schema")
+
+            log.debug("Acquiring rate limit before request")
+            self.rate_limiter.before_request(est_tokens=estimated_total_tokens)
 
             try:
                 log.debug(
@@ -405,16 +420,23 @@ class ExtractionManager:
                 log.error("Invalid response type: %s", type(response))
                 raise ValueError(f"Unsupported response type: {type(response)}")
 
+            usage = getattr(completion, "usage", None)
+            prompt_tokens = (
+                getattr(usage, "prompt_tokens", None) if usage is not None else None
+            )
+            completion_tokens = (
+                getattr(usage, "completion_tokens", None) if usage is not None else None
+            )
+
+            if completion_tokens is not None and prompt_tokens is not None:
+                self.max_output_tokens = max(self.max_output_tokens, completion_tokens)
+                log.debug("Updated max output tokens: %d", self.max_output_tokens)
+
+                self.rate_limiter.after_request(
+                    actual_tokens=prompt_tokens + completion_tokens
+                )
+
             if self.track_cost:
-                usage = getattr(completion, "usage", None)
-                prompt_tokens = (
-                    getattr(usage, "prompt_tokens", None) if usage is not None else None
-                )
-                completion_tokens = (
-                    getattr(usage, "completion_tokens", None)
-                    if usage is not None
-                    else None
-                )
                 if isinstance(prompt_tokens, int) and isinstance(
                     completion_tokens, int
                 ):
@@ -469,6 +491,27 @@ class ExtractionManager:
             log.error(f"Cache error {e}, did not cache result")
             pass
         return response
+
+    def _estimate_total_tokens(
+        self,
+        system_prompt: str,
+        prompt: str,
+        schema: BaseModel,
+        tokenize: bool = True,
+    ) -> int:
+        """Estimate the total tokens for a given system prompt, prompt, and schema."""
+        # Include schema JSON for estimation alongside system + user prompt
+        complete_prompt = (
+            f"{system_prompt}\n{prompt}\n{json.dumps(schema.model_json_schema())}"
+        )
+        if tokenize:
+            input_tokens = self.cost_tracker.count_tokens(complete_prompt)
+        else:
+            input_tokens = len(complete_prompt) // 4
+
+        total_tokens = input_tokens + self.max_output_tokens
+
+        return total_tokens
 
     def parse_results_dataframe(
         self,

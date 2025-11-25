@@ -1,13 +1,11 @@
 from __future__ import annotations
-from typing_extensions import List
 
-from pandas.core.frame import deprecate_nonkeyword_arguments
+from delm.utils.rate_limiter import BucketRateLimiter, NoOpRateLimiter
 
 """DELM extraction pipeline core module.
 """
 from datetime import datetime
 import logging
-import time
 from pathlib import Path
 import pandas as pd
 
@@ -28,16 +26,13 @@ from delm.constants import (
     SYSTEM_CHUNK_COLUMN,
     SYSTEM_RANDOM_SEED,
     SYSTEM_CHUNK_ID_COLUMN,
-    SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
     SYSTEM_ERRORS_COLUMN,
-    SYSTEM_LOG_FILE_PREFIX,
     SYSTEM_LOG_FILE_SUFFIX,
 )
-from delm.schemas import ExtractionSchema
 from delm.strategies import SplitStrategy, RelevanceScorer
 from delm.utils.cost_tracker import CostTracker
 from delm.utils.semantic_cache import SemanticCacheFactory
-from typing import Any, Dict, Union, Optional
+from typing import Any, Union, Optional
 
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
@@ -61,6 +56,8 @@ class DELM:
         max_workers: int = 1,
         max_retries: int = 3,
         base_delay: float = 1.0,
+        tokens_per_minute: Optional[int] = None,
+        requests_per_minute: Optional[int] = None,
         track_cost: bool = True,
         max_budget: Optional[float] = None,
         model_input_cost_per_1M_tokens: Optional[float] = None,
@@ -110,6 +107,8 @@ class DELM:
             max_workers=max_workers,
             max_retries=max_retries,
             base_delay=base_delay,
+            tokens_per_minute=tokens_per_minute,
+            requests_per_minute=requests_per_minute,
             track_cost=track_cost,
             max_budget=max_budget,
             model_input_cost_per_1M_tokens=model_input_cost_per_1M_tokens,
@@ -199,6 +198,8 @@ class DELM:
             max_workers=config.llm_extraction_cfg.max_workers,
             max_retries=config.llm_extraction_cfg.max_retries,
             base_delay=config.llm_extraction_cfg.base_delay,
+            tokens_per_minute=config.llm_extraction_cfg.tokens_per_minute,
+            requests_per_minute=config.llm_extraction_cfg.requests_per_minute,
             track_cost=config.llm_extraction_cfg.track_cost,
             max_budget=config.llm_extraction_cfg.max_budget,
             model_input_cost_per_1M_tokens=config.llm_extraction_cfg.model_input_cost_per_1M_tokens,
@@ -428,12 +429,24 @@ class DELM:
             self.config.semantic_cache_cfg
         )
 
+        if (
+            self.config.llm_extraction_cfg.tokens_per_minute
+            or self.config.llm_extraction_cfg.requests_per_minute
+        ):
+            self.rate_limiter = BucketRateLimiter(
+                tokens_per_minute=self.config.llm_extraction_cfg.tokens_per_minute,
+                requests_per_minute=self.config.llm_extraction_cfg.requests_per_minute,
+            )
+        else:
+            self.rate_limiter = NoOpRateLimiter()
+
         log.debug("Initializing extraction manager")
         self.extraction_manager = ExtractionManager(
             self.config.llm_extraction_cfg,
             extraction_schema=self.config.schema.schema,
             cost_tracker=self.cost_tracker,
             semantic_cache=self.semantic_cache,
+            rate_limiter=self.rate_limiter,
         )
 
         log.debug("All components initialized successfully")
