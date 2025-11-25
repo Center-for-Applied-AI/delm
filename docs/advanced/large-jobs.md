@@ -107,7 +107,7 @@ delm = DELM(
 
 **Best Practice**: Set `max_workers` ≤ `batch_size`. Having more workers than chunks in a batch just wastes resources. For example, if `batch_size=10` and `max_workers=20`, you'll have 10 idle workers.
 
-**Warning**: More workers = more concurrent API calls = higher rate limit usage. If you hit "429 Too Many Requests" errors, reduce `max_workers` or increase `base_delay`.
+**Warning**: More workers = more concurrent API calls = higher rate limit usage. If you hit "429 Too Many Requests" errors, you may need to reduce `max_workers` or increase `base_delay`. A better solution might be to specify the exact TPM and RPM parameters for your specific provider and model.
 
 ### Overwrite vs Resume
 

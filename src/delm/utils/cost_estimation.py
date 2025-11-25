@@ -12,6 +12,7 @@ from typing import Any, Dict, Union
 import pandas as pd
 from copy import deepcopy
 from typing import Optional
+import json
 
 from delm.delm import DELM
 from delm.constants import (
@@ -26,7 +27,7 @@ from delm.config import DELMConfig
 log = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
-# Cost Estimation Methods                                                            #
+# Cost Estimation Methods                                                     #
 # --------------------------------------------------------------------------- #
 
 
@@ -100,6 +101,11 @@ def estimate_input_token_cost(
         len(variables_text),
     )
 
+    # Precompute the schema overhead once (counts toward prompt tokens)
+    SchemaType = extraction_schema.create_pydantic_schema()
+    schema_text = json.dumps(SchemaType.model_json_schema())
+    log.debug("Computed schema overhead for estimation: %d chars", len(schema_text))
+
     total_input_tokens = 0
     chunks = delm.experiment_manager.load_preprocessed_data()[
         SYSTEM_CHUNK_COLUMN
@@ -110,7 +116,8 @@ def estimate_input_token_cost(
         formatted_prompt = user_prompt_template.format(
             variables=variables_text, text=chunk
         )
-        complete_prompt = f"{system_prompt}\n\n{formatted_prompt}"
+        # Include schema JSON for estimation alongside system + user prompt
+        complete_prompt = f"{system_prompt}\n\n{formatted_prompt}\n{schema_text}"
         prompt_tokens = delm.cost_tracker.count_tokens(complete_prompt)
         total_input_tokens += prompt_tokens
         if i % 100 == 0:  # Log progress every 100 chunks

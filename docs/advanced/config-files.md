@@ -72,6 +72,8 @@ batch_size: 10                   # Default: 10, chunks per batch
 max_workers: 1                   # Default: 1, concurrent workers per batch
 max_retries: 3                   # Default: 3, API retry attempts
 base_delay: 1.0                  # Default: 1.0, seconds between retries
+tokens_per_minute: null          # Default: null, max tokens per minute
+requests_per_minute: null        # Default: null, max requests per minute
 
 # Cost Management
 track_cost: true                 # Default: true
@@ -178,6 +180,8 @@ batch_size: 20
 max_workers: 4
 max_retries: 3
 base_delay: 1.0
+tokens_per_minute: 500000
+requests_per_minute: 500
 
 # Cost tracking
 track_cost: true

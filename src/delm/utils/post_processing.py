@@ -11,7 +11,9 @@ from delm.schemas.schemas import (
     SimpleSchema,
     NestedSchema,
     MultipleSchema,
+    Schema,
 )
+from delm.delm import DELM, DELMConfig
 from delm.constants import SYSTEM_EXTRACTED_DATA_JSON_COLUMN
 
 # Module-level logger
@@ -198,7 +200,7 @@ def merge_jsons_for_record(json_list: List[Dict[str, Any]], schema: ExtractionSc
 
 def explode_json_results(
     input_df: pd.DataFrame,
-    schema: ExtractionSchema,
+    schema: ExtractionSchema | Schema | DELM | DELMConfig | str | Path,
     json_column: str = SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
 ) -> pd.DataFrame:
     """
@@ -211,7 +213,7 @@ def explode_json_results(
 
     Args:
         input_df: DataFrame with JSON results
-        schema: The schema object or path to schema file (YAML/JSON)
+        schema: The schema object, DELM instance, DELMConfig, or path to schema file (YAML/JSON)
         json_column: Name of column containing JSON data (either JSON string or Python dict)
 
     Returns:
@@ -226,6 +228,24 @@ def explode_json_results(
         raise ValueError(f"Column {json_column} not found in input DataFrame")
 
     df = input_df.copy()
+
+    if isinstance(schema, DELM):
+        schema = schema.config.schema.schema
+
+    if isinstance(schema, DELMConfig):
+        schema = schema.schema.schema
+
+    if isinstance(schema, (str, Path)):
+        schema = Schema.from_yaml(schema)
+
+    if isinstance(schema, dict):
+        schema = Schema.from_dict(schema).schema
+
+    if isinstance(schema, Schema):
+        schema = schema.schema
+
+    if not isinstance(schema, ExtractionSchema):
+        raise ValueError(f"Invalid schema type: {type(schema).__name__}")
 
     # Handle empty DataFrame
     if len(df) == 0:

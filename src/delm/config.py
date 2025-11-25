@@ -56,6 +56,8 @@ class LLMExtractionConfig(BaseConfig):
     batch_size: int
     max_workers: int
     base_delay: float
+    tokens_per_minute: Optional[int]
+    requests_per_minute: Optional[int]
     track_cost: bool
     max_budget: Optional[float]
     model_input_cost_per_1M_tokens: Optional[float]
@@ -111,6 +113,14 @@ class LLMExtractionConfig(BaseConfig):
             raise ValueError(
                 f"base_delay must be non-negative. base_delay: {self.base_delay}, Suggestion: Use a non-negative float"
             )
+        if self.tokens_per_minute is not None and self.tokens_per_minute <= 0:
+            raise ValueError(
+                f"tokens_per_minute must be positive. tokens_per_minute: {self.tokens_per_minute}, Suggestion: Use a positive integer"
+            )
+        if self.requests_per_minute is not None and self.requests_per_minute <= 0:
+            raise ValueError(
+                f"requests_per_minute must be positive. requests_per_minute: {self.requests_per_minute}, Suggestion: Use a positive integer"
+            )
         if not isinstance(self.track_cost, bool):
             raise ValueError(
                 f"track_cost must be a boolean. track_cost: {self.track_cost}, Suggestion: Use True or False"
@@ -136,6 +146,8 @@ class LLMExtractionConfig(BaseConfig):
             "batch_size": self.batch_size,
             "max_workers": self.max_workers,
             "base_delay": self.base_delay,
+            "tokens_per_minute": self.tokens_per_minute,
+            "requests_per_minute": self.requests_per_minute,
             "track_cost": self.track_cost,
             "max_budget": self.max_budget,
             "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,
@@ -417,6 +429,8 @@ class DELMConfig:
         max_workers: int = 1,
         max_retries: int = 3,
         base_delay: float = 1.0,
+        tokens_per_minute: Optional[int] = None,
+        requests_per_minute: Optional[int] = None,
         track_cost: bool = True,
         max_budget: Optional[float] = None,
         model_input_cost_per_1M_tokens: Optional[float] = None,
@@ -470,6 +484,8 @@ class DELMConfig:
             max_workers=max_workers,
             max_retries=max_retries,
             base_delay=base_delay,
+            tokens_per_minute=tokens_per_minute,
+            requests_per_minute=requests_per_minute,
             track_cost=track_cost,
             max_budget=max_budget,
             model_input_cost_per_1M_tokens=model_input_cost_per_1M_tokens,
@@ -529,6 +545,8 @@ class DELMConfig:
             max_workers=data["max_workers"],
             max_retries=data["max_retries"],
             base_delay=data["base_delay"],
+            tokens_per_minute=data["tokens_per_minute"],
+            requests_per_minute=data["requests_per_minute"],
             track_cost=data["track_cost"],
             max_budget=data["max_budget"],
             model_input_cost_per_1M_tokens=data["model_input_cost_per_1M_tokens"],
