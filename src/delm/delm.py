@@ -437,8 +437,11 @@ class DELM:
         if self.auto_checkpoint_and_resume_experiment:
             log.debug("Checking for existing state to resume")
             loaded_cost_tracker = self.experiment_manager.load_state()
-            self.cost_tracker = loaded_cost_tracker
-            log.info("Loaded state")
+            if loaded_cost_tracker is not None:
+                self.cost_tracker = loaded_cost_tracker
+                log.debug("Resumed cost tracker from saved state")
+            else:
+                log.debug("No saved state found, using fresh cost tracker")
 
         log.debug("Initializing semantic cache")
         self.semantic_cache = SemanticCacheFactory.from_config(
