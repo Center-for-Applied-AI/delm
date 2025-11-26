@@ -206,6 +206,7 @@ class SimpleSchema(ExtractionSchema):
     def __init__(self, variables: List[ExtractionVariable]):
         log.debug("Initializing SimpleSchema")
         self._variables = variables
+        self._pydantic_schema: Optional[Type[BaseModel]] = None
 
     # ---- interface impl ----------------------------------------------------
     @property
@@ -213,6 +214,10 @@ class SimpleSchema(ExtractionSchema):
         return self._variables
 
     def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create and cache the Pydantic schema for extraction."""
+        if self._pydantic_schema is not None:
+            return self._pydantic_schema
+
         log.debug("Creating Pydantic schema for SimpleSchema")
         annotations, fields = {}, {}
         for v in self.variables:
@@ -222,11 +227,12 @@ class SimpleSchema(ExtractionSchema):
         log.debug(
             f"SimpleSchema Pydantic schema created with {len(annotations)} fields"
         )
-        return type(
+        self._pydantic_schema = type(
             "DynamicExtractSchema",
             (BaseModel,),
             {"__annotations__": annotations, **fields},
         )
+        return self._pydantic_schema
 
     def create_prompt(
         self, text: str, prompt_template: str, context: Dict[str, Any] | None = None
@@ -242,17 +248,15 @@ class SimpleSchema(ExtractionSchema):
 
     # ---- validation helpers ------------------------------------------------
     def _clean(self, response: BaseModel, text_chunk: str) -> Optional[BaseModel]:
-        log.debug("Cleaning SimpleSchema response")
+        """Clean and validate extraction response."""
         instance_dict = response.model_dump()
         cleaned: Dict[str, Any] = {}
         text_lwr = text_chunk.lower()
-        log.debug(f"Cleaning {len(self.variables)} variables from response")
 
         for v in self.variables:
             raw = instance_dict.get(v.name)
             items = raw if isinstance(raw, list) else [raw]
             items = [i for i in items if i is not None]
-            log.debug(f"Variable '{v.name}': {len(items)} items before filtering")
 
             if "string" in v.data_type:
                 # Filter out NONE strings from LLM unless they're explicitly allowed
@@ -264,44 +268,29 @@ class SimpleSchema(ExtractionSchema):
                     ]
                 if len(nones_to_filter) > 0:
                     items = [i for i in items if i.lower() not in nones_to_filter]
-                    log.debug(
-                        f"Variable '{v.name}': {len(items)} items after null filtering"
-                    )
 
             if v.allowed_values:
                 items = [i for i in items if i in v.allowed_values]
-                log.debug(
-                    f"Variable '{v.name}': {len(items)} items after allowed values filtering"
-                )
             if v.validate_in_text:
                 items = [
                     i for i in items if isinstance(i, str) and i.lower() in text_lwr
                 ]
-                log.debug(
-                    f"Variable '{v.name}': {len(items)} items after text validation"
-                )
             if v.required and not items:
-                log.debug(
-                    f"Required variable '{v.name}' has no valid items, returning None"
-                )
                 return None  # whole response invalid
             cleaned[v.name] = (
                 items if v.data_type.startswith("[") else (items[0] if items else None)
             )
 
         Schema = self.create_pydantic_schema()
-        log.debug(f"SimpleSchema cleaned response with {len(cleaned)} variables")
         return Schema(**cleaned)
 
     # ---- public validate/parse --------------------------------------------
     def validate_and_parse_response_to_dict(
         self, response: Any, text_chunk: str
     ) -> dict:
-        log.debug("Validating and parsing SimpleSchema response to dict")
+        """Validate and parse response to dict."""
         model = self._clean(response, text_chunk)
-        result = {} if model is None else model.model_dump(mode="json")
-        log.debug(f"SimpleSchema dict result has {len(result)} keys")
-        return result
+        return {} if model is None else model.model_dump(mode="json")
 
     def is_valid_json_dict(self, data: Dict[str, Any], path: str = "root") -> bool:
         log.debug(
@@ -349,6 +338,8 @@ class NestedSchema(ExtractionSchema):
         log.debug("Initializing NestedSchema")
         self._container_name = container_name
         self._variables = variables
+        self._item_schema_cached: Optional[Type[BaseModel]] = None
+        self._pydantic_schema: Optional[Type[BaseModel]] = None
         log.debug(
             f"NestedSchema initialized with container '{self._container_name}', {len(self._variables)} variables"
         )
@@ -364,14 +355,25 @@ class NestedSchema(ExtractionSchema):
 
     # ---- dynamic schema ----------------------------------------------------
     def _item_schema(self) -> Type[BaseModel]:
+        """Create and cache the item schema for nested extraction."""
+        if self._item_schema_cached is not None:
+            return self._item_schema_cached
+
         ann, flds = {}, {}
         for v in self.variables:
             a, fld, _ = _ann_and_field(v.data_type, v.required, v.description)
             ann[v.name] = a
             flds[v.name] = fld
-        return type("DynamicItem", (BaseModel,), {"__annotations__": ann, **flds})
+        self._item_schema_cached = type(
+            "DynamicItem", (BaseModel,), {"__annotations__": ann, **flds}
+        )
+        return self._item_schema_cached
 
     def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create and cache the Pydantic schema for extraction."""
+        if self._pydantic_schema is not None:
+            return self._pydantic_schema
+
         log.debug(
             f"Creating Pydantic schema for NestedSchema with container '{self.container_name}'"
         )
@@ -385,7 +387,10 @@ class NestedSchema(ExtractionSchema):
         log.debug(
             f"NestedSchema Pydantic schema created with container '{self.container_name}'"
         )
-        return type("DynamicContainer", (BaseModel,), {"__annotations__": ann, **flds})
+        self._pydantic_schema = type(
+            "DynamicContainer", (BaseModel,), {"__annotations__": ann, **flds}
+        )
+        return self._pydantic_schema
 
     # ---- prompt ------------------------------------------------------------
     def create_prompt(
@@ -405,13 +410,12 @@ class NestedSchema(ExtractionSchema):
     def _clean_item(
         self, raw_item: Dict[str, Any], text_lwr: str
     ) -> Optional[Dict[str, Any]]:
-        log.debug(f"Cleaning NestedSchema item with {len(self.variables)} variables")
+        """Clean a single item."""
         cleaned: Dict[str, Any] = {}
         for v in self.variables:
             val = raw_item.get(v.name)
             items = val if isinstance(val, list) else [val]
             items = [i for i in items if i is not None]
-            log.debug(f"Variable '{v.name}': {len(items)} items before filtering")
 
             if "string" in v.data_type:
                 # Filter out NONE strings from LLM unless they're explicitly allowed
@@ -423,76 +427,41 @@ class NestedSchema(ExtractionSchema):
                     ]
                 if len(nones_to_filter) > 0:
                     items = [i for i in items if i.lower() not in nones_to_filter]
-                    log.debug(
-                        f"Variable '{v.name}': {len(items)} items after null filtering"
-                    )
 
             if v.allowed_values:
                 items = [i for i in items if i in v.allowed_values]
-                log.debug(
-                    f"Variable '{v.name}': {len(items)} items after allowed values filtering"
-                )
             if v.validate_in_text:
                 items = [
                     i for i in items if isinstance(i, str) and i.lower() in text_lwr
                 ]
-                log.debug(
-                    f"Variable '{v.name}': {len(items)} items after text validation"
-                )
             if v.required and not items:
-                log.debug(
-                    f"Required variable '{v.name}' has no valid items, skipping item"
-                )
                 return None
             cleaned[v.name] = (
                 items if v.data_type.startswith("[") else (items[0] if items else None)
             )
-        log.debug(f"NestedSchema item cleaned with {len(cleaned)} variables")
         return cleaned
 
     def _clean(self, response: BaseModel, text_chunk: str) -> Optional[BaseModel]:
-        log.debug(
-            f"Cleaning NestedSchema response with container '{self.container_name}'"
-        )
+        """Clean nested response."""
         items = getattr(response, self.container_name, [])
-        log.debug(
-            f"NestedSchema found {len(items)} items in container '{self.container_name}'"
-        )
         text_lwr = text_chunk.lower()
         cleaned_items = [
             ci
             for itm in items
             if (ci := self._clean_item(itm.model_dump(), text_lwr)) is not None
         ]
-        log.debug(
-            f"NestedSchema cleaned {len(cleaned_items)} valid items from {len(items)} total items"
-        )
         if not cleaned_items:
-            log.debug(
-                f"NestedSchema no valid items found in container '{self.container_name}', returning None"
-            )
             return None
         Schema = self.create_pydantic_schema()
-        log.debug(f"NestedSchema created cleaned model with {len(cleaned_items)} items")
         return Schema(**{self.container_name: cleaned_items})
 
     # ---- public parse ------------------------------------------------------
     def validate_and_parse_response_to_dict(
         self, response: Any, text_chunk: str
     ) -> dict:
-        log.debug(
-            f"Validating and parsing NestedSchema response to dict with container '{self.container_name}'"
-        )
+        """Validate and parse response to dict. Hot path - no debug logging."""
         model = self._clean(response, text_chunk)
-        result = {} if model is None else model.model_dump(mode="json")
-        if model is not None:
-            items = result.get(self.container_name, [])
-            log.debug(
-                f"NestedSchema dict result has container '{self.container_name}' with {len(items)} items"
-            )
-        else:
-            log.debug("NestedSchema dict result is empty")
-        return result
+        return {} if model is None else model.model_dump(mode="json")
 
     def is_valid_json_dict(
         self,
@@ -566,6 +535,7 @@ class MultipleSchema(ExtractionSchema):
             if isinstance(schema, MultipleSchema):
                 raise ValueError(f"Cannot nest MultipleSchema")
         self._schemas = schemas
+        self._pydantic_schema: Optional[Type[BaseModel]] = None
 
     # ---- interface ---------------------------------------------------------
     @property
@@ -580,6 +550,10 @@ class MultipleSchema(ExtractionSchema):
         return vars_
 
     def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create and cache the Pydantic schema for extraction."""
+        if self._pydantic_schema is not None:
+            return self._pydantic_schema
+
         log.debug("Creating Pydantic schema for MultipleSchema")
         ann, flds = {}, {}
         for name, sch in self.schemas.items():
@@ -587,7 +561,10 @@ class MultipleSchema(ExtractionSchema):
             ann[name] = sch.create_pydantic_schema()
             flds[name] = Field(..., description=f"results for {name}")
         log.debug(f"MultipleSchema Pydantic schema created with {len(ann)} sub-schemas")
-        return type("MultipleExtract", (BaseModel,), {"__annotations__": ann, **flds})
+        self._pydantic_schema = type(
+            "MultipleExtract", (BaseModel,), {"__annotations__": ann, **flds}
+        )
+        return self._pydantic_schema
 
     def create_prompt(
         self, text: str, prompt_template: str, context: Dict[str, Any] | None = None
@@ -609,10 +586,9 @@ class MultipleSchema(ExtractionSchema):
     def validate_and_parse_response_to_dict(
         self, response: Any, text_chunk: str
     ) -> dict:  # noqa: D401
-        log.debug("Validating and parsing MultipleSchema response to dict")
+        """Validate and parse response to dict. Hot path - no debug logging."""
         out: Dict[str, Any] = {}
         for name, sch in self.schemas.items():
-            log.debug(f"Processing sub-schema '{name}' for dict output")
             sub_resp = (
                 getattr(response, name, None) if hasattr(response, name) else None
             )
@@ -625,15 +601,8 @@ class MultipleSchema(ExtractionSchema):
                 container = sch.container_name
                 unwrapped_val = val.get(container, []) if isinstance(val, dict) else val
                 out[name] = unwrapped_val
-                log.debug(
-                    f"Sub-schema '{name}' (nested) unwrapped container '{container}' with {len(unwrapped_val) if isinstance(unwrapped_val, list) else 'scalar'} items"
-                )
             else:
                 out[name] = val
-                log.debug(
-                    f"Sub-schema '{name}' (simple) with {len(val) if isinstance(val, dict) else 'scalar'} items"
-                )
-        log.debug(f"MultipleSchema dict result has {len(out)} sub-schemas")
         return out
 
     def is_valid_json_dict(self, data: Dict[str, Any], path: str = "root") -> bool:

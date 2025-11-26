@@ -349,6 +349,9 @@ class ExtractionManager:
                     "Batch %d parsed to DataFrame with %d rows", batch_id, len(batch_df)
                 )
 
+                # Explicitly free results to prevent memory accumulation
+                del results
+
                 if auto_checkpoint:
                     log.debug("Saving batch checkpoint %d", batch_id)
                     experiment_manager.save_batch_checkpoint(batch_df, batch_id)
@@ -356,6 +359,16 @@ class ExtractionManager:
                     log.debug(
                         "Successfully saved batch checkpoint %d and state", batch_id
                     )
+                    # Explicitly free batch DataFrame after saving
+                    del batch_df
+
+                    # Periodic WAL checkpoint every 10 batches to reclaim memory
+                    if batch_id > 0 and batch_id % 10 == 0:
+                        if hasattr(self.semantic_cache, "checkpoint"):
+                            self.semantic_cache.checkpoint()
+                            log.debug(
+                                "Periodic WAL checkpoint after batch %d", batch_id
+                            )
                 else:
                     log.debug(
                         "Adding batch %d DataFrame to memory collection", batch_id
@@ -395,16 +408,13 @@ class ExtractionManager:
         Returns:
             A dictionary containing the extracted data and errors.
         """
-        log.debug("Extracting from text chunk (length: %d)", len(text_chunk))
-
+        # Hot path - minimal logging
         if self.cost_tracker is not None and self.cost_tracker.is_over_budget():
             log.debug("Over budget, skipping text chunk extraction")
             return {"extracted_data": None, "errors": "Over budget"}
 
         try:
-            log.debug("Starting Instructor extraction for text chunk")
             result = self._instructor_extract_with_retry(text_chunk)
-            log.debug("Instructor extraction completed successfully")
             return {"extracted_data": result, "errors": []}
         except Exception as llm_error:
             log.error("Extraction failed for text chunk: %s", llm_error)
@@ -423,38 +433,19 @@ class ExtractionManager:
             InstructorError: If the LLM API call fails.
             ValueError: If the response is not a Pydantic model.
         """
-        log.debug("Creating Pydantic schema for extraction")
+        # Hot path - minimal logging. Schema is cached internally.
         schema = self.extraction_schema.create_pydantic_schema()
-
-        log.debug("Creating prompt for text chunk")
         prompt = self.extraction_schema.create_prompt(text_chunk, self.prompt_template)
         system_prompt = self.system_prompt
-        provider_and_model = self.model_config.get_provider_string()
 
         estimated_total_tokens = self._estimate_total_tokens(
             system_prompt, prompt, schema, tokenize=True
         )
 
-        log.debug(
-            "Extraction setup: provider=%s, prompt_length=%d, system_prompt_length=%d, estimated_total_tokens=%d",
-            provider_and_model,
-            len(prompt),
-            len(system_prompt),
-            estimated_total_tokens,
-        )
-
         def _instructor_extract():
-            log.debug("Starting LLM extraction with schema")
-
-            log.debug("Acquiring rate limit before request")
             self.rate_limiter.before_request(est_tokens=estimated_total_tokens)
 
             try:
-                log.debug(
-                    "Making LLM API call: model=%s, temperature=%s",
-                    self.model_config.model,
-                    self.temperature,
-                )
                 response, completion = (
                     self.client.chat.completions.create_with_completion(
                         model=self.model_config.model,
@@ -467,7 +458,6 @@ class ExtractionManager:
                         max_retries=0,
                     )
                 )
-                log.debug("LLM API call completed successfully")
             except Exception as e:
                 log.error("LLM API call failed: %s", e)
                 raise InstructorError(
@@ -508,10 +498,10 @@ class ExtractionManager:
                     )
                     self.cost_tracker.track_output_pydantic(response)
 
-            log.debug("Extraction with schema completed successfully")
             return response
 
-        log.debug("Checking semantic cache for existing extraction")
+        # Check semantic cache - hot path, minimal logging
+        provider_and_model = self.model_config.get_provider_string()
         try:
             key = make_cache_key(
                 prompt_text=prompt,
@@ -521,36 +511,27 @@ class ExtractionManager:
             )
             cached = self.semantic_cache.get(key)
             if cached:
-                log.debug("Cache hit found, loading cached result")
                 loaded = json.loads(cached.decode("utf-8"))
                 pydantic_result = schema(**loaded)
                 if (
                     self.cost_tracker is not None
                     and self.cost_tracker.count_cache_hits_towards_cost
                 ):
-                    log.debug("Tracking cache hit for cost calculation")
-                    # Track system prompt + user prompt + JSON schema of Pydantic model
                     self.cost_tracker.track_input_text(
                         system_prompt + "\n" + prompt + "\n", schema
                     )
                     self.cost_tracker.track_output_pydantic(pydantic_result)
-                log.debug("Returning cached extraction result")
                 return pydantic_result
-
-            log.debug("Cache miss, performing new extraction")
         except Exception as e:
             log.error(f"Cache error {e}, performing new extraction")
 
         response = self.retry_handler.execute_with_retry(_instructor_extract)
         response_dict = response.model_dump(mode="json")
-        log.debug("Extraction completed, caching result")
         # Convert to dict to save to semantic cache
         try:
             self.semantic_cache.set(key, json.dumps(response_dict).encode("utf-8"))
-            log.debug("Result cached successfully")
         except Exception as e:
             log.error(f"Cache error {e}, did not cache result")
-            pass
         return response
 
     def _estimate_total_tokens(
@@ -600,23 +581,13 @@ class ExtractionManager:
             len(results),
         )
 
+        # Hot path - process all results without per-item logging
         data: List[pd.DataFrame] = []
         for result, text_chunk, chunk_id in zip(results, text_chunks, text_chunk_ids):
             errors_json = json.dumps(result["errors"]) if result["errors"] else None
             extracted_data: Optional[BaseModel] = result["extracted_data"]
 
-            log.debug(
-                "Processing chunk %d: has_extracted_data=%s, has_errors=%s",
-                chunk_id,
-                extracted_data is not None,
-                bool(result["errors"]),
-            )
-
             if extracted_data is None:
-                log.debug(
-                    "Chunk %d: No extracted data, creating error row with JSON column",
-                    chunk_id,
-                )
                 row_df = pd.DataFrame(
                     [
                         {
@@ -630,15 +601,11 @@ class ExtractionManager:
                 )
                 data.append(row_df)
             else:
-                log.debug(
-                    "Chunk %d: Parsing extracted data to dict for JSON column", chunk_id
-                )
                 extracted_data_dict = (
                     self.extraction_schema.validate_and_parse_response_to_dict(
                         extracted_data, str(text_chunk)
                     )
                 )
-                log.debug("Chunk %d: Creating row with JSON data", chunk_id)
                 row = {
                     SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                     SYSTEM_BATCH_ID_COLUMN: batch_id,
@@ -649,9 +616,6 @@ class ExtractionManager:
                 data.append(pd.DataFrame([row]))
 
         # Outer join to preserve all columns in case there is a mismatch in the column sets.
-        log.debug("Concatenating %d DataFrame parts", len(data))
-        result_df = (
+        return (
             pd.concat(data, ignore_index=True, join="outer") if data else pd.DataFrame()
         )
-        log.debug("Final DataFrame created with %d rows", len(result_df))
-        return result_df
