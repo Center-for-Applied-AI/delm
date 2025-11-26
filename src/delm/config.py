@@ -49,6 +49,8 @@ class LLMExtractionConfig(BaseConfig):
 
     provider: str
     model: str
+    base_url: Optional[str]
+    mode: Optional[str]
     temperature: float
     prompt_template: str
     system_prompt: str
@@ -139,6 +141,8 @@ class LLMExtractionConfig(BaseConfig):
         return {
             "provider": self.provider,
             "model": self.model,
+            "base_url": self.base_url,
+            "mode": self.mode,
             "temperature": self.temperature,
             "prompt_template": self.prompt_template,
             "system_prompt": self.system_prompt,
@@ -424,6 +428,8 @@ class DELMConfig:
         schema: Union[str, Path, dict, Schema],
         provider: str = "openai",
         model: str = "gpt-4o-mini",
+        base_url: Optional[str] = None,
+        mode: Optional[str] = None,
         temperature: float = 0.0,
         batch_size: int = 10,
         max_workers: int = 1,
@@ -477,6 +483,8 @@ class DELMConfig:
         self.llm_extraction_cfg = LLMExtractionConfig(
             provider=provider,
             model=model,
+            base_url=base_url,
+            mode=mode,
             temperature=temperature,
             prompt_template=prompt_template,
             system_prompt=system_prompt,
@@ -538,6 +546,8 @@ class DELMConfig:
             schema=data["schema"],
             provider=data["provider"],
             model=data["model"],
+            base_url=data["base_url"],
+            mode=data["mode"],
             temperature=data["temperature"],
             prompt_template=data["prompt_template"],
             system_prompt=data["system_prompt"],

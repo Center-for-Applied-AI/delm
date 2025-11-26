@@ -4,11 +4,13 @@ ExtractionManager - Handles LLM extraction and result parsing.
 
 import logging
 import json
+import os
 from typing import Any, Optional, Dict, List
 
 import pandas as pd
 import instructor
 from pydantic import BaseModel
+import tiktoken
 
 from delm.utils.rate_limiter import RateLimiter
 
@@ -39,7 +41,7 @@ class ExtractionManager:
         self,
         model_config: LLMExtractionConfig,
         extraction_schema: ExtractionSchema,
-        cost_tracker: "CostTracker",
+        cost_tracker: Optional[CostTracker],
         semantic_cache: "SemanticCache",
         rate_limiter: "RateLimiter",
     ):
@@ -61,10 +63,67 @@ class ExtractionManager:
             f"Model config: {self.model_config.model}, temperature: {self.temperature}"
         )
 
-        # Use Instructor's universal provider interface
+        # Create Instructor client using universal provider interface
         provider_string = self.model_config.get_provider_string()
         log.debug(f"Creating Instructor client with provider: {provider_string}")
-        self.client = instructor.from_provider(provider_string)
+
+        # Convert mode string to instructor.Mode enum if provided
+        instructor_mode = None
+        if model_config.mode:
+            mode_map = {
+                "tools": instructor.Mode.TOOLS,
+                "json": instructor.Mode.JSON,
+                "json_schema": instructor.Mode.JSON_SCHEMA,
+                "md_json": instructor.Mode.MD_JSON,
+            }
+            instructor_mode = mode_map.get(model_config.mode.lower())
+            if instructor_mode is None:
+                raise ValueError(
+                    f"Invalid mode '{model_config.mode}'. "
+                    f"Supported modes: {list(mode_map.keys())}"
+                )
+            log.debug(f"Using Instructor mode: {instructor_mode}")
+
+        if model_config.base_url:
+            log.debug(f"Using custom base_url: {model_config.base_url}")
+            if model_config.provider == "openai":
+                import openai
+
+                openai_client = openai.OpenAI(
+                    base_url=model_config.base_url,
+                    api_key=os.environ.get("OPENAI_API_KEY", "EMPTY"),
+                )
+                if instructor_mode is not None:
+                    self.client = instructor.from_openai(
+                        client=openai_client,
+                        model=model_config.model,
+                        mode=instructor_mode,
+                    )
+                else:
+                    self.client = instructor.from_openai(
+                        client=openai_client,
+                        model=model_config.model,
+                    )
+            else:
+                if instructor_mode is not None:
+                    self.client = instructor.from_provider(
+                        model=provider_string,
+                        base_url=model_config.base_url,
+                        mode=instructor_mode,
+                    )
+                else:
+                    self.client = instructor.from_provider(
+                        model=provider_string,
+                        base_url=model_config.base_url,
+                    )
+        else:
+            if instructor_mode is not None:
+                self.client = instructor.from_provider(
+                    provider_string,
+                    mode=instructor_mode,
+                )
+            else:
+                self.client = instructor.from_provider(provider_string)
 
         self.extraction_schema = extraction_schema
 
@@ -81,14 +140,13 @@ class ExtractionManager:
         self.prompt_template = model_config.prompt_template
         self.system_prompt = model_config.system_prompt
 
-        self.track_cost = model_config.track_cost
         self.cost_tracker = cost_tracker
         self.semantic_cache = semantic_cache
         self.rate_limiter = rate_limiter
 
         self.max_output_tokens = 0
 
-        log.debug(f"Cost tracking enabled: {self.track_cost}")
+        log.debug(f"Cost tracking enabled: {self.cost_tracker is not None}")
         log.debug(f"Rate limiter: {type(self.rate_limiter).__name__}")
         log.debug("ExtractionManager initialized successfully")
 
@@ -251,7 +309,7 @@ class ExtractionManager:
                 )
 
                 # Check if we are over budget
-                if self.track_cost and self.cost_tracker.is_over_budget():
+                if self.cost_tracker is not None and self.cost_tracker.is_over_budget():
                     log.warning(
                         "Over budget, stopping extraction at batch %d", batch_id
                     )
@@ -339,7 +397,7 @@ class ExtractionManager:
         """
         log.debug("Extracting from text chunk (length: %d)", len(text_chunk))
 
-        if self.track_cost and self.cost_tracker.is_over_budget():
+        if self.cost_tracker is not None and self.cost_tracker.is_over_budget():
             log.debug("Over budget, skipping text chunk extraction")
             return {"extracted_data": None, "errors": "Over budget"}
 
@@ -436,7 +494,7 @@ class ExtractionManager:
                     actual_tokens=prompt_tokens + completion_tokens
                 )
 
-            if self.track_cost:
+            if self.cost_tracker is not None:
                 if isinstance(prompt_tokens, int) and isinstance(
                     completion_tokens, int
                 ):
@@ -466,7 +524,10 @@ class ExtractionManager:
                 log.debug("Cache hit found, loading cached result")
                 loaded = json.loads(cached.decode("utf-8"))
                 pydantic_result = schema(**loaded)
-                if self.track_cost and self.cost_tracker.count_cache_hits_towards_cost:
+                if (
+                    self.cost_tracker is not None
+                    and self.cost_tracker.count_cache_hits_towards_cost
+                ):
                     log.debug("Tracking cache hit for cost calculation")
                     # Track system prompt + user prompt + JSON schema of Pydantic model
                     self.cost_tracker.track_input_text(
@@ -505,7 +566,8 @@ class ExtractionManager:
             f"{system_prompt}\n{prompt}\n{json.dumps(schema.model_json_schema())}"
         )
         if tokenize:
-            input_tokens = self.cost_tracker.count_tokens(complete_prompt)
+            tokenizer = tiktoken.get_encoding("cl100k_base")
+            input_tokens = len(tokenizer.encode(complete_prompt))
         else:
             input_tokens = len(complete_prompt) // 4
 

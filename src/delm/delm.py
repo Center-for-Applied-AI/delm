@@ -51,6 +51,8 @@ class DELM:
         # LLM Settings (flat)
         provider: str = "openai",
         model: str = "gpt-4o-mini",
+        base_url: Optional[str] = None,
+        mode: Optional[str] = None,
         temperature: float = 0.0,
         batch_size: int = 10,
         max_workers: int = 1,
@@ -102,6 +104,8 @@ class DELM:
             schema=schema,
             provider=provider,
             model=model,
+            base_url=base_url,
+            mode=mode,
             temperature=temperature,
             batch_size=batch_size,
             max_workers=max_workers,
@@ -191,6 +195,8 @@ class DELM:
             schema=config.schema,
             provider=config.llm_extraction_cfg.provider,
             model=config.llm_extraction_cfg.model,
+            base_url=config.llm_extraction_cfg.base_url,
+            mode=config.llm_extraction_cfg.mode,
             temperature=config.llm_extraction_cfg.temperature,
             prompt_template=config.llm_extraction_cfg.prompt_template,
             system_prompt=config.llm_extraction_cfg.system_prompt,
@@ -354,6 +360,12 @@ class DELM:
         Raises:
             ValueError: If cost tracking is not enabled in the configuration.
         """
+        if self.cost_tracker is None:
+            log.error("Cost tracking not enabled in configuration")
+            raise ValueError(
+                "Cost tracking is not enabled in the configuration. Please set `track_cost` to `True` in the configuration."
+            )
+
         log.debug("Retrieving cost summary")
         if not self.config.llm_extraction_cfg.track_cost:
             log.error("Cost tracking not enabled in configuration")
@@ -410,19 +422,23 @@ class DELM:
 
         # Initialize cost tracker (may be loaded from state if resuming)
         log.debug("Initializing cost tracker")
-        self.cost_tracker = CostTracker(
-            provider=self.config.llm_extraction_cfg.provider,
-            model=self.config.llm_extraction_cfg.model,
-            max_budget=self.config.llm_extraction_cfg.max_budget,
-        )
+        if self.config.llm_extraction_cfg.track_cost:
+            self.cost_tracker = CostTracker(
+                provider=self.config.llm_extraction_cfg.provider,
+                model=self.config.llm_extraction_cfg.model,
+                max_budget=self.config.llm_extraction_cfg.max_budget,
+                model_input_cost_per_1M_tokens=self.config.llm_extraction_cfg.model_input_cost_per_1M_tokens,
+                model_output_cost_per_1M_tokens=self.config.llm_extraction_cfg.model_output_cost_per_1M_tokens,
+            )
+        else:
+            self.cost_tracker = None
 
         # Load cost tracker from experiment manager if resuming
         if self.auto_checkpoint_and_resume_experiment:
             log.debug("Checking for existing state to resume")
             loaded_cost_tracker = self.experiment_manager.load_state()
-            if loaded_cost_tracker:
-                log.info("Resuming from previous state")
-                self.cost_tracker = loaded_cost_tracker
+            self.cost_tracker = loaded_cost_tracker
+            log.info("Loaded state")
 
         log.debug("Initializing semantic cache")
         self.semantic_cache = SemanticCacheFactory.from_config(

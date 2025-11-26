@@ -165,15 +165,12 @@ delm = DELM(
     model="gpt-4o-mini",
     temperature=0.0,
     batch_size=5,
-    max_workers=2,
-    max_retries=3,
+    max_workers=1,
+    max_retries=0,
     base_delay=1.0,
     tokens_per_minute=10000,
     requests_per_minute=5,
-    track_cost=True,
-    max_budget=0.004,
-    model_input_cost_per_1M_tokens=0.0015,
-    model_output_cost_per_1M_tokens=0.006,
+    track_cost=False,
     target_column="text",
     drop_target_column=True,
     splitting_strategy={"type": "ParagraphSplit"},
@@ -190,8 +187,8 @@ print(f"-" * 40)
 print("Data finished processing")
 print(f"-" * 40)
 
-cost_summary = delm.get_cost_summary()
-print(json.dumps(cost_summary, indent=2))
+# cost_summary = delm.get_cost_summary()
+# print(json.dumps(cost_summary, indent=2))
 
 # The output is JSON by default - let's show how to work with it
 print("=" * 60)
