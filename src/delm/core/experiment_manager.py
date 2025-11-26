@@ -564,12 +564,12 @@ class DiskExperimentManager(BaseExperimentManager):
         return False
 
     # --- State Management ---
-    def save_state(self, cost_tracker: CostTracker):
+    def save_state(self, cost_tracker: Optional[CostTracker]):
         """Save experiment state (cost tracker only) to state file as JSON."""
         log.debug(f"Saving experiment state to: {self.cache_dir / STATE_FILE_NAME}")
         state_path = self.cache_dir / STATE_FILE_NAME
         state = {
-            "cost_tracker": cost_tracker.to_dict(),
+            "cost_tracker": cost_tracker.to_dict() if cost_tracker else None,
         }
         start_time = time.time()
         with open(state_path, "w") as f:
@@ -590,7 +590,11 @@ class DiskExperimentManager(BaseExperimentManager):
             state = json.load(f)
         elapsed_time = time.time() - start_time
         log.debug(f"Experiment state loaded from: {state_path} in {elapsed_time:.2f}s")
-        return CostTracker.from_dict(state["cost_tracker"])
+        if state["cost_tracker"] is not None:
+            return CostTracker.from_dict(state["cost_tracker"])
+        else:
+            log.debug(f"No cost tracker found in experiment state")
+            return None
 
     def save_extracted_data(self, df: pd.DataFrame) -> Path:
         """Save extracted data as feather file."""
@@ -762,7 +766,7 @@ class InMemoryExperimentManager(BaseExperimentManager):
             return True
         return False
 
-    def save_state(self, cost_tracker: CostTracker):
+    def save_state(self, cost_tracker: Optional[CostTracker]):
         """Save the cost tracker in memory."""
         self._state = cost_tracker
 

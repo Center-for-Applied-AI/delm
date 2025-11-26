@@ -113,4 +113,13 @@ module = [
     "docx.*",
     "marker.*",
 ]
-ignore_missing_imports = true 
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+# Skip slow tests by default - run them explicitly with: pytest -m slow
+# Or run all tests including slow with: pytest -m ""
+addopts = "-m 'not slow'"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "memory: marks tests as memory-intensive",
+]

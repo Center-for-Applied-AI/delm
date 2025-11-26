@@ -284,6 +284,8 @@ class SQLiteWALCache(SemanticCache):
         self._local = (
             threading.local()
         )  # Thread-local storage for connections and zstd objects
+        self._all_connections = []  # Track all connections for cleanup
+        self._connections_lock = threading.Lock()  # Protect connection list
 
         # Initialize database schema with a temporary connection
         temp_db = sqlite3.connect(self.path, check_same_thread=False, timeout=120)
@@ -314,6 +316,9 @@ class SQLiteWALCache(SemanticCache):
             )
             self._local.db.execute("PRAGMA journal_mode=WAL;")
             self._local.db.execute(f"PRAGMA synchronous={self._synchronous};")
+            # Track connection for cleanup
+            with self._connections_lock:
+                self._all_connections.append(self._local.db)
         return self._local.db
 
     def _get_zstd_objects(self):
@@ -442,15 +447,29 @@ class SQLiteWALCache(SemanticCache):
         )
 
     def close(self):
-        """Close all thread-local database connections and clean up zstd objects."""
+        """Close ALL database connections from all threads and clean up."""
+        # Close all tracked connections from all threads
+        with self._connections_lock:
+            for conn in self._all_connections:
+                try:
+                    conn.close()
+                except Exception:
+                    pass  # Connection may already be closed
+            self._all_connections.clear()
+
+        # Clean up current thread's local storage
         if hasattr(self._local, "db"):
-            self._local.db.close()
             delattr(self._local, "db")
-        # Clean up zstd objects (they don't need explicit cleanup, but we can clear them)
         if hasattr(self._local, "zstd_compressor"):
             delattr(self._local, "zstd_compressor")
         if hasattr(self._local, "zstd_decompressor"):
             delattr(self._local, "zstd_decompressor")
+
+    def checkpoint(self):
+        """Force a WAL checkpoint to reclaim memory and disk space."""
+        db = self._get_db()
+        db.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        log.debug("SQLite WAL checkpoint completed")
 
 
 # --------------------------------------------------------------------------- #

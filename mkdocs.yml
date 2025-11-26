@@ -65,6 +65,7 @@ nav:
   - Getting Started: getting-started.md
 
   - User Guide:
+      - Model Configuration: user-guide/model-configuration.md
       - Defining Schemas: user-guide/schemas.md
       - Customizing Prompts: user-guide/prompt-customization.md
       - Loading Data: user-guide/input-data.md
