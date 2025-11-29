@@ -29,7 +29,6 @@ def configure(
 ) -> None:
     """Configure logging for the ``delm`` package and its children.
 
-    <<<<<<< HEAD
         This configures a console handler and, optionally, a rotating file handler.
         The function is idempotent unless ``force`` is True.
 
