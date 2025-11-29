@@ -89,7 +89,7 @@ git push origin main --tags
 ## What Happens Next
 
 1. **GitHub Actions triggers** when you create a release
-2. **Tests run** on Python 3.8 and 3.11
+2. **Tests run**
 3. **Package builds** if tests pass
 4. **Package uploads** to PyPI automatically
 5. **Package is available** at `pip install delm`
@@ -98,34 +98,6 @@ git push origin main --tags
 
 - `.github/workflows/test.yml` - Runs tests on push/PR
 - `.github/workflows/publish.yml` - Publishes to PyPI on release
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"Package already exists"**: Version already published, increment version
-2. **"Authentication failed"**: Check trusted publishing setup
-3. **"Tests failing"**: Fix tests before releasing
-4. **"Build failed"**: Check pyproject.toml syntax
-5. **"Publisher not found"**: Verify trusted publishing configuration
-
-### Trusted Publishing Issues
-
-- **Publisher shows "pending"**: This is normal until first release
-- **"Publisher not active"**: Check GitHub repository name and workflow filename
-- **"Workflow not found"**: Ensure `.github/workflows/publish.yml` exists
-
-### Manual Upload (Emergency)
-
-If GitHub Actions fails, you can upload manually:
-
-```bash
-# Build package
-python -m build
-
-# Upload to PyPI (requires API token)
-twine upload dist/*
-```
 
 ## Version Management
 

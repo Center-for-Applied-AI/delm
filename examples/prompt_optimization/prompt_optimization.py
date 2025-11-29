@@ -535,33 +535,6 @@ def compose_wrong_examples_text(
     return "\n\n---\n\n".join(blocks)
 
 
-<<<<<<< HEAD
-=======
-def get_current_price_expectation_description(schema_path: Path) -> str:
-    """Return current description text for price_expectation from schema YAML."""
-    spec = yaml.safe_load(schema_path.read_text()) or {}
-    for var in spec.get("variables", []):
-        if var.get("name") == "price_expectation":
-            return str(var.get("description", "")).strip()
-    return ""
-
-
-def set_price_expectation_description(schema_path: Path, new_description: str) -> None:
-    """Overwrite the description of price_expectation in schema YAML."""
-    spec = yaml.safe_load(schema_path.read_text()) or {}
-    changed = False
-    for var in spec.get("variables", []):
-        if var.get("name") == "price_expectation":
-            var["description"] = str(new_description).strip()
-            changed = True
-            break
-    if changed:
-        schema_path.write_text(
-            yaml.safe_dump(spec, sort_keys=False, allow_unicode=True)
-        )
-
-
->>>>>>> origin/main
 def run_optimizer_and_get_guidance(
     current_definition: str, examples_text: str
 ) -> Dict[str, Any]:
@@ -643,11 +616,8 @@ def main() -> None:
     eval_record_sample_size = max(
         1, int(np.ceil(EVAL_SAMPLE_RATIO * len(record_expected_df)))
     )
-<<<<<<< HEAD
 
     current_price_expectation_desc = INITIAL_PRICE_EXPECTATION_DESC
-=======
->>>>>>> origin/main
 
     for batch_idx in tqdm(range(NUM_BATCHES + 1), desc="batches", leave=True):
 
