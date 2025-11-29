@@ -76,7 +76,7 @@ class DELM:
         ] = "Extract the following information from the text:\n\n{variables}\n\nText to analyze:\n{text}",
         system_prompt: Optional[str] = "You are a precise data-extraction assistant.",
         # Semantic Cache Settings
-        cache_backend: str = "sqlite",
+        cache_backend: Optional[str] = "sqlite",
         cache_path: Union[str, Path] = ".delm/cache",
         cache_max_size_mb: int = 512,
         cache_synchronous: str = "normal",

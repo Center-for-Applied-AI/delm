@@ -175,6 +175,7 @@ delm = DELM(
     drop_target_column=True,
     splitting_strategy={"type": "ParagraphSplit"},
     relevance_scorer={"type": "KeywordScorer", "keywords": ["revenue", "profit"]},
+    cache_backend=None,
     use_disk_storage=True,
     experiment_path=Path("test_experiments/mock_test"),
     overwrite_experiment=True,
