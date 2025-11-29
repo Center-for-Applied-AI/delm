@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional, Union, TypeVar, List
 import yaml
 
 T = TypeVar("T", bound="BaseConfig")
+T = TypeVar("T", bound="BaseConfig")
 
 from delm.strategies import RelevanceScorer
 from delm.strategies import SplitStrategy
@@ -26,6 +27,7 @@ class BaseConfig:
     validation and stable serialization.
     """
 
+
     def validate(self):
         """Validate configuration.
 
@@ -33,9 +35,11 @@ class BaseConfig:
         """
         pass
 
+
     def to_dict(self) -> dict:
         """Convert configuration to a serializable dictionary."""
         return {}
+
 
     @classmethod
     def from_dict(cls: type[T], data: Dict[str, Any]) -> T:
@@ -188,6 +192,7 @@ class DataPreprocessingConfig(BaseConfig):
             self._validate_no_conflicts_with_preprocessed_data()
             return
 
+
         self._validate_basic_fields()
 
         # Validate strategy objects if they exist
@@ -213,17 +218,24 @@ class DataPreprocessingConfig(BaseConfig):
         if self.preprocessed_data_path is None:
             return
 
+
         if not self.preprocessed_data_path.endswith(".feather"):
             raise ValueError(
                 f"preprocessed_data_path must be a feather file. preprocessed_data_path: {self.preprocessed_data_path}, Suggestion: Provide a valid feather file path"
             )
 
+
         # Verify file has correct columns
         import pandas as pd
         from .constants import SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN
 
+
         try:
             df = pd.read_feather(self.preprocessed_data_path)
+            if not all(
+                col in df.columns
+                for col in [SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN]
+            ):
             if not all(
                 col in df.columns
                 for col in [SYSTEM_CHUNK_COLUMN, SYSTEM_CHUNK_ID_COLUMN]
@@ -282,6 +294,7 @@ class DataPreprocessingConfig(BaseConfig):
             import pandas as pd
             from .constants import SYSTEM_SCORE_COLUMN
 
+
             try:
                 pd.DataFrame({SYSTEM_SCORE_COLUMN: [1]}).query(self.score_filter)
             except Exception as e:
@@ -297,6 +310,7 @@ class DataPreprocessingConfig(BaseConfig):
         """
         if self.preprocessed_data_path:
             return {"preprocessed_data_path": self.preprocessed_data_path}
+
 
         return {
             "target_column": self.target_column,
@@ -404,6 +418,7 @@ class SemanticCacheConfig(BaseConfig):
         """Construct a ``SemanticCacheConfig`` from a mapping."""
         if data is None:
             data = {}
+
 
         return cls(
             backend=data["cache_backend"],
@@ -577,6 +592,7 @@ class DELMConfig:
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "DELMConfig":
+    def from_yaml(cls, path: Union[str, Path]) -> "DELMConfig":
         """Create ``DELMConfig`` from a pipeline config YAML file.
 
         Args:
@@ -590,11 +606,17 @@ class DELMConfig:
         """
         if isinstance(path, str):
             path = Path(path)
+        if isinstance(path, str):
+            path = Path(path)
         if not path.exists():
             raise FileNotFoundError(f"YAML config file does not exist: {path}")
 
         with path.open("r") as f:
+            raise FileNotFoundError(f"YAML config file does not exist: {path}")
+
+        with path.open("r") as f:
             data = yaml.safe_load(f)
+
 
         return cls.from_dict(data)
 
@@ -620,6 +642,10 @@ class DELMConfig:
         elif isinstance(config_like, dict):
             return DELMConfig.from_dict(config_like)
         else:
+            raise ValueError(
+                f"config must be a DELMConfig, dict, or path to YAML. config_type: {type(config_like).__name__}"
+            )
+
             raise ValueError(
                 f"config must be a DELMConfig, dict, or path to YAML. config_type: {type(config_like).__name__}"
             )

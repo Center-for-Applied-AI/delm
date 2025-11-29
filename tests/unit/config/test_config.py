@@ -1,7 +1,7 @@
 """
 Unit tests for DELM configuration module.
 
-NOTE: Most tests have been removed during API redesign. See FEATURES_TODO.md for details.
+NOTE: Most tests have been removed during API redesign.
 """
 
 import pytest

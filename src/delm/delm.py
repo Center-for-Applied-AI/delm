@@ -446,12 +446,21 @@ class DELM:
         Returns:
             A string containing the compiled prompt.
         """
+<<<<<<< HEAD
         target_column_name = self.config.data_preprocessing_cfg.target_column
         if text is None:
             text = f"<{target_column_name}>"
         prompt = self.config.schema.schema.create_prompt(
             text=text,
             prompt_template=self.config.llm_extraction_cfg.prompt_template,
+=======
+        target_column_name = self.config.data_preprocessing.target_column
+        if text is None:
+            text = f"<{target_column_name}>"
+        prompt = self.schema_manager.extraction_schema.create_prompt(
+            text=text,
+            prompt_template=self.schema_manager.prompt_template,
+>>>>>>> origin/main
         )
         return prompt
 
