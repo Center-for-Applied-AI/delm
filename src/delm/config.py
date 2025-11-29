@@ -359,7 +359,7 @@ class DataPreprocessingConfig(BaseConfig):
 class SemanticCacheConfig(BaseConfig):
     """Persistent semantic‑cache settings."""
 
-    backend: str
+    backend: Optional[str]
     path: Union[str, Path]
     max_size_mb: int
     synchronous: str
@@ -374,10 +374,13 @@ class SemanticCacheConfig(BaseConfig):
         Raises:
             ValueError: If backend or parameters are invalid.
         """
-        if self.backend not in {"sqlite", "lmdb", "filesystem"}:
+        if self.backend not in {None, "none", "sqlite", "lmdb", "filesystem"}:
             raise ValueError(
-                f"cache.backend must be 'sqlite', 'lmdb', or 'filesystem'. backend: {self.backend}"
+                f"cache.backend must be None, 'none', 'sqlite', 'lmdb', or 'filesystem'. backend: {self.backend}"
             )
+        # Skip remaining validation if caching is disabled
+        if self.backend is None or self.backend == "none":
+            return
         if not isinstance(self.max_size_mb, int) or self.max_size_mb <= 0:
             raise ValueError(
                 f"cache.max_size_mb must be a positive integer. max_size_mb: {self.max_size_mb}"
@@ -453,7 +456,7 @@ class DELMConfig:
         ] = "Extract the following information from the text:\n\n{variables}\n\nText to analyze:\n{text}",
         system_prompt: Optional[str] = "You are a precise data-extraction assistant.",
         # Semantic Cache Settings
-        cache_backend: str = "sqlite",
+        cache_backend: Optional[str] = "sqlite",
         cache_path: Union[str, Path] = ".delm/cache",
         cache_max_size_mb: int = 512,
         cache_synchronous: str = "normal",

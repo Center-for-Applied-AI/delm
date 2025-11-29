@@ -138,6 +138,31 @@ class SemanticCache(ABC):
 
 
 # --------------------------------------------------------------------------- #
+# No-op back-end (disable caching)                                              #
+# --------------------------------------------------------------------------- #
+class NoOpCache(SemanticCache):
+    """A cache that does nothing - used when caching is disabled."""
+
+    def __init__(self):
+        log.debug("Initializing NoOpCache (caching disabled)")
+
+    def get(self, key: str) -> Optional[bytes]:
+        log.debug("NoOpCache get: key=%s (always returns None)", key[:16] + "...")
+        return None
+
+    def set(
+        self, key: str, value: bytes, meta: Mapping[str, Any] | None = None
+    ) -> None:
+        log.debug("NoOpCache set: key=%s (discarded)", key[:16] + "...")
+
+    def stats(self) -> Mapping[str, Any]:
+        return {"backend": "none", "entries": 0, "bytes": 0, "hit": 0, "miss": 0}
+
+    def prune(self, *, max_size_bytes: int) -> None:
+        pass
+
+
+# --------------------------------------------------------------------------- #
 # Filesystem JSON back‑end (debug / tiny workloads)                             #
 # --------------------------------------------------------------------------- #
 class FilesystemJSONCache(SemanticCache):
@@ -593,10 +618,19 @@ class SemanticCacheFactory:
             log.error("Unknown cache config type: %s", type(cfg))
             raise ValueError(f"Unknown cache config type: {type(cfg)}")
 
-        backend = cfg_dict.get("backend", "sqlite").lower()
+        backend = cfg_dict.get("backend", "sqlite")
+        # Handle None backend (caching disabled)
+        if backend is None:
+            log.debug("Cache backend is None, creating NoOpCache")
+            return NoOpCache()
+
+        backend = backend.lower()
         path = Path(cfg_dict.get("path", ".delm_cache"))
         log.debug("Cache config: backend=%s, path=%s", backend, path)
 
+        if backend == "none":
+            log.debug("Creating NoOpCache (caching disabled)")
+            return NoOpCache()
         if backend == "filesystem":
             log.debug("Creating FilesystemJSONCache")
             return FilesystemJSONCache(path)
