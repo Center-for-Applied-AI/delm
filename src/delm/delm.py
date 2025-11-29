@@ -97,8 +97,66 @@ class DELM:
         file_log_level: str = "DEBUG",
         override_logging: bool = True,
     ) -> None:
-        """
-        Initialize DELM.
+        """Initialize the DELM extraction pipeline.
+
+        Args:
+            schema: Extraction schema defining the variables to extract. Can be a path
+                to a YAML file, a dictionary, or a Schema object.
+
+            provider: LLM provider to use.
+            model: Model name to use for extraction.
+            base_url: Custom API base URL for the provider. Useful for proxies or
+                self-hosted endpoints.
+            mode: Instructor mode for structured output.
+            temperature: Sampling temperature for LLM responses. Lower values produce
+                more deterministic outputs.
+            batch_size: Number of text chunks to process per API batch.
+            max_workers: Maximum number of concurrent workers for parallel processing.
+            max_retries: Maximum number of retry attempts for failed API calls.
+            base_delay: Base delay in seconds for exponential backoff between retries.
+            tokens_per_minute: Rate limit for tokens per minute.
+            requests_per_minute: Rate limit for requests per minute.
+            track_cost: Whether to track API costs during extraction.
+            max_budget: Maximum budget in dollars. Extraction stops if exceeded.
+            model_input_cost_per_1M_tokens: Override input token cost per 1M tokens.
+                Uses built-in pricing if not specified.
+            model_output_cost_per_1M_tokens: Override output token cost per 1M tokens.
+                Uses built-in pricing if not specified.
+
+            target_column: Name of the column containing text to extract from.
+            drop_target_column: Whether to drop the original target column after
+                splitting into chunks.
+            splitting_strategy: Strategy for splitting text into chunks. Can be a
+                dict config or a ``SplitStrategy`` instance.
+            relevance_scorer: Strategy for scoring chunk relevance. Can be a dict
+                config or a ``RelevanceScorer`` instance.
+            score_filter: Pandas query string to filter chunks by score
+                (e.g., ``"delm_score > 0.5"``).
+
+            prompt_template: Template for the extraction prompt. Must contain
+                ``{variables}`` and ``{text}`` placeholders.
+            system_prompt: System prompt for the LLM.
+
+            cache_backend: Backend for semantic caching. Options: ``"sqlite"``,
+                ``"lmdb"``, ``"filesystem"``, ``"none"``, or ``None`` to disable.
+            cache_path: Directory path for cache storage.
+            cache_max_size_mb: Maximum cache size in megabytes.
+            cache_synchronous: SQLite synchronous mode (``"normal"`` or ``"full"``).
+
+            use_disk_storage: Whether to use disk-based storage for experiment data
+                and checkpoints.
+            experiment_path: Directory path for experiment data when using disk storage.
+                Required if ``use_disk_storage=True``.
+            overwrite_experiment: Whether to overwrite an existing experiment directory.
+            auto_checkpoint_and_resume_experiment: Whether to automatically save
+                checkpoints and resume from them on restart.
+
+            save_log_file: Whether to save logs to a file.
+            log_dir: Directory for log files.
+            log_file_prefix: Prefix for log file names.
+            console_log_level: Logging level for console output.
+            file_log_level: Logging level for file output.
+            override_logging: Whether to override existing logging configuration.
         """
         config = DELMConfig(
             schema=schema,
@@ -240,7 +298,9 @@ class DELM:
 
         Args:
             data: The data source to extract data from.
-            sample_size: The number of records to sample from the data source.
+            sample_size: Optional number of records to sample before processing. ``-1``
+                (default) processes all rows; a positive value samples deterministically
+                using ``SYSTEM_RANDOM_SEED``.
 
         Returns:
             A DataFrame containing the extracted data.
