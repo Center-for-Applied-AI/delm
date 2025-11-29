@@ -398,7 +398,7 @@ class DiskExperimentManager(BaseExperimentManager):
     def save_preprocessed_data(self, df: pd.DataFrame) -> Path:
         """Save preprocessed data as feather file."""
         log.debug(f"Saving preprocessed data to: {self.preprocessed_data_path}")
-        df.to_feather(self.preprocessed_data_path)
+        df.to_feather(self.preprocessed_data_path, compression="zstd")
         log.info(f"Preprocessed data saved to: {self.preprocessed_data_path}")
         return self.preprocessed_data_path
 
@@ -430,7 +430,7 @@ class DiskExperimentManager(BaseExperimentManager):
         )
         batch_path = self.cache_dir / batch_filename
         log.debug(f"Saving batch checkpoint to: {batch_path}")
-        batch_df.to_feather(batch_path)
+        batch_df.to_feather(batch_path, compression="zstd")
         log.debug(f"Batch checkpoint saved to: {batch_path}")
         return batch_path
 
@@ -602,7 +602,7 @@ class DiskExperimentManager(BaseExperimentManager):
             f"Saving extracted data to: {self.data_dir / CONSOLIDATED_RESULT_FILE_NAME}"
         )
         result_path = self.data_dir / CONSOLIDATED_RESULT_FILE_NAME
-        df.to_feather(result_path)
+        df.to_feather(result_path, compression="zstd")
         log.info(f"Saved extracted data to: {result_path}")
         return result_path
 
