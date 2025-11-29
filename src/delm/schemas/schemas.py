@@ -14,12 +14,15 @@ from __future__ import annotations
 ###############################################################################
 # Imports
 ###############################################################################
+from dataclasses import dataclass
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
+from pathlib import Path
 from typing import Any, Union, Optional, Dict, List, Sequence, Type
 
-from pydantic import BaseModel, Field  # <- real Field, returns FieldInfo
+from pydantic import BaseModel, Field
+import yaml
 
 from delm.constants import LLM_NULL_WORDS_LOWERCASE
 from delm.models import ExtractionVariable
@@ -37,14 +40,6 @@ _Mapping: Dict[str, type] = {
     "boolean": bool,
     "date": str,
 }
-
-
-def _make_enum(name: str, allowed: Sequence[str]) -> Enum:
-    """Create a *safe* Enum from arbitrary strings (spaces / dashes removed)."""
-    log.debug(f"Creating enum '{name}' with {len(allowed)} allowed values")
-    safe_members = {str(v).replace(" ", "_").replace("-", "_"): v for v in allowed}
-    log.debug(f"Enum '{name}' created with {len(safe_members)} safe members")
-    return Enum(name, safe_members)
 
 
 def _ann_and_field(dtype: str, required: bool, desc: str):
@@ -103,11 +98,8 @@ def _validate_type_safe(val, data_type, path) -> bool:
 ###############################################################################
 # Abstract base
 ###############################################################################
-class BaseSchema(ABC):
+class ExtractionSchema(ABC):
     """Common surface for Simple, Nested, Multiple schemas."""
-
-    def __init__(self, config: Dict[str, Any]):
-        pass
 
     # Required interface -----------------------------------------------------
     @property
@@ -130,15 +122,12 @@ class BaseSchema(ABC):
         ...
 
     @abstractmethod
-    def create_prompt(
-        self, text: str, prompt_template: str, context: Dict[str, Any] | None = None
-    ) -> str:
+    def create_prompt(self, text: str, prompt_template: str) -> str:
         """Create a prompt for the schema.
 
         Args:
             text: The text to create the prompt from.
             prompt_template: The prompt template to use.
-            context: The context to inject into the prompt.
 
         Returns:
             A prompt for the schema.
@@ -188,7 +177,7 @@ class BaseSchema(ABC):
         return getattr(self, "_container_name", "instances")
 
     @property
-    def schemas(self) -> Dict[str, "BaseSchema"]:
+    def schemas(self) -> Dict[str, "ExtractionSchema"]:
         return getattr(self, "_schemas", {})
 
     # ---------------------------------------------------------------------
@@ -213,22 +202,11 @@ class BaseSchema(ABC):
 ###############################################################################
 # Simple (flat) schema
 ###############################################################################
-class SimpleSchema(BaseSchema):
-    def __init__(self, config: Dict[str, Any]):
+class SimpleSchema(ExtractionSchema):
+    def __init__(self, variables: List[ExtractionVariable]):
         log.debug("Initializing SimpleSchema")
-        self._variables = [
-            ExtractionVariable.from_dict(v) for v in config.get("variables", [])
-        ]
-        log.debug(f"SimpleSchema initialized with {len(self._variables)} variables")
-
-        # derived – which variables are lists?
-        self._list_vars = [
-            v.name for v in self._variables if v.data_type.startswith("[")
-        ]
-        if self._list_vars:
-            log.debug(
-                f"SimpleSchema has {len(self._list_vars)} list variables: {self._list_vars}"
-            )
+        self._variables = variables
+        self._pydantic_schema: Optional[Type[BaseModel]] = None
 
     # ---- interface impl ----------------------------------------------------
     @property
@@ -236,6 +214,10 @@ class SimpleSchema(BaseSchema):
         return self._variables
 
     def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create and cache the Pydantic schema for extraction."""
+        if self._pydantic_schema is not None:
+            return self._pydantic_schema
+
         log.debug("Creating Pydantic schema for SimpleSchema")
         annotations, fields = {}, {}
         for v in self.variables:
@@ -245,11 +227,12 @@ class SimpleSchema(BaseSchema):
         log.debug(
             f"SimpleSchema Pydantic schema created with {len(annotations)} fields"
         )
-        return type(
+        self._pydantic_schema = type(
             "DynamicExtractSchema",
             (BaseModel,),
             {"__annotations__": annotations, **fields},
         )
+        return self._pydantic_schema
 
     def create_prompt(
         self, text: str, prompt_template: str, context: Dict[str, Any] | None = None
@@ -265,17 +248,15 @@ class SimpleSchema(BaseSchema):
 
     # ---- validation helpers ------------------------------------------------
     def _clean(self, response: BaseModel, text_chunk: str) -> Optional[BaseModel]:
-        log.debug("Cleaning SimpleSchema response")
+        """Clean and validate extraction response."""
         instance_dict = response.model_dump()
         cleaned: Dict[str, Any] = {}
         text_lwr = text_chunk.lower()
-        log.debug(f"Cleaning {len(self.variables)} variables from response")
 
         for v in self.variables:
             raw = instance_dict.get(v.name)
             items = raw if isinstance(raw, list) else [raw]
             items = [i for i in items if i is not None]
-            log.debug(f"Variable '{v.name}': {len(items)} items before filtering")
 
             if "string" in v.data_type:
                 # Filter out NONE strings from LLM unless they're explicitly allowed
@@ -287,44 +268,29 @@ class SimpleSchema(BaseSchema):
                     ]
                 if len(nones_to_filter) > 0:
                     items = [i for i in items if i.lower() not in nones_to_filter]
-                    log.debug(
-                        f"Variable '{v.name}': {len(items)} items after null filtering"
-                    )
 
             if v.allowed_values:
                 items = [i for i in items if i in v.allowed_values]
-                log.debug(
-                    f"Variable '{v.name}': {len(items)} items after allowed values filtering"
-                )
             if v.validate_in_text:
                 items = [
                     i for i in items if isinstance(i, str) and i.lower() in text_lwr
                 ]
-                log.debug(
-                    f"Variable '{v.name}': {len(items)} items after text validation"
-                )
             if v.required and not items:
-                log.debug(
-                    f"Required variable '{v.name}' has no valid items, returning None"
-                )
                 return None  # whole response invalid
             cleaned[v.name] = (
                 items if v.data_type.startswith("[") else (items[0] if items else None)
             )
 
         Schema = self.create_pydantic_schema()
-        log.debug(f"SimpleSchema cleaned response with {len(cleaned)} variables")
         return Schema(**cleaned)
 
     # ---- public validate/parse --------------------------------------------
     def validate_and_parse_response_to_dict(
         self, response: Any, text_chunk: str
     ) -> dict:
-        log.debug("Validating and parsing SimpleSchema response to dict")
+        """Validate and parse response to dict."""
         model = self._clean(response, text_chunk)
-        result = {} if model is None else model.model_dump(mode="json")
-        log.debug(f"SimpleSchema dict result has {len(result)} keys")
-        return result
+        return {} if model is None else model.model_dump(mode="json")
 
     def is_valid_json_dict(self, data: Dict[str, Any], path: str = "root") -> bool:
         log.debug(
@@ -367,23 +333,16 @@ class SimpleSchema(BaseSchema):
 ###############################################################################
 # Nested schema (container of items)
 ###############################################################################
-class NestedSchema(BaseSchema):
-    def __init__(self, config: Dict[str, Any]):
+class NestedSchema(ExtractionSchema):
+    def __init__(self, container_name: str, variables: List[ExtractionVariable]):
         log.debug("Initializing NestedSchema")
-        self._container_name = config.get("container_name", "instances")
-        self._variables = [
-            ExtractionVariable.from_dict(v) for v in config.get("variables", [])
-        ]
-        self._list_vars = [
-            v.name for v in self._variables if v.data_type.startswith("[")
-        ]
+        self._container_name = container_name
+        self._variables = variables
+        self._item_schema_cached: Optional[Type[BaseModel]] = None
+        self._pydantic_schema: Optional[Type[BaseModel]] = None
         log.debug(
             f"NestedSchema initialized with container '{self._container_name}', {len(self._variables)} variables"
         )
-        if self._list_vars:
-            log.debug(
-                f"NestedSchema has {len(self._list_vars)} list variables: {self._list_vars}"
-            )
 
     # ---- interface ---------------------------------------------------------
     @property
@@ -396,14 +355,25 @@ class NestedSchema(BaseSchema):
 
     # ---- dynamic schema ----------------------------------------------------
     def _item_schema(self) -> Type[BaseModel]:
+        """Create and cache the item schema for nested extraction."""
+        if self._item_schema_cached is not None:
+            return self._item_schema_cached
+
         ann, flds = {}, {}
         for v in self.variables:
             a, fld, _ = _ann_and_field(v.data_type, v.required, v.description)
             ann[v.name] = a
             flds[v.name] = fld
-        return type("DynamicItem", (BaseModel,), {"__annotations__": ann, **flds})
+        self._item_schema_cached = type(
+            "DynamicItem", (BaseModel,), {"__annotations__": ann, **flds}
+        )
+        return self._item_schema_cached
 
     def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create and cache the Pydantic schema for extraction."""
+        if self._pydantic_schema is not None:
+            return self._pydantic_schema
+
         log.debug(
             f"Creating Pydantic schema for NestedSchema with container '{self.container_name}'"
         )
@@ -417,7 +387,10 @@ class NestedSchema(BaseSchema):
         log.debug(
             f"NestedSchema Pydantic schema created with container '{self.container_name}'"
         )
-        return type("DynamicContainer", (BaseModel,), {"__annotations__": ann, **flds})
+        self._pydantic_schema = type(
+            "DynamicContainer", (BaseModel,), {"__annotations__": ann, **flds}
+        )
+        return self._pydantic_schema
 
     # ---- prompt ------------------------------------------------------------
     def create_prompt(
@@ -437,13 +410,12 @@ class NestedSchema(BaseSchema):
     def _clean_item(
         self, raw_item: Dict[str, Any], text_lwr: str
     ) -> Optional[Dict[str, Any]]:
-        log.debug(f"Cleaning NestedSchema item with {len(self.variables)} variables")
+        """Clean a single item."""
         cleaned: Dict[str, Any] = {}
         for v in self.variables:
             val = raw_item.get(v.name)
             items = val if isinstance(val, list) else [val]
             items = [i for i in items if i is not None]
-            log.debug(f"Variable '{v.name}': {len(items)} items before filtering")
 
             if "string" in v.data_type:
                 # Filter out NONE strings from LLM unless they're explicitly allowed
@@ -455,76 +427,41 @@ class NestedSchema(BaseSchema):
                     ]
                 if len(nones_to_filter) > 0:
                     items = [i for i in items if i.lower() not in nones_to_filter]
-                    log.debug(
-                        f"Variable '{v.name}': {len(items)} items after null filtering"
-                    )
 
             if v.allowed_values:
                 items = [i for i in items if i in v.allowed_values]
-                log.debug(
-                    f"Variable '{v.name}': {len(items)} items after allowed values filtering"
-                )
             if v.validate_in_text:
                 items = [
                     i for i in items if isinstance(i, str) and i.lower() in text_lwr
                 ]
-                log.debug(
-                    f"Variable '{v.name}': {len(items)} items after text validation"
-                )
             if v.required and not items:
-                log.debug(
-                    f"Required variable '{v.name}' has no valid items, skipping item"
-                )
                 return None
             cleaned[v.name] = (
                 items if v.data_type.startswith("[") else (items[0] if items else None)
             )
-        log.debug(f"NestedSchema item cleaned with {len(cleaned)} variables")
         return cleaned
 
     def _clean(self, response: BaseModel, text_chunk: str) -> Optional[BaseModel]:
-        log.debug(
-            f"Cleaning NestedSchema response with container '{self.container_name}'"
-        )
+        """Clean nested response."""
         items = getattr(response, self.container_name, [])
-        log.debug(
-            f"NestedSchema found {len(items)} items in container '{self.container_name}'"
-        )
         text_lwr = text_chunk.lower()
         cleaned_items = [
             ci
             for itm in items
             if (ci := self._clean_item(itm.model_dump(), text_lwr)) is not None
         ]
-        log.debug(
-            f"NestedSchema cleaned {len(cleaned_items)} valid items from {len(items)} total items"
-        )
         if not cleaned_items:
-            log.debug(
-                f"NestedSchema no valid items found in container '{self.container_name}', returning None"
-            )
             return None
         Schema = self.create_pydantic_schema()
-        log.debug(f"NestedSchema created cleaned model with {len(cleaned_items)} items")
         return Schema(**{self.container_name: cleaned_items})
 
     # ---- public parse ------------------------------------------------------
     def validate_and_parse_response_to_dict(
         self, response: Any, text_chunk: str
     ) -> dict:
-        log.debug(
-            f"Validating and parsing NestedSchema response to dict with container '{self.container_name}'"
-        )
+        """Validate and parse response to dict. Hot path - no debug logging."""
         model = self._clean(response, text_chunk)
-        result = {} if model is None else model.model_dump(mode="json")
-        if model is not None:
-            items = result.get(self.container_name, [])
-            log.debug(
-                f"NestedSchema dict result has container '{self.container_name}' with {len(items)} items"
-            )
-        else:
-            log.debug("NestedSchema dict result is empty")
-        return result
+        return {} if model is None else model.model_dump(mode="json")
 
     def is_valid_json_dict(
         self,
@@ -591,21 +528,18 @@ class NestedSchema(BaseSchema):
 ###############################################################################
 # Multiple schema – orchestrates several sub‑schemas
 ###############################################################################
-class MultipleSchema(BaseSchema):
-    def __init__(self, config: Dict[str, Any]):
+class MultipleSchema(ExtractionSchema):
+    def __init__(self, schemas: Dict[str, ExtractionSchema]):
         log.debug("Initializing MultipleSchema")
-        self._schemas: Dict[str, BaseSchema] = {}
-        for schema_name, sub_schema_config in config.items():
-            if schema_name != "schema_type":  # Skip the schema_type key in the spec
-                log.debug(f"Creating sub-schema '{schema_name}'")
-                self._schemas[schema_name] = SchemaRegistry().create(sub_schema_config)
-        log.debug(
-            f"MultipleSchema initialized with {len(self._schemas)} sub-schemas: {list(self._schemas.keys())}"
-        )
+        for schema in schemas.values():
+            if isinstance(schema, MultipleSchema):
+                raise ValueError(f"Cannot nest MultipleSchema")
+        self._schemas = schemas
+        self._pydantic_schema: Optional[Type[BaseModel]] = None
 
     # ---- interface ---------------------------------------------------------
     @property
-    def schemas(self) -> Dict[str, "BaseSchema"]:
+    def schemas(self) -> Dict[str, ExtractionSchema]:
         return self._schemas
 
     @property
@@ -616,6 +550,10 @@ class MultipleSchema(BaseSchema):
         return vars_
 
     def create_pydantic_schema(self) -> Type[BaseModel]:
+        """Create and cache the Pydantic schema for extraction."""
+        if self._pydantic_schema is not None:
+            return self._pydantic_schema
+
         log.debug("Creating Pydantic schema for MultipleSchema")
         ann, flds = {}, {}
         for name, sch in self.schemas.items():
@@ -623,7 +561,10 @@ class MultipleSchema(BaseSchema):
             ann[name] = sch.create_pydantic_schema()
             flds[name] = Field(..., description=f"results for {name}")
         log.debug(f"MultipleSchema Pydantic schema created with {len(ann)} sub-schemas")
-        return type("MultipleExtract", (BaseModel,), {"__annotations__": ann, **flds})
+        self._pydantic_schema = type(
+            "MultipleExtract", (BaseModel,), {"__annotations__": ann, **flds}
+        )
+        return self._pydantic_schema
 
     def create_prompt(
         self, text: str, prompt_template: str, context: Dict[str, Any] | None = None
@@ -645,10 +586,9 @@ class MultipleSchema(BaseSchema):
     def validate_and_parse_response_to_dict(
         self, response: Any, text_chunk: str
     ) -> dict:  # noqa: D401
-        log.debug("Validating and parsing MultipleSchema response to dict")
+        """Validate and parse response to dict. Hot path - no debug logging."""
         out: Dict[str, Any] = {}
         for name, sch in self.schemas.items():
-            log.debug(f"Processing sub-schema '{name}' for dict output")
             sub_resp = (
                 getattr(response, name, None) if hasattr(response, name) else None
             )
@@ -661,15 +601,8 @@ class MultipleSchema(BaseSchema):
                 container = sch.container_name
                 unwrapped_val = val.get(container, []) if isinstance(val, dict) else val
                 out[name] = unwrapped_val
-                log.debug(
-                    f"Sub-schema '{name}' (nested) unwrapped container '{container}' with {len(unwrapped_val) if isinstance(unwrapped_val, list) else 'scalar'} items"
-                )
             else:
                 out[name] = val
-                log.debug(
-                    f"Sub-schema '{name}' (simple) with {len(val) if isinstance(val, dict) else 'scalar'} items"
-                )
-        log.debug(f"MultipleSchema dict result has {len(out)} sub-schemas")
         return out
 
     def is_valid_json_dict(self, data: Dict[str, Any], path: str = "root") -> bool:
@@ -707,43 +640,262 @@ class MultipleSchema(BaseSchema):
         return True
 
 
-###############################################################################
-# Schema registry
-###############################################################################
-class SchemaRegistry:
-    def __init__(self):
-        log.debug("Initializing SchemaRegistry")
-        self._reg: Dict[str, Type[BaseSchema]] = {}
-        self._reg.update(
-            {
-                "simple": SimpleSchema,
-                "nested": NestedSchema,
-                "multiple": MultipleSchema,
-            }
-        )
-        log.debug(
-            f"SchemaRegistry initialized with {len(self._reg)} schema types: {list(self._reg.keys())}"
+@dataclass
+class Schema:
+    """User-facing unified schema API."""
+
+    schema: ExtractionSchema
+
+    @classmethod
+    def simple(
+        cls,
+        *variables: ExtractionVariable,
+        variables_list: Optional[List[ExtractionVariable]] = None,
+    ) -> "Schema":
+        """Create a simple (flat) extraction schema.
+
+        Args:
+            *variables: Variable definitions (positional args)
+            variables_list: Variable definitions (as list, alternative to *variables)
+
+        Examples:
+            Positional args:
+            >>> schema = Schema.simple(
+            ...     ExtractionVariable("company", "Company name", "string"),
+            ...     ExtractionVariable("revenue", "Revenue amount", "number"),
+            ... )
+
+            Or as a list:
+            >>> vars = [
+            ...     ExtractionVariable("company", "Company name", "string"),
+            ...     ExtractionVariable("revenue", "Revenue amount", "number"),
+            ... ]
+            >>> schema = Schema.simple(variables_list=vars)
+        """
+        # Use positional args if provided, otherwise use variables_list
+        vars_list: List[ExtractionVariable] = (
+            list(variables) if variables else (variables_list or [])
         )
 
-    def register(self, name: str, cls: Type[BaseSchema]):
-        log.debug(f"Registering schema type '{name}' with class {cls.__name__}")
-        self._reg[name] = cls
+        if not vars_list:
+            raise ValueError("Must provide at least one variable")
 
-    def create(self, cfg: Dict[str, Any]) -> BaseSchema:
-        typ = cfg.get("schema_type", "simple")
-        log.debug(f"Creating schema with type '{typ}'")
-        if typ not in self._reg:
+        return cls(schema=SimpleSchema(variables=vars_list))
+
+    @classmethod
+    def nested(
+        cls,
+        container_name: str,
+        *variables: ExtractionVariable,
+        variables_list: Optional[List[ExtractionVariable]] = None,
+    ) -> "Schema":
+        """Create a nested (list) extraction schema.
+
+        Args:
+            container_name: Name for the list container (e.g., "products", "companies")
+            *variables: Variable definitions for each object in the list (positional)
+            variables_list: Variable definitions (as list, alternative to *variables)
+
+        Examples:
+            >>> schema = Schema.nested(
+            ...     "products",
+            ...     ExtractionVariable("name", "Product name", "string", required=True),
+            ...     ExtractionVariable("price", "Product price", "number"),
+            ... )
+        """
+        vars_list: List[ExtractionVariable] = (
+            list(variables) if variables else (variables_list or [])
+        )
+
+        if not vars_list:
+            raise ValueError("Must provide at least one variable")
+
+        return cls(
+            schema=NestedSchema(container_name=container_name, variables=vars_list)
+        )
+
+    @classmethod
+    def multiple(cls, **schemas: "Schema") -> "Schema":
+        """Create a multiple schema for extracting several independent structures.
+
+        Args:
+            **schemas: Named Schema objects to extract independently
+
+        Examples:
+            >>> products_schema = Schema.nested(
+            ...     "products",
+            ...     ExtractionVariable("name", "Product name", "string")
+            ... )
+            >>> companies_schema = Schema.nested(
+            ...     "companies",
+            ...     ExtractionVariable("name", "Company name", "string")
+            ... )
+            >>> schema = Schema.multiple(
+            ...     products=products_schema,
+            ...     companies=companies_schema
+            ... )
+        """
+        if not schemas:
+            raise ValueError("Must provide at least one sub-schema")
+
+        # Unwrap Schema wrappers to get internal schema objects
+        internal_schemas: Dict[str, ExtractionSchema] = {
+            name: s.schema for name, s in schemas.items()
+        }
+        return cls(schema=MultipleSchema(schemas=internal_schemas))
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "Schema":
+        """Create a schema from a dictionary.
+
+        Args:
+            data: Dictionary containing schema specification with:
+                - schema_type: "simple", "nested", or "multiple" (default: "simple")
+                - variables: List of variable definitions (for simple/nested)
+                - container_name: Container name (for nested only)
+                - For multiple: sub-schema definitions as additional keys
+
+        Returns:
+            Schema instance
+
+        Examples:
+            Simple schema:
+            >>> schema = Schema.from_dict({
+            ...     "schema_type": "simple",
+            ...     "variables": [
+            ...         {"name": "price", "description": "Price", "data_type": "number"}
+            ...     ]
+            ... })
+
+            Nested schema:
+            >>> schema = Schema.from_dict({
+            ...     "schema_type": "nested",
+            ...     "container_name": "products",
+            ...     "variables": [
+            ...         {"name": "name", "description": "Product name", "data_type": "string"}
+            ...     ]
+            ... })
+
+            Multiple schema:
+            >>> schema = Schema.from_dict({
+            ...     "schema_type": "multiple",
+            ...     "commodities": {
+            ...         "schema_type": "nested",
+            ...         "container_name": "commodities",
+            ...         "variables": [...]
+            ...     },
+            ...     "companies": {
+            ...         "schema_type": "simple",
+            ...         "variables": [...]
+            ...     }
+            ... })
+        """
+        schema_type = data.get("schema_type", "simple").lower()
+        log.debug(f"Creating schema from dict with schema_type: {schema_type}")
+
+        if schema_type == "simple":
+            variables = [
+                ExtractionVariable.from_dict(v) for v in data.get("variables", [])
+            ]
+            log.debug(f"Created simple schema with {len(variables)} variables")
+            return cls.simple(variables_list=variables)
+
+        elif schema_type == "nested":
+            container_name = data.get("container_name", "instances")
+            variables = [
+                ExtractionVariable.from_dict(v) for v in data.get("variables", [])
+            ]
+            log.debug(
+                f"Created nested schema with container '{container_name}' and {len(variables)} variables"
+            )
+            return cls.nested(container_name, variables_list=variables)
+
+        elif schema_type == "multiple":
+            # For multiple schemas, each key (except schema_type) is a sub-schema
+            schemas = {}
+            for key, value in data.items():
+                if key != "schema_type":
+                    log.debug(f"Parsing sub-schema '{key}' for multiple schema")
+                    schemas[key] = cls.from_dict(value)
+            log.debug(
+                f"Created multiple schema with {len(schemas)} sub-schemas: {list(schemas.keys())}"
+            )
+            return cls.multiple(**schemas)
+
+        else:
+            available_types = ["simple", "nested", "multiple"]
             log.error(
-                f"Unknown schema_type '{typ}', available types: {list(self._reg.keys())}"
+                f"Unknown schema_type '{schema_type}', available types: {available_types}"
             )
             raise ValueError(
-                f"Unknown schema_type {typ}, available types: {list(self._reg.keys())}"
+                f"Unknown schema_type '{schema_type}'. Valid types: {', '.join(available_types)}"
             )
-        schema = self._reg[typ](cfg)
-        log.debug(f"Successfully created schema of type '{typ}'")
-        return schema
 
-    def list_available(self) -> List[str]:
-        available = list(self._reg.keys())
-        log.debug(f"Available schema types: {available}")
-        return available
+    @classmethod
+    def from_yaml(cls, path: Union[str, Path]) -> "Schema":
+        """Create a schema from a YAML file.
+
+        Args:
+            path: Path to YAML file containing schema specification
+
+        Returns:
+            Schema instance
+
+        Raises:
+            ValueError: If file format is not YAML or file is empty
+        """
+        path = Path(path) if isinstance(path, str) else path
+        log.debug(f"Loading schema from YAML file: {path}")
+
+        if path.suffix.lower() not in {".yml", ".yaml"}:
+            raise ValueError(f"Unsupported schema file format: {path.suffix}")
+
+        log.debug("Loading YAML schema specification")
+        content = yaml.safe_load(path.read_text()) or {}
+
+        if not content:
+            raise ValueError("YAML schema specification is empty")
+
+        return cls.from_dict(content)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the schema to a dictionary.
+
+        Returns:
+            Dictionary representation of the schema that can be used with from_dict()
+
+        Examples:
+            >>> schema = Schema.simple(
+            ...     ExtractionVariable("price", "Price value", "number")
+            ... )
+            >>> schema_dict = schema.to_dict()
+            >>> # schema_dict == {"schema_type": "simple", "variables": [...]}
+        """
+        log.debug(f"Converting schema to dict: {type(self.schema).__name__}")
+
+        if isinstance(self.schema, SimpleSchema):
+            return {
+                "schema_type": "simple",
+                "variables": [v.to_dict() for v in self.schema.variables],
+            }
+
+        elif isinstance(self.schema, NestedSchema):
+            return {
+                "schema_type": "nested",
+                "container_name": self.schema.container_name,
+                "variables": [v.to_dict() for v in self.schema.variables],
+            }
+
+        elif isinstance(self.schema, MultipleSchema):
+            result: Dict[str, Any] = {"schema_type": "multiple"}
+            for name, sub_schema in self.schema.schemas.items():
+                # Recursively convert sub-schemas
+                sub_schema_wrapper = Schema(schema=sub_schema)
+                result[name] = sub_schema_wrapper.to_dict()
+            log.debug(
+                f"Converted multiple schema with {len(result) - 1} sub-schemas to dict"
+            )
+            return result
+
+        else:
+            raise ValueError(f"Unknown schema type: {type(self.schema).__name__}")

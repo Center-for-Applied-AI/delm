@@ -3,18 +3,21 @@ ExtractionManager - Handles LLM extraction and result parsing.
 """
 
 import logging
-import re
 import json
-from typing import Any, Union, Optional, Dict, List
+import os
+from typing import Any, Optional, Dict, List
 
 import pandas as pd
 import instructor
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+import tiktoken
+
+from delm.utils.rate_limiter import RateLimiter
 
 # Module-level logger
 log = logging.getLogger(__name__)
 
-from delm.schemas import SchemaManager
+from delm.schemas import ExtractionSchema
 from delm.utils import RetryHandler, ConcurrentProcessor
 from delm.config import LLMExtractionConfig
 from delm.constants import (
@@ -37,17 +40,19 @@ class ExtractionManager:
     def __init__(
         self,
         model_config: LLMExtractionConfig,
-        schema_manager: "SchemaManager",
-        cost_tracker: "CostTracker",
+        extraction_schema: ExtractionSchema,
+        cost_tracker: Optional[CostTracker],
         semantic_cache: "SemanticCache",
+        rate_limiter: "RateLimiter",
     ):
         """Initialize the ExtractionManager.
 
         Args:
             model_config: The model configuration.
-            schema_manager: The schema manager.
+            extraction_schema: The extraction schema.
             cost_tracker: The cost tracker.
             semantic_cache: The semantic cache.
+            rate_limiter: The rate limiter.
         """
 
         log.debug("Initializing ExtractionManager")
@@ -55,17 +60,72 @@ class ExtractionManager:
         self.temperature = model_config.temperature
 
         log.debug(
-            f"Model config: {self.model_config.name}, temperature: {self.temperature}"
+            f"Model config: {self.model_config.model}, temperature: {self.temperature}"
         )
 
-        # Use Instructor's universal provider interface
+        # Create Instructor client using universal provider interface
         provider_string = self.model_config.get_provider_string()
         log.debug(f"Creating Instructor client with provider: {provider_string}")
-        self.client = instructor.from_provider(provider_string)
 
-        self.schema_manager = schema_manager
-        self.extraction_schema = self.schema_manager.get_extraction_schema()
-        log.debug(f"Extraction schema loaded: {type(self.extraction_schema).__name__}")
+        # Convert mode string to instructor.Mode enum if provided
+        instructor_mode = None
+        if model_config.mode:
+            mode_map = {
+                "tools": instructor.Mode.TOOLS,
+                "json": instructor.Mode.JSON,
+                "json_schema": instructor.Mode.JSON_SCHEMA,
+                "md_json": instructor.Mode.MD_JSON,
+            }
+            instructor_mode = mode_map.get(model_config.mode.lower())
+            if instructor_mode is None:
+                raise ValueError(
+                    f"Invalid mode '{model_config.mode}'. "
+                    f"Supported modes: {list(mode_map.keys())}"
+                )
+            log.debug(f"Using Instructor mode: {instructor_mode}")
+
+        if model_config.base_url:
+            log.debug(f"Using custom base_url: {model_config.base_url}")
+            if model_config.provider == "openai":
+                import openai
+
+                openai_client = openai.OpenAI(
+                    base_url=model_config.base_url,
+                    api_key=os.environ.get("OPENAI_API_KEY", "EMPTY"),
+                )
+                if instructor_mode is not None:
+                    self.client = instructor.from_openai(
+                        client=openai_client,
+                        model=model_config.model,
+                        mode=instructor_mode,
+                    )
+                else:
+                    self.client = instructor.from_openai(
+                        client=openai_client,
+                        model=model_config.model,
+                    )
+            else:
+                if instructor_mode is not None:
+                    self.client = instructor.from_provider(
+                        model=provider_string,
+                        base_url=model_config.base_url,
+                        mode=instructor_mode,
+                    )
+                else:
+                    self.client = instructor.from_provider(
+                        model=provider_string,
+                        base_url=model_config.base_url,
+                    )
+        else:
+            if instructor_mode is not None:
+                self.client = instructor.from_provider(
+                    provider_string,
+                    mode=instructor_mode,
+                )
+            else:
+                self.client = instructor.from_provider(provider_string)
+
+        self.extraction_schema = extraction_schema
 
         log.debug(
             f"Creating ConcurrentProcessor with max_workers: {model_config.max_workers}"
@@ -77,11 +137,17 @@ class ExtractionManager:
         log.debug(f"Creating RetryHandler with max_retries: {model_config.max_retries}")
         self.retry_handler = RetryHandler(max_retries=model_config.max_retries)
 
-        self.track_cost = model_config.track_cost
+        self.prompt_template = model_config.prompt_template
+        self.system_prompt = model_config.system_prompt
+
         self.cost_tracker = cost_tracker
         self.semantic_cache = semantic_cache
+        self.rate_limiter = rate_limiter
 
-        log.debug(f"Cost tracking enabled: {self.track_cost}")
+        self.max_output_tokens = 0
+
+        log.debug(f"Cost tracking enabled: {self.cost_tracker is not None}")
+        log.debug(f"Rate limiter: {type(self.rate_limiter).__name__}")
         log.debug("ExtractionManager initialized successfully")
 
     def process_with_batching(
@@ -243,16 +309,23 @@ class ExtractionManager:
                 )
 
                 # Check if we are over budget
-                if self.track_cost and self.cost_tracker.is_over_budget():
+                if self.cost_tracker is not None and self.cost_tracker.is_over_budget():
                     log.warning(
                         "Over budget, stopping extraction at batch %d", batch_id
                     )
                     break
 
                 log.debug("Starting concurrent processing for batch %d", batch_id)
+
+                def _on_chunk_complete():
+                    pbar.update(1)
+                    pbar.refresh()
+
                 try:
                     results = self.concurrent_processor.process_concurrently(
-                        batch_chunks, lambda p: self._extract_from_text_chunk(p)
+                        batch_chunks,
+                        lambda p: self._extract_from_text_chunk(p),
+                        on_item_complete=_on_chunk_complete,
                     )
                 except Exception as e:
                     log.error(
@@ -275,7 +348,9 @@ class ExtractionManager:
                 log.debug(
                     "Batch %d parsed to DataFrame with %d rows", batch_id, len(batch_df)
                 )
-                pbar.update(len(batch_chunks))
+
+                # Explicitly free results to prevent memory accumulation
+                del results
 
                 if auto_checkpoint:
                     log.debug("Saving batch checkpoint %d", batch_id)
@@ -284,6 +359,16 @@ class ExtractionManager:
                     log.debug(
                         "Successfully saved batch checkpoint %d and state", batch_id
                     )
+                    # Explicitly free batch DataFrame after saving
+                    del batch_df
+
+                    # Periodic WAL checkpoint every 10 batches to reclaim memory
+                    if batch_id > 0 and batch_id % 10 == 0:
+                        if hasattr(self.semantic_cache, "checkpoint"):
+                            self.semantic_cache.checkpoint()
+                            log.debug(
+                                "Periodic WAL checkpoint after batch %d", batch_id
+                            )
                 else:
                     log.debug(
                         "Adding batch %d DataFrame to memory collection", batch_id
@@ -323,16 +408,13 @@ class ExtractionManager:
         Returns:
             A dictionary containing the extracted data and errors.
         """
-        log.debug("Extracting from text chunk (length: %d)", len(text_chunk))
-
-        if self.track_cost and self.cost_tracker.is_over_budget():
+        # Hot path - minimal logging
+        if self.cost_tracker is not None and self.cost_tracker.is_over_budget():
             log.debug("Over budget, skipping text chunk extraction")
             return {"extracted_data": None, "errors": "Over budget"}
 
         try:
-            log.debug("Starting Instructor extraction for text chunk")
             result = self._instructor_extract_with_retry(text_chunk)
-            log.debug("Instructor extraction completed successfully")
             return {"extracted_data": result, "errors": []}
         except Exception as llm_error:
             log.error("Extraction failed for text chunk: %s", llm_error)
@@ -351,46 +433,31 @@ class ExtractionManager:
             InstructorError: If the LLM API call fails.
             ValueError: If the response is not a Pydantic model.
         """
-        log.debug("Creating Pydantic schema for extraction")
+        # Hot path - minimal logging. Schema is cached internally.
         schema = self.extraction_schema.create_pydantic_schema()
+        prompt = self.extraction_schema.create_prompt(text_chunk, self.prompt_template)
+        system_prompt = self.system_prompt
 
-        log.debug("Creating prompt for text chunk")
-        prompt = self.extraction_schema.create_prompt(
-            text_chunk, self.schema_manager.prompt_template
-        )
-        system_prompt = self.schema_manager.system_prompt
-        provider_and_model = self.model_config.get_provider_string()
-
-        log.debug(
-            "Extraction setup: provider=%s, prompt_length=%d, system_prompt_length=%d",
-            provider_and_model,
-            len(prompt),
-            len(system_prompt),
+        estimated_total_tokens = self._estimate_total_tokens(
+            system_prompt, prompt, schema, tokenize=True
         )
 
         def _instructor_extract():
-            log.debug("Starting LLM extraction with schema")
-            if self.track_cost:
-                log.debug("Tracking input text for cost calculation")
-                self.cost_tracker.track_input_text(system_prompt + "\n" + prompt)
+            self.rate_limiter.before_request(est_tokens=estimated_total_tokens)
 
             try:
-                log.debug(
-                    "Making LLM API call: model=%s, temperature=%s",
-                    self.model_config.name,
-                    self.temperature,
+                response, completion = (
+                    self.client.chat.completions.create_with_completion(
+                        model=self.model_config.model,
+                        temperature=self.temperature,
+                        response_model=schema,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": prompt},
+                        ],
+                        max_retries=0,
+                    )
                 )
-                response = self.client.chat.completions.create(
-                    model=self.model_config.name,
-                    temperature=self.temperature,
-                    response_model=schema,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt},
-                    ],
-                    max_retries=0,
-                )
-                log.debug("LLM API call completed successfully")
             except Exception as e:
                 log.error("LLM API call failed: %s", e)
                 raise InstructorError(
@@ -401,14 +468,40 @@ class ExtractionManager:
                 log.error("Invalid response type: %s", type(response))
                 raise ValueError(f"Unsupported response type: {type(response)}")
 
-            if self.track_cost:
-                log.debug("Tracking output for cost calculation")
-                self.cost_tracker.track_output_pydantic(response)
+            usage = getattr(completion, "usage", None)
+            prompt_tokens = (
+                getattr(usage, "prompt_tokens", None) if usage is not None else None
+            )
+            completion_tokens = (
+                getattr(usage, "completion_tokens", None) if usage is not None else None
+            )
 
-            log.debug("Extraction with schema completed successfully")
+            if completion_tokens is not None and prompt_tokens is not None:
+                self.max_output_tokens = max(self.max_output_tokens, completion_tokens)
+                log.debug("Updated max output tokens: %d", self.max_output_tokens)
+
+                self.rate_limiter.after_request(
+                    actual_tokens=prompt_tokens + completion_tokens
+                )
+
+            if self.cost_tracker is not None:
+                if isinstance(prompt_tokens, int) and isinstance(
+                    completion_tokens, int
+                ):
+                    self.cost_tracker.track_token_usage(
+                        prompt_tokens, completion_tokens
+                    )
+                else:
+                    # Fallback: system + user + JSON schema of Pydantic model
+                    self.cost_tracker.track_input_text(
+                        system_prompt + "\n" + prompt + "\n", schema
+                    )
+                    self.cost_tracker.track_output_pydantic(response)
+
             return response
 
-        log.debug("Checking semantic cache for existing extraction")
+        # Check semantic cache - hot path, minimal logging
+        provider_and_model = self.model_config.get_provider_string()
         try:
             key = make_cache_key(
                 prompt_text=prompt,
@@ -418,31 +511,50 @@ class ExtractionManager:
             )
             cached = self.semantic_cache.get(key)
             if cached:
-                log.debug("Cache hit found, loading cached result")
                 loaded = json.loads(cached.decode("utf-8"))
                 pydantic_result = schema(**loaded)
-                if self.track_cost and self.cost_tracker.count_cache_hits_towards_cost:
-                    log.debug("Tracking cache hit for cost calculation")
-                    self.cost_tracker.track_input_text(system_prompt + "\n" + prompt)
+                if (
+                    self.cost_tracker is not None
+                    and self.cost_tracker.count_cache_hits_towards_cost
+                ):
+                    self.cost_tracker.track_input_text(
+                        system_prompt + "\n" + prompt + "\n", schema
+                    )
                     self.cost_tracker.track_output_pydantic(pydantic_result)
-                log.debug("Returning cached extraction result")
                 return pydantic_result
-
-            log.debug("Cache miss, performing new extraction")
         except Exception as e:
             log.error(f"Cache error {e}, performing new extraction")
 
         response = self.retry_handler.execute_with_retry(_instructor_extract)
         response_dict = response.model_dump(mode="json")
-        log.debug("Extraction completed, caching result")
         # Convert to dict to save to semantic cache
         try:
             self.semantic_cache.set(key, json.dumps(response_dict).encode("utf-8"))
-            log.debug("Result cached successfully")
         except Exception as e:
             log.error(f"Cache error {e}, did not cache result")
-            pass
         return response
+
+    def _estimate_total_tokens(
+        self,
+        system_prompt: str,
+        prompt: str,
+        schema: BaseModel,
+        tokenize: bool = True,
+    ) -> int:
+        """Estimate the total tokens for a given system prompt, prompt, and schema."""
+        # Include schema JSON for estimation alongside system + user prompt
+        complete_prompt = (
+            f"{system_prompt}\n{prompt}\n{json.dumps(schema.model_json_schema())}"
+        )
+        if tokenize:
+            tokenizer = tiktoken.get_encoding("cl100k_base")
+            input_tokens = len(tokenizer.encode(complete_prompt))
+        else:
+            input_tokens = len(complete_prompt) // 4
+
+        total_tokens = input_tokens + self.max_output_tokens
+
+        return total_tokens
 
     def parse_results_dataframe(
         self,
@@ -469,23 +581,13 @@ class ExtractionManager:
             len(results),
         )
 
+        # Hot path - process all results without per-item logging
         data: List[pd.DataFrame] = []
         for result, text_chunk, chunk_id in zip(results, text_chunks, text_chunk_ids):
             errors_json = json.dumps(result["errors"]) if result["errors"] else None
             extracted_data: Optional[BaseModel] = result["extracted_data"]
 
-            log.debug(
-                "Processing chunk %d: has_extracted_data=%s, has_errors=%s",
-                chunk_id,
-                extracted_data is not None,
-                bool(result["errors"]),
-            )
-
             if extracted_data is None:
-                log.debug(
-                    "Chunk %d: No extracted data, creating error row with JSON column",
-                    chunk_id,
-                )
                 row_df = pd.DataFrame(
                     [
                         {
@@ -499,15 +601,11 @@ class ExtractionManager:
                 )
                 data.append(row_df)
             else:
-                log.debug(
-                    "Chunk %d: Parsing extracted data to dict for JSON column", chunk_id
-                )
                 extracted_data_dict = (
                     self.extraction_schema.validate_and_parse_response_to_dict(
                         extracted_data, str(text_chunk)
                     )
                 )
-                log.debug("Chunk %d: Creating row with JSON data", chunk_id)
                 row = {
                     SYSTEM_CHUNK_ID_COLUMN: chunk_id,
                     SYSTEM_BATCH_ID_COLUMN: batch_id,
@@ -518,9 +616,6 @@ class ExtractionManager:
                 data.append(pd.DataFrame([row]))
 
         # Outer join to preserve all columns in case there is a mismatch in the column sets.
-        log.debug("Concatenating %d DataFrame parts", len(data))
-        result_df = (
+        return (
             pd.concat(data, ignore_index=True, join="outer") if data else pd.DataFrame()
         )
-        log.debug("Final DataFrame created with %d rows", len(result_df))
-        return result_df

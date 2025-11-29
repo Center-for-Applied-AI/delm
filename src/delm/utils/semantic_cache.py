@@ -42,6 +42,8 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Union, Optional, Mapping
 
+from delm.config import SemanticCacheConfig
+
 # Module-level logger
 log = logging.getLogger(__name__)
 
@@ -133,6 +135,31 @@ class SemanticCache(ABC):
     @abstractmethod
     def prune(self, *, max_size_bytes: int) -> None:
         """Delete oldest entries until on‑disk size ≤ *max_size_bytes*."""
+
+
+# --------------------------------------------------------------------------- #
+# No-op back-end (disable caching)                                              #
+# --------------------------------------------------------------------------- #
+class NoOpCache(SemanticCache):
+    """A cache that does nothing - used when caching is disabled."""
+
+    def __init__(self):
+        log.debug("Initializing NoOpCache (caching disabled)")
+
+    def get(self, key: str) -> Optional[bytes]:
+        log.debug("NoOpCache get: key=%s (always returns None)", key[:16] + "...")
+        return None
+
+    def set(
+        self, key: str, value: bytes, meta: Mapping[str, Any] | None = None
+    ) -> None:
+        log.debug("NoOpCache set: key=%s (discarded)", key[:16] + "...")
+
+    def stats(self) -> Mapping[str, Any]:
+        return {"backend": "none", "entries": 0, "bytes": 0, "hit": 0, "miss": 0}
+
+    def prune(self, *, max_size_bytes: int) -> None:
+        pass
 
 
 # --------------------------------------------------------------------------- #
@@ -282,6 +309,8 @@ class SQLiteWALCache(SemanticCache):
         self._local = (
             threading.local()
         )  # Thread-local storage for connections and zstd objects
+        self._all_connections = []  # Track all connections for cleanup
+        self._connections_lock = threading.Lock()  # Protect connection list
 
         # Initialize database schema with a temporary connection
         temp_db = sqlite3.connect(self.path, check_same_thread=False, timeout=120)
@@ -312,6 +341,9 @@ class SQLiteWALCache(SemanticCache):
             )
             self._local.db.execute("PRAGMA journal_mode=WAL;")
             self._local.db.execute(f"PRAGMA synchronous={self._synchronous};")
+            # Track connection for cleanup
+            with self._connections_lock:
+                self._all_connections.append(self._local.db)
         return self._local.db
 
     def _get_zstd_objects(self):
@@ -440,15 +472,29 @@ class SQLiteWALCache(SemanticCache):
         )
 
     def close(self):
-        """Close all thread-local database connections and clean up zstd objects."""
+        """Close ALL database connections from all threads and clean up."""
+        # Close all tracked connections from all threads
+        with self._connections_lock:
+            for conn in self._all_connections:
+                try:
+                    conn.close()
+                except Exception:
+                    pass  # Connection may already be closed
+            self._all_connections.clear()
+
+        # Clean up current thread's local storage
         if hasattr(self._local, "db"):
-            self._local.db.close()
             delattr(self._local, "db")
-        # Clean up zstd objects (they don't need explicit cleanup, but we can clear them)
         if hasattr(self._local, "zstd_compressor"):
             delattr(self._local, "zstd_compressor")
         if hasattr(self._local, "zstd_decompressor"):
             delattr(self._local, "zstd_decompressor")
+
+    def checkpoint(self):
+        """Force a WAL checkpoint to reclaim memory and disk space."""
+        db = self._get_db()
+        db.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+        log.debug("SQLite WAL checkpoint completed")
 
 
 # --------------------------------------------------------------------------- #
@@ -556,7 +602,7 @@ class SemanticCacheFactory:
     """Create a cache instance from a config mapping (dict or attr‑access)."""
 
     @staticmethod
-    def from_config(cfg) -> SemanticCache:
+    def from_config(cfg: SemanticCacheConfig) -> SemanticCache:
         log.debug("Creating SemanticCache from config: %s", cfg)
 
         if cfg is None:
@@ -572,10 +618,19 @@ class SemanticCacheFactory:
             log.error("Unknown cache config type: %s", type(cfg))
             raise ValueError(f"Unknown cache config type: {type(cfg)}")
 
-        backend = cfg_dict.get("backend", "sqlite").lower()
+        backend = cfg_dict.get("backend", "sqlite")
+        # Handle None backend (caching disabled)
+        if backend is None:
+            log.debug("Cache backend is None, creating NoOpCache")
+            return NoOpCache()
+
+        backend = backend.lower()
         path = Path(cfg_dict.get("path", ".delm_cache"))
         log.debug("Cache config: backend=%s, path=%s", backend, path)
 
+        if backend == "none":
+            log.debug("Creating NoOpCache (caching disabled)")
+            return NoOpCache()
         if backend == "filesystem":
             log.debug("Creating FilesystemJSONCache")
             return FilesystemJSONCache(path)

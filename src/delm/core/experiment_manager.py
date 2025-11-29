@@ -26,10 +26,9 @@ from delm.constants import (
     BATCH_FILE_SUFFIX,
     BATCH_FILE_DIGITS,
     STATE_FILE_NAME,
-    CONSOLIDATED_RESULT_PREFIX,
-    CONSOLIDATED_RESULT_SUFFIX,
-    PREPROCESSED_DATA_PREFIX,
-    PREPROCESSED_DATA_SUFFIX,
+    CONSOLIDATED_RESULT_FILE_NAME,
+    PREPROCESSED_DATA_FILE_NAME,
+    META_DATA_FILE_NAME,
 )
 from delm.utils.cost_tracker import CostTracker
 from delm.exceptions import ExperimentManagementError
@@ -213,18 +212,15 @@ class DiskExperimentManager(BaseExperimentManager):
 
     def __init__(
         self,
-        experiment_name: str,
-        experiment_directory: Path,
+        experiment_path: Path,
         overwrite_experiment: bool = False,
         auto_checkpoint_and_resume_experiment: bool = True,
     ):
-        self.experiment_name = experiment_name
-        self.experiment_directory = experiment_directory
+        self.experiment_dir = experiment_path
         self.overwrite_experiment = overwrite_experiment
         self.auto_checkpoint_and_resume_experiment = (
             auto_checkpoint_and_resume_experiment
         )
-        self.experiment_dir = self._get_experiment_dir()
 
     # --- Properties for common paths ---
     @property
@@ -247,10 +243,7 @@ class DiskExperimentManager(BaseExperimentManager):
 
     def is_experiment_completed(self) -> bool:
         """Check if the experiment is completed by checking if the consolidated result file exists."""
-        result_file = (
-            self.data_dir
-            / f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
-        )
+        result_file = self.data_dir / CONSOLIDATED_RESULT_FILE_NAME
         return result_file.exists()
 
     def get_results(self) -> pd.DataFrame:
@@ -262,10 +255,7 @@ class DiskExperimentManager(BaseExperimentManager):
         Raises:
             FileNotFoundError: If the consolidated result file does not exist.
         """
-        result_file = (
-            self.data_dir
-            / f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
-        )
+        result_file = self.data_dir / CONSOLIDATED_RESULT_FILE_NAME
         if not result_file.exists():
             log.debug(f"Consolidated result file not found: {result_file}")
             raise FileNotFoundError(
@@ -275,13 +265,13 @@ class DiskExperimentManager(BaseExperimentManager):
         return pd.read_feather(result_file)
 
     def initialize_experiment(self, delm_config: DELMConfig):
-        """Validate and create experiment directory structure; write config and schema files.
+        """Validate and create experiment directory structure; write config file.
 
         Raises:
             ExperimentManagementError: If the experiment directory exists and neither
                 overwrite nor checkpoint/resume is allowed.
             FileNotFoundError: If attempting to resume without config files present.
-            ValueError: If resume config or schema mismatches current configuration.
+            ValueError: If resume config mismatches current configuration.
         """
         experiment_dir_path = self.experiment_dir
         if experiment_dir_path.exists():
@@ -301,7 +291,7 @@ class DiskExperimentManager(BaseExperimentManager):
                         """Experiment exists and is already completed. 
                         To proceed, set overwrite_experiment=True to 
                         overwrite the existing experiment, or use a different 
-                        experiment name."""
+                        experiment path."""
                     )
                 # Verify config/schema match before resuming
                 log.debug(
@@ -318,8 +308,7 @@ class DiskExperimentManager(BaseExperimentManager):
                         f"  - Set auto_checkpoint_and_resume_experiment=True to resume (if config/schema match, previous experiment was checkpointed, and previous run did not complete).\n"
                     ),
                     {
-                        "experiment_name": self.experiment_name,
-                        "experiment_dir": str(self.experiment_directory),
+                        "experiment_path": self.experiment_path,
                         "overwrite_experiment": self.overwrite_experiment,
                         "auto_checkpoint_and_resume_experiment": self.auto_checkpoint_and_resume_experiment,
                     },
@@ -330,33 +319,21 @@ class DiskExperimentManager(BaseExperimentManager):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         log.debug(f"Experiment directory structure created: {experiment_dir_path}")
 
-        # Save pipeline config and schema spec files to experiment config directory
+        # Save pipeline config file to experiment config directory
         log.debug(
             f"Saving pipeline config and schema spec files to experiment config directory: {experiment_dir_path}"
         )
-        pipeline_config_path = self.config_dir / f"config_{self.experiment_name}.yaml"
-        schema_spec_path = self.config_dir / f"schema_spec_{self.experiment_name}.yaml"
-        serialized_config_dict = delm_config.to_serialized_config_dict()
-        serialized_schema_spec_dict = delm_config.to_serialized_schema_spec_dict()
+        pipeline_config_path = self.config_dir / f"config.yaml"
+        serialized_config_dict = delm_config.to_dict()
         with open(pipeline_config_path, "w") as f:
             yaml.dump(
                 serialized_config_dict, f, default_flow_style=False, sort_keys=False
-            )
-        with open(schema_spec_path, "w") as f:
-            yaml.dump(
-                serialized_schema_spec_dict,
-                f,
-                default_flow_style=False,
-                sort_keys=False,
             )
         log.debug(
             f"Pipeline config and schema spec files saved to experiment config directory: {experiment_dir_path}"
         )
 
-        self.preprocessed_data_path = (
-            self.data_dir
-            / f"{PREPROCESSED_DATA_PREFIX}{self.experiment_name}{PREPROCESSED_DATA_SUFFIX}"
-        )
+        self.preprocessed_data_path = self.data_dir / PREPROCESSED_DATA_FILE_NAME
         log.debug(f"Experiment initialized: {experiment_dir_path}")
 
     def _find_config_differences(
@@ -393,22 +370,19 @@ class DiskExperimentManager(BaseExperimentManager):
 
     def verify_resume_config(self, delm_config: DELMConfig):
         """Compare config/schema in config/ folder to user-supplied DELMConfig. Abort if they differ."""
-        config_yaml = self.config_dir / f"config_{self.experiment_name}.yaml"
-        schema_yaml = self.config_dir / f"schema_spec_{self.experiment_name}.yaml"
-        log.debug(f"Verifying resume configs from: {config_yaml} and {schema_yaml}")
-        if not config_yaml.exists() or not schema_yaml.exists():
+        config_yaml = self.config_dir / f"config.yaml"
+        log.debug(f"Verifying resume configs from: {config_yaml}")
+        if not config_yaml.exists():
             log.error(
-                f"Cannot resume experiment: config files not found: {config_yaml} and {schema_yaml}"
+                f"Cannot resume experiment: config files not found: {config_yaml}"
             )
             raise FileNotFoundError(
-                f"Cannot resume experiment: config files not found: {config_yaml} and {schema_yaml}"
+                f"Cannot resume experiment: config files not found: {config_yaml}"
             )
 
         file_config = yaml.safe_load(config_yaml.read_text())
-        file_schema = yaml.safe_load(schema_yaml.read_text())
 
-        current_config_dict = delm_config.to_serialized_config_dict()
-        current_schema_dict = delm_config.to_serialized_schema_spec_dict()
+        current_config_dict = delm_config.to_dict()
 
         if file_config != current_config_dict:
             differences = self._find_config_differences(
@@ -418,22 +392,13 @@ class DiskExperimentManager(BaseExperimentManager):
                 f"Config mismatch: current config does not match the one used for this experiment. \nMismatched fields:\n"
                 + "\n".join(f"  - {diff}" for diff in differences)
             )
-        if file_schema != current_schema_dict:
-            differences = self._find_config_differences(
-                current_schema_dict, file_schema
-            )
-            raise ValueError(
-                f"Schema mismatch: current schema does not match the one used for this experiment. \nMismatched fields:\n"
-                + "\n".join(f"  - {diff}" for diff in differences)
-            )
-
         log.debug(f"Resume config verified successfully")
 
     # --- Preprocessing Data ---
     def save_preprocessed_data(self, df: pd.DataFrame) -> Path:
         """Save preprocessed data as feather file."""
         log.debug(f"Saving preprocessed data to: {self.preprocessed_data_path}")
-        df.to_feather(self.preprocessed_data_path)
+        df.to_feather(self.preprocessed_data_path, compression="zstd")
         log.info(f"Preprocessed data saved to: {self.preprocessed_data_path}")
         return self.preprocessed_data_path
 
@@ -465,7 +430,7 @@ class DiskExperimentManager(BaseExperimentManager):
         )
         batch_path = self.cache_dir / batch_filename
         log.debug(f"Saving batch checkpoint to: {batch_path}")
-        batch_df.to_feather(batch_path)
+        batch_df.to_feather(batch_path, compression="zstd")
         log.debug(f"Batch checkpoint saved to: {batch_path}")
         return batch_path
 
@@ -599,12 +564,12 @@ class DiskExperimentManager(BaseExperimentManager):
         return False
 
     # --- State Management ---
-    def save_state(self, cost_tracker: CostTracker):
+    def save_state(self, cost_tracker: Optional[CostTracker]):
         """Save experiment state (cost tracker only) to state file as JSON."""
         log.debug(f"Saving experiment state to: {self.cache_dir / STATE_FILE_NAME}")
         state_path = self.cache_dir / STATE_FILE_NAME
         state = {
-            "cost_tracker": cost_tracker.to_dict(),
+            "cost_tracker": cost_tracker.to_dict() if cost_tracker else None,
         }
         start_time = time.time()
         with open(state_path, "w") as f:
@@ -625,48 +590,33 @@ class DiskExperimentManager(BaseExperimentManager):
             state = json.load(f)
         elapsed_time = time.time() - start_time
         log.debug(f"Experiment state loaded from: {state_path} in {elapsed_time:.2f}s")
-        return CostTracker.from_dict(state["cost_tracker"])
+        if state["cost_tracker"] is not None:
+            return CostTracker.from_dict(state["cost_tracker"])
+        else:
+            log.debug(f"No cost tracker found in experiment state")
+            return None
 
     def save_extracted_data(self, df: pd.DataFrame) -> Path:
         """Save extracted data as feather file."""
         log.debug(
-            f"Saving extracted data to: {self.data_dir / CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
+            f"Saving extracted data to: {self.data_dir / CONSOLIDATED_RESULT_FILE_NAME}"
         )
-        result_filename = f"{CONSOLIDATED_RESULT_PREFIX}{self.experiment_name}{CONSOLIDATED_RESULT_SUFFIX}"
-        result_path = self.data_dir / result_filename
-        df.to_feather(result_path)
+        result_path = self.data_dir / CONSOLIDATED_RESULT_FILE_NAME
+        df.to_feather(result_path, compression="zstd")
         log.info(f"Saved extracted data to: {result_path}")
         return result_path
-
-    # --- Private helpers ---
-    def _get_experiment_dir(self) -> Path:
-        """Return the experiment directory path (does not create it)."""
-        log.debug(
-            f"Getting experiment directory path: {self.experiment_directory / self.experiment_name}"
-        )
-        return self.experiment_directory / self.experiment_name
 
 
 class InMemoryExperimentManager(BaseExperimentManager):
     """Stores all experiment data in memory. Disk-specific features are not supported."""
 
-    def __init__(self, experiment_name: str, **kwargs):
-        log.debug(f"Initializing InMemoryExperimentManager: {experiment_name}")
-        if kwargs.get("overwrite_experiment", False):
-            raise ValueError(
-                "overwrite_experiment is not supported for InMemoryExperimentManager."
-            )
-        if kwargs.get("auto_checkpoint_and_resume_experiment", False):
-            raise ValueError(
-                "auto_checkpoint_and_resume_experiment is not supported for InMemoryExperimentManager."
-            )
-        self.experiment_name = experiment_name
+    def __init__(self):
+        log.debug(f"Initializing InMemoryExperimentManager")
         self._preprocessed_data = None
         self._batches = {}  # batch_id -> DataFrame
         self._state = None
         self._extracted_data = None
         self._config_dict = None
-        self._schema_dict = None
 
     def get_results(self) -> pd.DataFrame:
         """Return extracted results held in memory.
@@ -685,10 +635,9 @@ class InMemoryExperimentManager(BaseExperimentManager):
         return self._extracted_data
 
     def initialize_experiment(self, delm_config: DELMConfig):
-        """Initialize in-memory experiment by storing config and schema dicts."""
+        """Initialize in-memory experiment by storing config dict."""
         log.debug(f"Initializing experiment in InMemoryExperimentManager")
-        self._config_dict = delm_config.to_serialized_config_dict()
-        self._schema_dict = delm_config.to_serialized_schema_spec_dict()
+        self._config_dict = delm_config.to_dict()
 
     def save_preprocessed_data(self, df: pd.DataFrame) -> str:
         """Save preprocessed data in memory.
@@ -817,7 +766,7 @@ class InMemoryExperimentManager(BaseExperimentManager):
             return True
         return False
 
-    def save_state(self, cost_tracker: CostTracker):
+    def save_state(self, cost_tracker: Optional[CostTracker]):
         """Save the cost tracker in memory."""
         self._state = cost_tracker
 

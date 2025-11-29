@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 import json
 import random
 
@@ -13,9 +13,8 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 import dotenv
-import yaml
 
-from delm import DELM, DELMConfig
+from delm import DELM, Schema, ExtractionVariable
 from delm.utils.performance_estimation import estimate_performance
 
 
@@ -32,11 +31,6 @@ PROJECT_ROOT = CURRENT_DIR.parent.parent
 dotenv.load_dotenv(PROJECT_ROOT / ".env", override=True)
 
 SOURCE_DATA_PATH = PROJECT_ROOT / "data" / "commodity_data.csv"
-BASE_CONFIG_PATH = CURRENT_DIR / "config.yaml"
-BASE_SCHEMA_PATH = CURRENT_DIR / "commodity_schema.yaml"
-
-OPTIMIZER_CONFIG_PATH = CURRENT_DIR / "optimizer_config.yaml"
-OPTIMIZER_SCHEMA_PATH = CURRENT_DIR / "optimizer_schema.yaml"
 
 EXPERIMENT_ROOT_DIR = CURRENT_DIR / "experiments" / "prompt_opt"
 EXPERIMENT_ROOT_DIR.mkdir(parents=True, exist_ok=True)
@@ -47,6 +41,139 @@ TARGET_FIELD_KEY = f"{CONTAINER_NAME}.price_expectation"
 NUM_BATCHES = 5
 SAMPLE_WRONG_EXAMPLES = 10
 EVAL_SAMPLE_RATIO = 0.10
+
+# ----------------------------------------------------------------------------
+# Schemas & Configs
+# ----------------------------------------------------------------------------
+
+
+def get_base_schema(price_expectation_description: str) -> Schema:
+    return Schema.nested(
+        CONTAINER_NAME,
+        ExtractionVariable(
+            name="good",
+            data_type="string",
+            required=True,
+            description="The name of the good or commodity mentioned",
+            allowed_values=[
+                "silver",
+                "gold",
+                "soybeans",
+                "heating oil",
+                "copper",
+                "gasoline",
+                "natural gas",
+                "aluminum",
+                "iron ore",
+                "corn",
+                "cotton",
+                "palm",
+                "gas",
+                "oil",
+                "nickel",
+                "sugar",
+                "cattle",
+                "wheat",
+                "coal",
+                "zinc",
+                "coffee",
+                "emissions",
+                "tin",
+                "hogs",
+                "cocoa",
+                "lead",
+                "diesel",
+                "uranium",
+                "ethanol",
+                "platinum",
+                "electricity",
+                "fuel",
+                "energy",
+                "other",
+            ],
+            validate_in_text=True,
+        ),
+        ExtractionVariable(
+            name="good_subtype",
+            data_type="string",
+            required=False,
+            description="Subtype or specific variety of the good if applicable",
+        ),
+        ExtractionVariable(
+            name="price_expectation",
+            data_type="boolean",
+            required=True,
+            description=price_expectation_description,
+        ),
+        ExtractionVariable(
+            name="price_lower",
+            data_type="number",
+            required=False,
+            description="Lower bound of the price range if specified",
+        ),
+        ExtractionVariable(
+            name="price_upper",
+            data_type="number",
+            required=False,
+            description="Upper bound of the price range if specified",
+        ),
+        ExtractionVariable(
+            name="unit",
+            data_type="string",
+            required=False,
+            description="Unit of measurement for the price (e.g., per ton, per barrel, per unit)",
+        ),
+        ExtractionVariable(
+            name="currency",
+            data_type="string",
+            required=False,
+            description="Currency of the price (e.g., USD, EUR, GBP)",
+        ),
+        ExtractionVariable(
+            name="horizon",
+            data_type="string",
+            required=False,
+            description="Time horizon for the price (e.g., Q1 2024, end of year, next quarter)",
+        ),
+    )
+
+
+INITIAL_PRICE_EXPECTATION_DESC = (
+    "Whether this is a price expectation (future price) or current price"
+)
+
+BASE_PROMPT_TEMPLATE = """# Instructions
+  Given an excerpt from an investor call transcript, identify and record all instances where a firm representative mentions a definite numeric price for a good. A good is something you can reasonably assume is traded in a market. Ignore instances without a numeric price.
+
+  ## Guidelines
+
+  ### Speaker Verification
+  - Ensure the statement comes from a firm representative (e.g., CEO, CFO), not from a third party like an external analyst or an unidentified speaker. The speaker's name and affiliation are often mentioned at the start.
+  - Exclude any prices mentioned by external analysts or third parties; only include prices mentioned by firm representatives.
+
+  ### Capture Multiple Instances
+  - If a statement contains multiple prices or goods, record each instance separately.
+{variables}
+
+{text}"""
+
+OPTIMIZER_SCHEMA = Schema.simple(
+    ExtractionVariable(
+        name="price_expectation_new_definition",
+        description="Corrected definition of what constitutes a price expectation",
+        data_type="string",
+        required=True,
+    )
+)
+
+OPTIMIZER_PROMPT_TEMPLATE = """Your task is to refine the definition of the variable "price_expectation" based on 10 wrong examples. The variable is a boolean, so the wrong examples should all have been labeled as opposite. Identify the implicit logic the extractor missed.
+{variables}
+
+Current definition of the variable "price_expectation":
+{current_definition}
+
+Examples where price_expectation is wrong:
+{examples}"""
 
 
 # ----------------------------------------------------------------------------
@@ -250,7 +377,7 @@ def annotate_price_expectation_counts(record_pairs_df: pd.DataFrame) -> pd.DataF
 def compute_batch_stats(
     *,
     record_pairs_df: pd.DataFrame,
-    cfg: DELMConfig,
+    delm_instance: DELM,
     record_text_df: pd.DataFrame,
 ) -> Dict[str, int]:
     """Compute n_obs, n_chunks, n_extractions, n_extractions_wrong_pe for this batch.
@@ -266,16 +393,17 @@ def compute_batch_stats(
 
     # Compute chunks using the same preprocessing config on the matched IDs only
     sample_source_df = record_text_df[record_text_df["id"].isin(ids)].copy()
-    delm_tmp = DELM(
-        config=cfg,
-        experiment_name="prompt_opt_counts",
-        experiment_directory=EXPERIMENT_ROOT_DIR / "tmp_counts",
+
+    delm_tmp = DELM.from_config(
+        delm_instance.config,
+        experiment_path=EXPERIMENT_ROOT_DIR / "tmp_counts",
         overwrite_experiment=False,
         auto_checkpoint_and_resume_experiment=False,
         use_disk_storage=False,
-        save_file_log=False,
+        save_log_file=False,
         override_logging=False,
     )
+
     prepped_df = delm_tmp.prep_data(sample_source_df)
     n_chunks = int(len(prepped_df))
 
@@ -407,46 +535,36 @@ def compose_wrong_examples_text(
     return "\n\n---\n\n".join(blocks)
 
 
-def get_current_price_expectation_description(schema_path: Path) -> str:
-    """Return current description text for price_expectation from schema YAML."""
-    spec = yaml.safe_load(schema_path.read_text()) or {}
-    for var in spec.get("variables", []):
-        if var.get("name") == "price_expectation":
-            return str(var.get("description", "")).strip()
-    return ""
-
-
-def set_price_expectation_description(schema_path: Path, new_description: str) -> None:
-    """Overwrite the description of price_expectation in schema YAML."""
-    spec = yaml.safe_load(schema_path.read_text()) or {}
-    changed = False
-    for var in spec.get("variables", []):
-        if var.get("name") == "price_expectation":
-            var["description"] = str(new_description).strip()
-            changed = True
-            break
-    if changed:
-        schema_path.write_text(
-            yaml.safe_dump(spec, sort_keys=False, allow_unicode=True)
-        )
-
-
 def run_optimizer_and_get_guidance(
     current_definition: str, examples_text: str
 ) -> Dict[str, Any]:
     """Run optimizer to produce a refined definition from wrong examples."""
-    cfg = DELMConfig.from_yaml(OPTIMIZER_CONFIG_PATH)
-    cfg.schema.spec_path = OPTIMIZER_SCHEMA_PATH
 
-    templ = str(cfg.schema.prompt_template)
+    templ = OPTIMIZER_PROMPT_TEMPLATE
     templ = templ.replace("{current_definition}", current_definition)
     templ = templ.replace("{examples}", examples_text)
-    cfg.schema.prompt_template = templ
 
     delm = DELM(
-        config=cfg,
-        experiment_name="prompt_optimizer",
-        experiment_directory=EXPERIMENT_ROOT_DIR / "optimizer",
+        schema=OPTIMIZER_SCHEMA,
+        provider="openai",
+        model="gpt-4o-mini",  # Changed from gpt-5 to gpt-4o-mini as per delm.py default or available models
+        temperature=1.0,
+        batch_size=1,
+        max_workers=1,
+        max_retries=3,
+        base_delay=1.0,
+        track_cost=True,
+        max_budget=10.0,
+        target_column="text",
+        drop_target_column=False,
+        splitting_strategy={"type": "None"},
+        relevance_scorer={"type": "None"},
+        prompt_template=templ,
+        cache_backend="sqlite",
+        cache_path=".delm/kirill_cache",
+        cache_max_size_mb=100,
+        cache_synchronous="normal",
+        experiment_path=EXPERIMENT_ROOT_DIR / "optimizer",
         overwrite_experiment=False,
         auto_checkpoint_and_resume_experiment=False,
         use_disk_storage=False,
@@ -469,9 +587,6 @@ def run_optimizer_and_get_guidance(
     return merged
 
 
-# Removed: prompt-guidance appends. We iterate by updating schema variable description.
-
-
 # ----------------------------------------------------------------------------
 # main flow
 # ----------------------------------------------------------------------------
@@ -492,9 +607,6 @@ def main() -> None:
 
     record_expected_df = build_expected_df(record_labeled_df.copy())
 
-    base_cfg = DELMConfig.from_yaml(BASE_CONFIG_PATH)
-    base_cfg.schema.spec_path = BASE_SCHEMA_PATH
-
     batch_records: List[Dict[str, Any]] = []
 
     # Where we incrementally persist batch metrics and plot
@@ -505,8 +617,51 @@ def main() -> None:
         1, int(np.ceil(EVAL_SAMPLE_RATIO * len(record_expected_df)))
     )
 
+    current_price_expectation_desc = INITIAL_PRICE_EXPECTATION_DESC
+
     for batch_idx in tqdm(range(NUM_BATCHES + 1), desc="batches", leave=True):
-        cfg = DELMConfig.from_dict(base_cfg.to_serialized_config_dict())
+
+        # Create schema with current description
+        current_schema = get_base_schema(current_price_expectation_desc)
+
+        # Initialize DELM with current schema and base config
+        delm = DELM(
+            schema=current_schema,
+            provider="openai",
+            model="gpt-4o-mini",  # Changed from gpt-5-mini
+            temperature=1.0,
+            batch_size=10,
+            max_workers=25,
+            max_retries=3,
+            base_delay=1.0,
+            track_cost=True,
+            max_budget=50.0,
+            target_column="text",
+            drop_target_column=False,
+            score_filter="delm_score > 0",
+            splitting_strategy={"type": "ParagraphSplit"},
+            relevance_scorer={
+                "type": "KeywordScorer",
+                "keywords": [
+                    "price",
+                    "cost",
+                    "market",
+                    "commodity",
+                    "oil",
+                    "gas",
+                    "steel",
+                    "copper",
+                    "aluminum",
+                    "gold",
+                ],
+            },
+            prompt_template=BASE_PROMPT_TEMPLATE,
+            cache_backend="sqlite",
+            cache_path=".delm/kirill_cache",
+            cache_max_size_mb=100,
+            cache_synchronous="normal",
+            # Experiment settings handled by estimate_performance mostly, but we can set defaults here
+        )
 
         exp_dir = EXPERIMENT_ROOT_DIR / f"batch_{batch_idx:02d}"
         exp_dir.mkdir(parents=True, exist_ok=True)
@@ -517,7 +672,7 @@ def main() -> None:
         )
 
         metrics_dict, record_pairs_df = estimate_performance(
-            config=cfg,
+            delm_instance=delm,  # Pass instance instead of config
             data_source=record_text_df,
             expected_extraction_output_df=expected_batch_df,
             true_json_column="expected_json",
@@ -534,7 +689,7 @@ def main() -> None:
         # Collect batch stats
         stats = compute_batch_stats(
             record_pairs_df=record_pairs_df,
-            cfg=cfg,
+            delm_instance=delm,
             record_text_df=record_text_df,
         )
 
@@ -606,8 +761,9 @@ def main() -> None:
             )
             (exp_dir / "wrong_examples.txt").write_text(examples_text, encoding="utf-8")
 
-            current_def = get_current_price_expectation_description(BASE_SCHEMA_PATH)
-            guidance = run_optimizer_and_get_guidance(current_def, examples_text)
+            guidance = run_optimizer_and_get_guidance(
+                current_price_expectation_desc, examples_text
+            )
 
             (exp_dir / "optimizer_output.json").write_text(
                 json.dumps(guidance, ensure_ascii=False, indent=2),
@@ -616,7 +772,7 @@ def main() -> None:
 
             new_def = str(guidance.get("price_expectation_new_definition", "")).strip()
             if new_def:
-                set_price_expectation_description(BASE_SCHEMA_PATH, new_def)
+                current_price_expectation_desc = new_def
 
     # Final plot refresh from accumulated CSV (PNG + PDF)
     save_precision_plot(

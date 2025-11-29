@@ -25,18 +25,10 @@ R = TypeVar("R")  # output type
 class ConcurrentProcessor:
     """Thin wrapper over ThreadPoolExecutor.
 
-<<<<<<< HEAD
     Args:
         max_workers: Number of threads. ``None`` (or <= 0) picks a heuristic
             default ``min(32, os.cpu_count() + 4)``. A value of 1 forces
             sequential execution.
-=======
-    Parameters
-    ----------
-    max_workers : Optional[int], optional
-        Number of threads. ``None`` (or <= 0) picks a heuristic default
-        ``min(32, os.cpu_count() + 4)``. A value of 1 forces sequential mode.
->>>>>>> ad04d3dddfe7e9c168c2221c5933c22d45bd42d1
     """
 
     def __init__(self, *, max_workers: Optional[int] = None) -> None:
@@ -56,6 +48,7 @@ class ConcurrentProcessor:
         self,
         items: Sequence[T],
         fn: Callable[[T], R],
+        on_item_complete: Optional[Callable[[], None]] = None,
     ) -> List[R]:
         """Apply ``fn`` to each element of ``items`` (optionally) in parallel.
 
@@ -91,6 +84,8 @@ class ConcurrentProcessor:
                     result = fn(item)
                     results.append(result)
                     log.debug("Item %d/%d processed successfully", i + 1, len(items))
+                    if on_item_complete is not None:
+                        on_item_complete()
                 except Exception as e:
                     log.error(
                         "Error processing item %d/%d: %s",
@@ -126,6 +121,8 @@ class ConcurrentProcessor:
                         log.debug(
                             "Item %d/%d processed successfully", idx + 1, len(items)
                         )
+                        if on_item_complete is not None:
+                            on_item_complete()
                     except BaseException as exc:  # noqa: BLE001
                         log.error(
                             "Worker raised an exception on item %d/%d: %s",

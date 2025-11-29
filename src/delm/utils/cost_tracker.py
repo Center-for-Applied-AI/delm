@@ -5,6 +5,7 @@ import tiktoken
 import json
 from delm.utils.model_price_database import get_model_token_price
 from typing import List, Any, Union, Optional
+from pydantic import BaseModel
 
 # Module-level logger
 log = logging.getLogger(__name__)
@@ -12,6 +13,7 @@ log = logging.getLogger(__name__)
 
 class CostTracker:
     """Track tokens and estimate cost for an extraction run."""
+
     def __init__(
         self,
         provider: str,
@@ -56,13 +58,21 @@ class CostTracker:
             log.warning("Budget exceeded: $%.4f > $%.4f", current_cost, self.max_budget)
         return is_over
 
-    def track_input_text(self, text: str):
-        """Accumulate input tokens for a single text string."""
-        tokens = self.count_tokens(text)
+    def track_input_text(self, *parts: Any) -> None:
+        """Accumulate input tokens for one or more parts.
+
+        Accepts strings and/or Pydantic BaseModel classes/instances.
+        - str: used as-is
+        - BaseModel subclass: converted to its model_json_schema() JSON
+        - BaseModel instance: converted to its model_dump(mode='json') JSON
+        - other: coerced to str()
+        """
+        if not parts:
+            return
+        combined_text = "".join(self._stringify_input_part(p) for p in parts)
+        tokens = self.count_tokens(combined_text)
         self.input_tokens += tokens
-        log.debug(
-            "Tracked input text: %d tokens (total: %d)", tokens, self.input_tokens
-        )
+        log.debug("Tracked input: %d tokens (total: %d)", tokens, self.input_tokens)
 
     def track_output_text(self, text: str):
         """Accumulate output tokens for a single text string."""
@@ -185,3 +195,31 @@ class CostTracker:
             obj.output_tokens,
         )
         return obj
+
+    def track_token_usage(self, prompt_tokens: int, completion_tokens: int) -> None:
+        """Accumulate tokens using exact usage counts from the provider.
+
+        Args:
+            prompt_tokens: Number of input/prompt tokens reported by the provider.
+            completion_tokens: Number of output/completion tokens reported by the provider.
+        """
+        self.input_tokens += int(prompt_tokens or 0)
+        self.output_tokens += int(completion_tokens or 0)
+        log.debug(
+            "Tracked usage: prompt=%d, completion=%d (totals: in=%d, out=%d)",
+            int(prompt_tokens or 0),
+            int(completion_tokens or 0),
+            self.input_tokens,
+            self.output_tokens,
+        )
+
+    def _stringify_input_part(self, part: Any) -> str:
+        if isinstance(part, str):
+            return part
+        # Pydantic model class (schema)
+        if isinstance(part, type) and issubclass(part, BaseModel):
+            return json.dumps(part.model_json_schema())
+        # Pydantic model instance
+        if isinstance(part, BaseModel):
+            return json.dumps(part.model_dump(mode="json"))
+        return str(part)
