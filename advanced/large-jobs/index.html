@@ -11,10 +11,10 @@
       
       
       
-        <link rel="prev" href="../extraction-variable/">
+        <link rel="prev" href="../../user-guide/output-data/">
       
       
-        <link rel="next" href="../cost-estimation/">
+        <link rel="next" href="../config-files/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>DELMConfig - DELM Documentation</title>
+        <title>Large Jobs & Checkpointing - DELM Documentation</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#delmconfig" class="md-skip">
+        <a href="#large-jobs-checkpointing" class="md-skip">
           Skip to content
         </a>
       
@@ -111,7 +111,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              DELMConfig
+              Large Jobs & Checkpointing
             
           </span>
         </div>
@@ -559,18 +559,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
@@ -586,7 +588,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             Advanced
@@ -597,10 +599,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../advanced/large-jobs/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Large Jobs & Checkpointing
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -611,6 +635,194 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-disk-storage-checkpointing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Enabling Disk Storage &amp; Checkpointing
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-checkpointing-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How Checkpointing Works
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How Checkpointing Works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automatic-progress-saving" class="md-nav__link">
+    <span class="md-ellipsis">
+      Automatic Progress Saving
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automatic-resumption" class="md-nav__link">
+    <span class="md-ellipsis">
+      Automatic Resumption
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration Options
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#batch-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      Batch Size
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concurrent-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Concurrent Workers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#overwrite-vs-resume" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overwrite vs Resume
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#experiment-directory-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Experiment Directory Structure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retrieving-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Retrieving Results
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Retrieving Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#during-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      During Extraction
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      After Completion
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#experiment-directory-already-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      "Experiment directory already exists"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-mismatch-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      "Config mismatch" Error
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -623,7 +835,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/config-files/" class="md-nav__link">
+      <a href="../config-files/" class="md-nav__link">
         
   
   
@@ -646,7 +858,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/logging/" class="md-nav__link">
+      <a href="../logging/" class="md-nav__link">
         
   
   
@@ -669,7 +881,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/two-stage/" class="md-nav__link">
+      <a href="../two-stage/" class="md-nav__link">
         
   
   
@@ -696,20 +908,18 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
@@ -725,7 +935,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Reference
@@ -739,7 +949,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../reference/" class="md-nav__link">
         
   
   
@@ -762,7 +972,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../delm/" class="md-nav__link">
+      <a href="../../reference/delm/" class="md-nav__link">
         
   
   
@@ -785,7 +995,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../schema/" class="md-nav__link">
+      <a href="../../reference/schema/" class="md-nav__link">
         
   
   
@@ -808,7 +1018,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../extraction-variable/" class="md-nav__link">
+      <a href="../../reference/extraction-variable/" class="md-nav__link">
         
   
   
@@ -828,32 +1038,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    DELMConfig
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../reference/config/" class="md-nav__link">
         
   
   
@@ -864,143 +1052,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#delmconfig_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      DELMConfig
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="DELMConfig">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      Methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#from_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      from_yaml()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#to_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      to_yaml()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#to_dict" class="md-nav__link">
-    <span class="md-ellipsis">
-      to_dict()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#validate" class="md-nav__link">
-    <span class="md-ellipsis">
-      validate()
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sub-configurations" class="md-nav__link">
-    <span class="md-ellipsis">
-      Sub-Configurations
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sub-Configurations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llmextractionconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      LLMExtractionConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#datapreprocessingconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      DataPreprocessingConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#semanticcacheconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      SemanticCacheConfig
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1013,7 +1064,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cost-estimation/" class="md-nav__link">
+      <a href="../../reference/cost-estimation/" class="md-nav__link">
         
   
   
@@ -1036,7 +1087,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../performance-evaluation/" class="md-nav__link">
+      <a href="../../reference/performance-evaluation/" class="md-nav__link">
         
   
   
@@ -1059,7 +1110,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../post-processing/" class="md-nav__link">
+      <a href="../../reference/post-processing/" class="md-nav__link">
         
   
   
@@ -1082,7 +1133,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../splitting-strategies/" class="md-nav__link">
+      <a href="../../reference/splitting-strategies/" class="md-nav__link">
         
   
   
@@ -1105,7 +1156,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../relevance-scorers/" class="md-nav__link">
+      <a href="../../reference/relevance-scorers/" class="md-nav__link">
         
   
   
@@ -1128,7 +1179,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../constants/" class="md-nav__link">
+      <a href="../../reference/constants/" class="md-nav__link">
         
   
   
@@ -1178,103 +1229,46 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#delmconfig_1" class="md-nav__link">
+  <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
-      DELMConfig
+      Overview
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="DELMConfig">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      Methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#from_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      from_yaml()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#to_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      to_yaml()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#to_dict" class="md-nav__link">
-    <span class="md-ellipsis">
-      to_dict()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#validate" class="md-nav__link">
-    <span class="md-ellipsis">
-      validate()
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#sub-configurations" class="md-nav__link">
+  <a href="#enabling-disk-storage-checkpointing" class="md-nav__link">
     <span class="md-ellipsis">
-      Sub-Configurations
+      Enabling Disk Storage &amp; Checkpointing
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Sub-Configurations">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-checkpointing-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      How Checkpointing Works
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How Checkpointing Works">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#llmextractionconfig" class="md-nav__link">
+  <a href="#automatic-progress-saving" class="md-nav__link">
     <span class="md-ellipsis">
-      LLMExtractionConfig
+      Automatic Progress Saving
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#datapreprocessingconfig" class="md-nav__link">
+  <a href="#automatic-resumption" class="md-nav__link">
     <span class="md-ellipsis">
-      DataPreprocessingConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#semanticcacheconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      SemanticCacheConfig
+      Automatic Resumption
     </span>
   </a>
   
@@ -1286,11 +1280,119 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#configuration-options" class="md-nav__link">
     <span class="md-ellipsis">
-      Example
+      Configuration Options
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Configuration Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#batch-size" class="md-nav__link">
+    <span class="md-ellipsis">
+      Batch Size
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#concurrent-workers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Concurrent Workers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#overwrite-vs-resume" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overwrite vs Resume
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#experiment-directory-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      Experiment Directory Structure
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#retrieving-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      Retrieving Results
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Retrieving Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#during-extraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      During Extraction
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      After Completion
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#experiment-directory-already-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      "Experiment directory already exists"
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-mismatch-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      "Config mismatch" Error
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1310,72 +1412,167 @@
 
 
 
-<h1 id="delmconfig">DELMConfig<a class="headerlink" href="#delmconfig" title="Permanent link">&para;</a></h1>
-<p>Configuration objects for DELM pipelines.</p>
-<h2 id="delmconfig_1">DELMConfig<a class="headerlink" href="#delmconfig_1" title="Permanent link">&para;</a></h2>
-<p>Main configuration object containing all settings.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELMConfig</span>
+<h1 id="large-jobs-checkpointing">Large Jobs &amp; Checkpointing<a class="headerlink" href="#large-jobs-checkpointing" title="Permanent link">&para;</a></h1>
+<p>Process large datasets reliably with automatic progress saving and resumption.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>When processing thousands of documents, failures happen (network timeouts, rate limits, crashes). DELM handles this through:</p>
+<ol>
+<li><strong>Automatic Checkpointing</strong>: Saves progress after each batch completes</li>
+<li><strong>Automatic Resumption</strong>: Detects existing progress and continues from where it left off</li>
+<li><strong>Experiment Management</strong>: Organizes all data, configs, and checkpoints in a structured directory</li>
+</ol>
+<p><strong>Note</strong>: For moderate datasets, <strong>caching alone is often sufficient</strong> - interrupted jobs can simply be re-run with cached results returned instantly at no cost. Use disk storage/checkpointing for very large datasets (100K+ chunks) or when you want to save configs and/or reload results later.</p>
+<h2 id="enabling-disk-storage-checkpointing">Enabling Disk Storage &amp; Checkpointing<a class="headerlink" href="#enabling-disk-storage-checkpointing" title="Permanent link">&para;</a></h2>
+<p>Checkpointing requires disk storage to be enabled:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span><span class="p">,</span> <span class="n">Schema</span><span class="p">,</span> <span class="n">ExtractionVariable</span>
 
-<span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="p">(</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">simple</span><span class="p">([</span>
+    <span class="n">ExtractionVariable</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;company&quot;</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;string&quot;</span><span class="p">),</span>
+    <span class="n">ExtractionVariable</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;revenue&quot;</span><span class="p">,</span> <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;number&quot;</span><span class="p">)</span>
+<span class="p">])</span>
+
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
     <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
     <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
     <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">,</span>
-    <span class="o">**</span><span class="n">kwargs</span>
+
+    <span class="c1"># Enable disk storage for checkpointing</span>
+    <span class="n">use_disk_storage</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">experiment_path</span><span class="o">=</span><span class="s2">&quot;experiments/annual_reports_2024&quot;</span><span class="p">,</span>
+    <span class="n">auto_checkpoint_and_resume_experiment</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Default is True</span>
+<span class="p">)</span>
+
+<span class="c1"># Run extraction - progress saved automatically after each batch</span>
+<span class="n">results_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s2">&quot;data/reports.csv&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="how-checkpointing-works">How Checkpointing Works<a class="headerlink" href="#how-checkpointing-works" title="Permanent link">&para;</a></h2>
+<h3 id="automatic-progress-saving">Automatic Progress Saving<a class="headerlink" href="#automatic-progress-saving" title="Permanent link">&para;</a></h3>
+<p>DELM processes data in batches. After each batch completes, it saves:
+1. <strong>Batch results</strong> - Extracted data for that batch
+2. <strong>State</strong> - Cost tracker and progress information</p>
+<p>If your job crashes after processing 5,000 of 10,000 chunks, those 5,000 are already saved.</p>
+<h3 id="automatic-resumption">Automatic Resumption<a class="headerlink" href="#automatic-resumption" title="Permanent link">&para;</a></h3>
+<p>Simply <strong>re-run the same code</strong>. DELM will:
+1. Check the experiment directory for existing checkpoints
+2. Load already-processed batch IDs
+3. Skip completed batches and process only remaining chunks</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># First run - crashes at 50%</span>
+<span class="n">results_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s2">&quot;data/reports.csv&quot;</span><span class="p">)</span>
+
+<span class="c1"># ... Fix issue (internet, rate limit, etc.) ...</span>
+
+<span class="c1"># Second run - automatically resumes from 50%</span>
+<span class="n">results_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s2">&quot;data/reports.csv&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Important</strong>: The schema and config must match exactly between runs. If they don't match, DELM will raise an error to prevent data inconsistency.</p>
+<h2 id="configuration-options">Configuration Options<a class="headerlink" href="#configuration-options" title="Permanent link">&para;</a></h2>
+<h3 id="batch-size">Batch Size<a class="headerlink" href="#batch-size" title="Permanent link">&para;</a></h3>
+<p>Batch size determines how many chunks are processed before a checkpoint:</p>
+<div class="highlight"><pre><span></span><code><span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>  <span class="c1"># Checkpoint every 10 chunks</span>
+    <span class="n">use_disk_storage</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">experiment_path</span><span class="o">=</span><span class="s2">&quot;experiments/my_experiment&quot;</span>
 <span class="p">)</span>
 </code></pre></div>
-<p><strong>Parameters:</strong> Same as <a href="../delm/#constructor-parameters"><code>DELM</code> constructor</a></p>
-<h3 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h3>
-<h4 id="from_yaml">from_yaml()<a class="headerlink" href="#from_yaml" title="Permanent link">&para;</a></h4>
-<p>Load configuration from YAML file.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
+<p><strong>Trade-offs:</strong>
+- <strong>Smaller batches (1-10)</strong>: More frequent checkpoints, less work lost on failure, but more checkpoint overhead
+- <strong>Larger batches (50-100)</strong>: Less checkpoint overhead, but more work lost if a batch fails</p>
+<p><strong>Note</strong>: If a batch fails midway (e.g., chunk 7 of 10), the entire batch is retried. Smaller batches mean less wasted work on retries.</p>
+<h3 id="concurrent-workers">Concurrent Workers<a class="headerlink" href="#concurrent-workers" title="Permanent link">&para;</a></h3>
+<p>Process chunks within a batch concurrently for speed:</p>
+<div class="highlight"><pre><span></span><code><span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">batch_size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>  <span class="c1"># Process 4 chunks in parallel within each batch</span>
+    <span class="n">use_disk_storage</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">experiment_path</span><span class="o">=</span><span class="s2">&quot;experiments/my_experiment&quot;</span>
+<span class="p">)</span>
 </code></pre></div>
-<hr />
-<h4 id="to_yaml">to_yaml()<a class="headerlink" href="#to_yaml" title="Permanent link">&para;</a></h4>
-<p>Save configuration to YAML file.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
-</code></pre></div>
-<hr />
-<h4 id="to_dict">to_dict()<a class="headerlink" href="#to_dict" title="Permanent link">&para;</a></h4>
-<p>Convert to dictionary.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config_dict</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
-</code></pre></div>
-<hr />
-<h4 id="validate">validate()<a class="headerlink" href="#validate" title="Permanent link">&para;</a></h4>
-<p>Validate configuration (called automatically on construction).</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>  <span class="c1"># Raises ValueError if invalid</span>
-</code></pre></div>
-<h2 id="sub-configurations">Sub-Configurations<a class="headerlink" href="#sub-configurations" title="Permanent link">&para;</a></h2>
-<h3 id="llmextractionconfig">LLMExtractionConfig<a class="headerlink" href="#llmextractionconfig" title="Permanent link">&para;</a></h3>
-<p>LLM and extraction settings.</p>
-<p><strong>Attributes:</strong>
-- <code>provider</code>, <code>model</code>, <code>temperature</code>
-- <code>batch_size</code>, <code>max_workers</code>, <code>max_retries</code>, <code>base_delay</code>, <code>tokens_per_minute</code>, <code>requests_per_minute</code>
-- <code>track_cost</code>, <code>max_budget</code>
-- <code>model_input_cost_per_1M_tokens</code>, <code>model_output_cost_per_1M_tokens</code>
-- <code>prompt_template</code>, <code>system_prompt</code></p>
-<hr />
-<h3 id="datapreprocessingconfig">DataPreprocessingConfig<a class="headerlink" href="#datapreprocessingconfig" title="Permanent link">&para;</a></h3>
-<p>Data loading and preprocessing settings.</p>
-<p><strong>Attributes:</strong>
-- <code>target_column</code>, <code>drop_target_column</code>
-- <code>splitting_strategy</code>, <code>relevance_scorer</code>, <code>score_filter</code></p>
-<hr />
-<h3 id="semanticcacheconfig">SemanticCacheConfig<a class="headerlink" href="#semanticcacheconfig" title="Permanent link">&para;</a></h3>
-<p>Caching settings.</p>
-<p><strong>Attributes:</strong>
-- <code>backend</code> (<code>"sqlite"</code>, <code>"lmdb"</code>, <code>"json"</code>)
-- <code>path</code>, <code>max_size_mb</code>, <code>synchronous</code></p>
-<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span><span class="p">,</span> <span class="n">DELMConfig</span>
+<p><strong>How it works</strong>: All workers process chunks from the <strong>same batch</strong> in parallel. Once all chunks in a batch complete, the checkpoint is saved, and they move to the next batch.</p>
+<p><strong>Best Practice</strong>: Set <code>max_workers</code> ≤ <code>batch_size</code>. Having more workers than chunks in a batch just wastes resources. For example, if <code>batch_size=10</code> and <code>max_workers=20</code>, you'll have 10 idle workers.</p>
+<p><strong>Warning</strong>: More workers = more concurrent API calls = higher rate limit usage. If you hit "429 Too Many Requests" errors, you may need to reduce <code>max_workers</code> or increase <code>base_delay</code>. A better solution might be to specify the exact TPM and RPM parameters for your specific provider and model.</p>
+<h3 id="overwrite-vs-resume">Overwrite vs Resume<a class="headerlink" href="#overwrite-vs-resume" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Resume from existing checkpoints (default)</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">use_disk_storage</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">experiment_path</span><span class="o">=</span><span class="s2">&quot;experiments/my_experiment&quot;</span><span class="p">,</span>
+    <span class="n">auto_checkpoint_and_resume_experiment</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Resume if possible</span>
+<span class="p">)</span>
 
-<span class="c1"># Create and save config</span>
-<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">)</span>
-<span class="n">delm</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="s2">&quot;experiment_config.yaml&quot;</span><span class="p">)</span>
-
-<span class="c1"># Load and reuse config</span>
-<span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="s2">&quot;experiment_config.yaml&quot;</span><span class="p">)</span>
-<span class="n">delm2</span> <span class="o">=</span> <span class="n">DELM</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">)</span>  <span class="c1"># Override model</span>
+<span class="c1"># Start fresh, delete existing experiment (waits 3 seconds as safety)</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">use_disk_storage</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">experiment_path</span><span class="o">=</span><span class="s2">&quot;experiments/my_experiment&quot;</span><span class="p">,</span>
+    <span class="n">overwrite_experiment</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Delete and start over</span>
+<span class="p">)</span>
 </code></pre></div>
+<h2 id="experiment-directory-structure">Experiment Directory Structure<a class="headerlink" href="#experiment-directory-structure" title="Permanent link">&para;</a></h2>
+<p>When <code>use_disk_storage=True</code>, DELM creates this structure:</p>
+<div class="highlight"><pre><span></span><code>experiments/
+└── my_experiment/
+    ├── config/
+    │   └── config.yaml              # Saved config for verification
+    ├── delm_data/
+    │   ├── preprocessed.feather     # Preprocessed data (chunks, scores)
+    │   └── extraction_result.feather # Final consolidated results
+    └── delm_llm_processing/
+        ├── batch_000000.feather     # Batch checkpoint files
+        ├── batch_000001.feather
+        ├── batch_000002.feather
+        ├── ...
+        └── state.json               # Cost tracker state
+</code></pre></div>
+<p><strong>File purposes:</strong>
+- <strong><code>config.yaml</code></strong>: Snapshot of your config for verification on resume
+- <strong><code>preprocessed.feather</code></strong>: Processed text chunks ready for LLM extraction
+- <strong><code>extraction_result.feather</code></strong>: Final results after all batches complete
+- <strong><code>batch_*.feather</code></strong>: Individual batch checkpoints (deleted after consolidation)
+- <strong><code>state.json</code></strong>: Tracks costs and progress</p>
+<h2 id="retrieving-results">Retrieving Results<a class="headerlink" href="#retrieving-results" title="Permanent link">&para;</a></h2>
+<h3 id="during-extraction">During Extraction<a class="headerlink" href="#during-extraction" title="Permanent link">&para;</a></h3>
+<p>The <code>extract()</code> method returns results directly:</p>
+<div class="highlight"><pre><span></span><code><span class="n">results_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s2">&quot;data/reports.csv&quot;</span><span class="p">)</span>
+<span class="c1"># Results available immediately</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">results_df</span><span class="o">.</span><span class="n">head</span><span class="p">())</span>
+</code></pre></div>
+<h3 id="after-completion">After Completion<a class="headerlink" href="#after-completion" title="Permanent link">&para;</a></h3>
+<p>If you've already run extraction and want to reload results later:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Create DELM instance pointing to the same experiment</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">use_disk_storage</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">experiment_path</span><span class="o">=</span><span class="s2">&quot;experiments/my_experiment&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Get saved results</span>
+<span class="n">results_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">get_extraction_results</span><span class="p">()</span>
+</code></pre></div>
+<p><strong>Note</strong>: <code>get_extraction_results()</code> only works after extraction has completed. It reads from <code>extraction_result.feather</code>.</p>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="experiment-directory-already-exists">"Experiment directory already exists"<a class="headerlink" href="#experiment-directory-already-exists" title="Permanent link">&para;</a></h3>
+<p>If you see this error and want to continue from checkpoints:</p>
+<div class="highlight"><pre><span></span><code><span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">use_disk_storage</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">experiment_path</span><span class="o">=</span><span class="s2">&quot;experiments/my_experiment&quot;</span><span class="p">,</span>
+    <span class="n">auto_checkpoint_and_resume_experiment</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Enable resumption</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>If you want to start fresh:</p>
+<div class="highlight"><pre><span></span><code><span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">use_disk_storage</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">experiment_path</span><span class="o">=</span><span class="s2">&quot;experiments/my_experiment&quot;</span><span class="p">,</span>
+    <span class="n">overwrite_experiment</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Delete existing experiment</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="config-mismatch-error">"Config mismatch" Error<a class="headerlink" href="#config-mismatch-error" title="Permanent link">&para;</a></h3>
+<p>This happens when trying to resume with a different schema or config. Either:
+- Use the exact same config as the original run, or
+- Use <code>overwrite_experiment=True</code> to start fresh</p>
 
 
 
@@ -1405,7 +1602,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../extraction-variable/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ExtractionVariable">
+          <a href="../../user-guide/output-data/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Output Data">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1415,20 +1612,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                ExtractionVariable
+                Output Data
               </div>
             </div>
           </a>
         
         
           
-          <a href="../cost-estimation/" class="md-footer__link md-footer__link--next" aria-label="Next: Cost Estimation">
+          <a href="../config-files/" class="md-footer__link md-footer__link--next" aria-label="Next: Configuration Files">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Cost Estimation
+                Configuration Files
               </div>
             </div>
             <div class="md-footer__button md-icon">

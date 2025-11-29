@@ -11,10 +11,10 @@
       
       
       
-        <link rel="prev" href="../extraction-variable/">
+        <link rel="prev" href="../">
       
       
-        <link rel="next" href="../cost-estimation/">
+        <link rel="next" href="../schema/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>DELMConfig - DELM Documentation</title>
+        <title>DELM - DELM Documentation</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#delmconfig" class="md-skip">
+        <a href="#delm" class="md-skip">
           Skip to content
         </a>
       
@@ -111,7 +111,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              DELMConfig
+              DELM
             
           </span>
         </div>
@@ -759,10 +759,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../delm/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    DELM
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -773,6 +795,200 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#class" class="md-nav__link">
+    <span class="md-ellipsis">
+      Class
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constructor-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Constructor Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Constructor Parameters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#required" class="md-nav__link">
+    <span class="md-ellipsis">
+      Required
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llm-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      LLM Settings
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Tracking
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preprocessing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prompts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Caching
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#experiment-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Experiment Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Logging
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      Methods
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#extract" class="md-nav__link">
+    <span class="md-ellipsis">
+      extract()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prep_data" class="md-nav__link">
+    <span class="md-ellipsis">
+      prep_data()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#process_via_llm" class="md-nav__link">
+    <span class="md-ellipsis">
+      process_via_llm()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_extraction_results" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_extraction_results()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_cost_summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_cost_summary()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preview_prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      preview_prompt()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      from_config()
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -828,32 +1044,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    DELMConfig
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
         
   
   
@@ -864,143 +1058,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#delmconfig_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      DELMConfig
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="DELMConfig">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      Methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#from_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      from_yaml()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#to_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      to_yaml()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#to_dict" class="md-nav__link">
-    <span class="md-ellipsis">
-      to_dict()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#validate" class="md-nav__link">
-    <span class="md-ellipsis">
-      validate()
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sub-configurations" class="md-nav__link">
-    <span class="md-ellipsis">
-      Sub-Configurations
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sub-Configurations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llmextractionconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      LLMExtractionConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#datapreprocessingconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      DataPreprocessingConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#semanticcacheconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      SemanticCacheConfig
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1178,16 +1235,102 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#delmconfig_1" class="md-nav__link">
+  <a href="#class" class="md-nav__link">
     <span class="md-ellipsis">
-      DELMConfig
+      Class
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="DELMConfig">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#constructor-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Constructor Parameters
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Constructor Parameters">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#required" class="md-nav__link">
+    <span class="md-ellipsis">
+      Required
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llm-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      LLM Settings
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cost-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cost Tracking
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preprocessing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preprocessing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prompts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#caching" class="md-nav__link">
+    <span class="md-ellipsis">
+      Caching
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#experiment-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      Experiment Management
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      Logging
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#methods" class="md-nav__link">
     <span class="md-ellipsis">
       Methods
@@ -1198,36 +1341,63 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#from_yaml" class="md-nav__link">
+  <a href="#extract" class="md-nav__link">
     <span class="md-ellipsis">
-      from_yaml()
+      extract()
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#to_yaml" class="md-nav__link">
+  <a href="#prep_data" class="md-nav__link">
     <span class="md-ellipsis">
-      to_yaml()
+      prep_data()
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#to_dict" class="md-nav__link">
+  <a href="#process_via_llm" class="md-nav__link">
     <span class="md-ellipsis">
-      to_dict()
+      process_via_llm()
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#validate" class="md-nav__link">
+  <a href="#get_extraction_results" class="md-nav__link">
     <span class="md-ellipsis">
-      validate()
+      get_extraction_results()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get_cost_summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      get_cost_summary()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#preview_prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      preview_prompt()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from_config" class="md-nav__link">
+    <span class="md-ellipsis">
+      from_config()
     </span>
   </a>
   
@@ -1235,62 +1405,6 @@
         
       </ul>
     </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sub-configurations" class="md-nav__link">
-    <span class="md-ellipsis">
-      Sub-Configurations
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sub-Configurations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llmextractionconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      LLMExtractionConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#datapreprocessingconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      DataPreprocessingConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#semanticcacheconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      SemanticCacheConfig
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example
-    </span>
-  </a>
   
 </li>
       
@@ -1310,72 +1424,403 @@
 
 
 
-<h1 id="delmconfig">DELMConfig<a class="headerlink" href="#delmconfig" title="Permanent link">&para;</a></h1>
-<p>Configuration objects for DELM pipelines.</p>
-<h2 id="delmconfig_1">DELMConfig<a class="headerlink" href="#delmconfig_1" title="Permanent link">&para;</a></h2>
-<p>Main configuration object containing all settings.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELMConfig</span>
+<h1 id="delm">DELM<a class="headerlink" href="#delm" title="Permanent link">&para;</a></h1>
+<p>Main extraction pipeline class.</p>
+<h2 id="class">Class<a class="headerlink" href="#class" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span>
 
-<span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="p">(</span>
-    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="p">,</span>
     <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
     <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">,</span>
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">)</span>
 </code></pre></div>
-<p><strong>Parameters:</strong> Same as <a href="../delm/#constructor-parameters"><code>DELM</code> constructor</a></p>
-<h3 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h3>
-<h4 id="from_yaml">from_yaml()<a class="headerlink" href="#from_yaml" title="Permanent link">&para;</a></h4>
-<p>Load configuration from YAML file.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
+<h2 id="constructor-parameters">Constructor Parameters<a class="headerlink" href="#constructor-parameters" title="Permanent link">&para;</a></h2>
+<h3 id="required">Required<a class="headerlink" href="#required" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema</code></td>
+<td><code>Schema \| str \| Path \| dict</code></td>
+<td>Extraction schema (Schema object, path to YAML, or dict)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="llm-settings">LLM Settings<a class="headerlink" href="#llm-settings" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>provider</code></td>
+<td><code>str</code></td>
+<td><code>"openai"</code></td>
+<td>LLM provider (via Instructor)</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td><code>str</code></td>
+<td><code>"gpt-4o-mini"</code></td>
+<td>Model name</td>
+</tr>
+<tr>
+<td><code>temperature</code></td>
+<td><code>float</code></td>
+<td><code>0.0</code></td>
+<td>Sampling temperature</td>
+</tr>
+<tr>
+<td><code>batch_size</code></td>
+<td><code>int</code></td>
+<td><code>10</code></td>
+<td>Number of chunks per batch</td>
+</tr>
+<tr>
+<td><code>max_workers</code></td>
+<td><code>int</code></td>
+<td><code>1</code></td>
+<td>Concurrent workers per batch</td>
+</tr>
+<tr>
+<td><code>max_retries</code></td>
+<td><code>int</code></td>
+<td><code>3</code></td>
+<td>Retry attempts for failed requests</td>
+</tr>
+<tr>
+<td><code>base_delay</code></td>
+<td><code>float</code></td>
+<td><code>1.0</code></td>
+<td>Exponential backoff base delay (seconds)</td>
+</tr>
+<tr>
+<td><code>tokens_per_minute</code></td>
+<td><code>int</code></td>
+<td><code>null</code></td>
+<td>Maximum tokens per minute</td>
+</tr>
+<tr>
+<td><code>requests_per_minute</code></td>
+<td><code>int</code></td>
+<td><code>null</code></td>
+<td>Maximum requests per minute</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cost-tracking">Cost Tracking<a class="headerlink" href="#cost-tracking" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>track_cost</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Enable cost tracking</td>
+</tr>
+<tr>
+<td><code>max_budget</code></td>
+<td><code>float \| None</code></td>
+<td><code>None</code></td>
+<td>Stop extraction if budget exceeded (USD)</td>
+</tr>
+<tr>
+<td><code>model_input_cost_per_1M_tokens</code></td>
+<td><code>float \| None</code></td>
+<td><code>None</code></td>
+<td>Custom input token cost</td>
+</tr>
+<tr>
+<td><code>model_output_cost_per_1M_tokens</code></td>
+<td><code>float \| None</code></td>
+<td><code>None</code></td>
+<td>Custom output token cost</td>
+</tr>
+</tbody>
+</table>
+<h3 id="preprocessing">Preprocessing<a class="headerlink" href="#preprocessing" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>target_column</code></td>
+<td><code>str</code></td>
+<td><code>"text"</code></td>
+<td>Column containing text to extract from</td>
+</tr>
+<tr>
+<td><code>drop_target_column</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Remove target column from output</td>
+</tr>
+<tr>
+<td><code>splitting_strategy</code></td>
+<td><code>SplitStrategy \| dict \| None</code></td>
+<td><code>None</code></td>
+<td>Text chunking strategy</td>
+</tr>
+<tr>
+<td><code>relevance_scorer</code></td>
+<td><code>RelevanceScorer \| dict \| None</code></td>
+<td><code>None</code></td>
+<td>Chunk relevance scoring</td>
+</tr>
+<tr>
+<td><code>score_filter</code></td>
+<td><code>str \| None</code></td>
+<td><code>None</code></td>
+<td>Pandas query to filter chunks (e.g., <code>"delm_score &gt; 0.5"</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="prompts">Prompts<a class="headerlink" href="#prompts" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>prompt_template</code></td>
+<td><code>str \| None</code></td>
+<td><code>"Extract the following..."</code></td>
+<td>User prompt template</td>
+</tr>
+<tr>
+<td><code>system_prompt</code></td>
+<td><code>str \| None</code></td>
+<td><code>"You are a precise..."</code></td>
+<td>System prompt</td>
+</tr>
+</tbody>
+</table>
+<h3 id="caching">Caching<a class="headerlink" href="#caching" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cache_backend</code></td>
+<td><code>str</code></td>
+<td><code>"sqlite"</code></td>
+<td>Cache backend (<code>"sqlite"</code>, <code>"lmdb"</code>, <code>"json"</code>)</td>
+</tr>
+<tr>
+<td><code>cache_path</code></td>
+<td><code>str \| Path</code></td>
+<td><code>".delm/cache"</code></td>
+<td>Cache directory</td>
+</tr>
+<tr>
+<td><code>cache_max_size_mb</code></td>
+<td><code>int</code></td>
+<td><code>512</code></td>
+<td>Max cache size (MB)</td>
+</tr>
+<tr>
+<td><code>cache_synchronous</code></td>
+<td><code>str</code></td>
+<td><code>"normal"</code></td>
+<td>SQLite sync mode</td>
+</tr>
+</tbody>
+</table>
+<h3 id="experiment-management">Experiment Management<a class="headerlink" href="#experiment-management" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>use_disk_storage</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Enable disk-based checkpointing</td>
+</tr>
+<tr>
+<td><code>experiment_path</code></td>
+<td><code>str \| Path \| None</code></td>
+<td><code>None</code></td>
+<td>Experiment directory (required if <code>use_disk_storage=True</code>)</td>
+</tr>
+<tr>
+<td><code>overwrite_experiment</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Overwrite existing experiment</td>
+</tr>
+<tr>
+<td><code>auto_checkpoint_and_resume_experiment</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Automatic checkpoint/resume</td>
+</tr>
+</tbody>
+</table>
+<h3 id="logging">Logging<a class="headerlink" href="#logging" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>save_log_file</code></td>
+<td><code>bool</code></td>
+<td><code>False</code></td>
+<td>Save logs to disk</td>
+</tr>
+<tr>
+<td><code>log_dir</code></td>
+<td><code>str \| Path \| None</code></td>
+<td><code>".delm/logs"</code></td>
+<td>Log directory</td>
+</tr>
+<tr>
+<td><code>log_file_prefix</code></td>
+<td><code>str</code></td>
+<td><code>""</code></td>
+<td>Log filename prefix</td>
+</tr>
+<tr>
+<td><code>console_log_level</code></td>
+<td><code>str</code></td>
+<td><code>"INFO"</code></td>
+<td>Console log level</td>
+</tr>
+<tr>
+<td><code>file_log_level</code></td>
+<td><code>str</code></td>
+<td><code>"DEBUG"</code></td>
+<td>File log level</td>
+</tr>
+<tr>
+<td><code>override_logging</code></td>
+<td><code>bool</code></td>
+<td><code>True</code></td>
+<td>Override existing logging config</td>
+</tr>
+</tbody>
+</table>
+<h2 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h2>
+<h3 id="extract">extract()<a class="headerlink" href="#extract" title="Permanent link">&para;</a></h3>
+<p>Extract structured data from input.</p>
+<div class="highlight"><pre><span></span><code><span class="n">results_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span>
+    <span class="n">data</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">sample_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
 </code></pre></div>
+<p><strong>Parameters:</strong>
+- <code>data</code>: Input data (file path, directory, or DataFrame)
+- <code>sample_size</code>: Number of records to sample (<code>-1</code> = all)</p>
+<p><strong>Returns:</strong> DataFrame with original columns + DELM system columns</p>
 <hr />
-<h4 id="to_yaml">to_yaml()<a class="headerlink" href="#to_yaml" title="Permanent link">&para;</a></h4>
-<p>Save configuration to YAML file.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
+<h3 id="prep_data">prep_data()<a class="headerlink" href="#prep_data" title="Permanent link">&para;</a></h3>
+<p>Preprocess input data (loading, splitting, scoring).</p>
+<div class="highlight"><pre><span></span><code><span class="n">preprocessed_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span>
+    <span class="n">data</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">sample_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
 </code></pre></div>
+<p><strong>Parameters:</strong>
+- <code>data</code>: Input data (file path, directory, or DataFrame)
+- <code>sample_size</code>: Number of records to sample (<code>-1</code> = all)</p>
+<p><strong>Returns:</strong> Preprocessed DataFrame with text chunks</p>
 <hr />
-<h4 id="to_dict">to_dict()<a class="headerlink" href="#to_dict" title="Permanent link">&para;</a></h4>
-<p>Convert to dictionary.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config_dict</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+<h3 id="process_via_llm">process_via_llm()<a class="headerlink" href="#process_via_llm" title="Permanent link">&para;</a></h3>
+<p>Run LLM extraction on preprocessed data.</p>
+<div class="highlight"><pre><span></span><code><span class="n">results_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">process_via_llm</span><span class="p">(</span>
+    <span class="n">preprocessed_file_path</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
 </code></pre></div>
+<p><strong>Parameters:</strong>
+- <code>preprocessed_file_path</code>: Path to preprocessed data (optional, uses internal data if None)</p>
+<p><strong>Returns:</strong> DataFrame with extraction results</p>
 <hr />
-<h4 id="validate">validate()<a class="headerlink" href="#validate" title="Permanent link">&para;</a></h4>
-<p>Validate configuration (called automatically on construction).</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>  <span class="c1"># Raises ValueError if invalid</span>
+<h3 id="get_extraction_results">get_extraction_results()<a class="headerlink" href="#get_extraction_results" title="Permanent link">&para;</a></h3>
+<p>Get core extraction results (without metadata columns).</p>
+<div class="highlight"><pre><span></span><code><span class="n">results_df</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">get_extraction_results</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
 </code></pre></div>
-<h2 id="sub-configurations">Sub-Configurations<a class="headerlink" href="#sub-configurations" title="Permanent link">&para;</a></h2>
-<h3 id="llmextractionconfig">LLMExtractionConfig<a class="headerlink" href="#llmextractionconfig" title="Permanent link">&para;</a></h3>
-<p>LLM and extraction settings.</p>
-<p><strong>Attributes:</strong>
-- <code>provider</code>, <code>model</code>, <code>temperature</code>
-- <code>batch_size</code>, <code>max_workers</code>, <code>max_retries</code>, <code>base_delay</code>, <code>tokens_per_minute</code>, <code>requests_per_minute</code>
-- <code>track_cost</code>, <code>max_budget</code>
-- <code>model_input_cost_per_1M_tokens</code>, <code>model_output_cost_per_1M_tokens</code>
-- <code>prompt_template</code>, <code>system_prompt</code></p>
+<p><strong>Returns:</strong> DataFrame with only extraction columns (<code>delm_file_name</code>, <code>delm_raw_data</code>, <code>delm_text_chunk</code>, <code>delm_chunk_id</code>, <code>delm_batch_id</code>, <code>delm_errors</code>, <code>delm_extracted_data_json</code>)</p>
 <hr />
-<h3 id="datapreprocessingconfig">DataPreprocessingConfig<a class="headerlink" href="#datapreprocessingconfig" title="Permanent link">&para;</a></h3>
-<p>Data loading and preprocessing settings.</p>
-<p><strong>Attributes:</strong>
-- <code>target_column</code>, <code>drop_target_column</code>
-- <code>splitting_strategy</code>, <code>relevance_scorer</code>, <code>score_filter</code></p>
-<hr />
-<h3 id="semanticcacheconfig">SemanticCacheConfig<a class="headerlink" href="#semanticcacheconfig" title="Permanent link">&para;</a></h3>
-<p>Caching settings.</p>
-<p><strong>Attributes:</strong>
-- <code>backend</code> (<code>"sqlite"</code>, <code>"lmdb"</code>, <code>"json"</code>)
-- <code>path</code>, <code>max_size_mb</code>, <code>synchronous</code></p>
-<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span><span class="p">,</span> <span class="n">DELMConfig</span>
-
-<span class="c1"># Create and save config</span>
-<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">)</span>
-<span class="n">delm</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="s2">&quot;experiment_config.yaml&quot;</span><span class="p">)</span>
-
-<span class="c1"># Load and reuse config</span>
-<span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="s2">&quot;experiment_config.yaml&quot;</span><span class="p">)</span>
-<span class="n">delm2</span> <span class="o">=</span> <span class="n">DELM</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">)</span>  <span class="c1"># Override model</span>
+<h3 id="get_cost_summary">get_cost_summary()<a class="headerlink" href="#get_cost_summary" title="Permanent link">&para;</a></h3>
+<p>Get cost tracking summary.</p>
+<div class="highlight"><pre><span></span><code><span class="n">cost_summary</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">get_cost_summary</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">dict</span>
 </code></pre></div>
+<p><strong>Returns:</strong> Dictionary with keys:
+- <code>input_tokens</code> (int)
+- <code>output_tokens</code> (int)
+- <code>total_cost</code> (float)
+- <code>cached_tokens</code> (int)
+- <code>cached_cost</code> (float)</p>
+<p><strong>Raises:</strong> <code>ValueError</code> if <code>track_cost=False</code></p>
+<hr />
+<h3 id="preview_prompt">preview_prompt()<a class="headerlink" href="#preview_prompt" title="Permanent link">&para;</a></h3>
+<p>Preview the user prompt (without system prompt or Instructor wrapper).</p>
+<div class="highlight"><pre><span></span><code><span class="n">prompt</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">preview_prompt</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span>
+</code></pre></div>
+<p><strong>Parameters:</strong>
+- <code>text</code>: Example text (uses placeholder if None)</p>
+<p><strong>Returns:</strong> Formatted user prompt string</p>
+<hr />
+<h3 id="from_config">from_config()<a class="headerlink" href="#from_config" title="Permanent link">&para;</a></h3>
+<p>Create DELM instance from configuration object or file.</p>
+<div class="highlight"><pre><span></span><code><span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span>
+    <span class="n">config</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Path</span> <span class="o">|</span> <span class="n">DELMConfig</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">overrides</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DELM</span>
+</code></pre></div>
+<p><strong>Parameters:</strong>
+- <code>config</code>: Config object or path to YAML
+- <code>**overrides</code>: Override specific parameters (same as constructor)</p>
+<p><strong>Returns:</strong> DELM instance</p>
 
 
 
@@ -1405,7 +1850,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../extraction-variable/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ExtractionVariable">
+          <a href="../" class="md-footer__link md-footer__link--prev" aria-label="Previous: API Overview">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1415,20 +1860,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                ExtractionVariable
+                API Overview
               </div>
             </div>
           </a>
         
         
           
-          <a href="../cost-estimation/" class="md-footer__link md-footer__link--next" aria-label="Next: Cost Estimation">
+          <a href="../schema/" class="md-footer__link md-footer__link--next" aria-label="Next: Schema">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Cost Estimation
+                Schema
               </div>
             </div>
             <div class="md-footer__button md-icon">

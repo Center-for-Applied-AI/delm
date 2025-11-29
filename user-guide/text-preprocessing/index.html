@@ -11,10 +11,10 @@
       
       
       
-        <link rel="prev" href="../extraction-variable/">
+        <link rel="prev" href="../input-data/">
       
       
-        <link rel="next" href="../cost-estimation/">
+        <link rel="next" href="../cost-management/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>DELMConfig - DELM Documentation</title>
+        <title>Preprocessing Text - DELM Documentation</title>
       
     
     
@@ -76,7 +76,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#delmconfig" class="md-skip">
+        <a href="#preprocessing-text" class="md-skip">
           Skip to content
         </a>
       
@@ -111,7 +111,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              DELMConfig
+              Preprocessing Text
             
           </span>
         </div>
@@ -307,18 +307,20 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
@@ -334,7 +336,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             User Guide
@@ -348,7 +350,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/model-configuration/" class="md-nav__link">
+      <a href="../model-configuration/" class="md-nav__link">
         
   
   
@@ -371,7 +373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/schemas/" class="md-nav__link">
+      <a href="../schemas/" class="md-nav__link">
         
   
   
@@ -394,7 +396,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/prompt-customization/" class="md-nav__link">
+      <a href="../prompt-customization/" class="md-nav__link">
         
   
   
@@ -417,7 +419,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/input-data/" class="md-nav__link">
+      <a href="../input-data/" class="md-nav__link">
         
   
   
@@ -437,10 +439,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../user-guide/text-preprocessing/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Preprocessing Text
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -451,6 +475,161 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#splitting-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Splitting Strategies
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Splitting Strategies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-paragraph-split" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Paragraph Split
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-fixed-window-split" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Fixed Window Split
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-regex-split" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Regex Split
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#relevance-scoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      Relevance Scoring
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Relevance Scoring">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-keyword-scorer" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Keyword Scorer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-fuzzy-scorer" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Fuzzy Scorer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      Filtering
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternative-dictionary-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternative: Dictionary Configuration
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#full-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Full Example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-custom-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced: Custom Strategies
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced: Custom Strategies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-splitter" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Splitter
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-scorer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Scorer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -463,7 +642,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/cost-management/" class="md-nav__link">
+      <a href="../cost-management/" class="md-nav__link">
         
   
   
@@ -486,7 +665,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/caching/" class="md-nav__link">
+      <a href="../caching/" class="md-nav__link">
         
   
   
@@ -509,7 +688,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/evaluation/" class="md-nav__link">
+      <a href="../evaluation/" class="md-nav__link">
         
   
   
@@ -532,7 +711,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../user-guide/output-data/" class="md-nav__link">
+      <a href="../output-data/" class="md-nav__link">
         
   
   
@@ -696,20 +875,18 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
         
           
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
@@ -725,7 +902,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             Reference
@@ -739,7 +916,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../" class="md-nav__link">
+      <a href="../../reference/" class="md-nav__link">
         
   
   
@@ -762,7 +939,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../delm/" class="md-nav__link">
+      <a href="../../reference/delm/" class="md-nav__link">
         
   
   
@@ -785,7 +962,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../schema/" class="md-nav__link">
+      <a href="../../reference/schema/" class="md-nav__link">
         
   
   
@@ -808,7 +985,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../extraction-variable/" class="md-nav__link">
+      <a href="../../reference/extraction-variable/" class="md-nav__link">
         
   
   
@@ -828,32 +1005,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    DELMConfig
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../reference/config/" class="md-nav__link">
         
   
   
@@ -864,143 +1019,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#delmconfig_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      DELMConfig
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="DELMConfig">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
-    <span class="md-ellipsis">
-      Methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#from_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      from_yaml()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#to_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      to_yaml()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#to_dict" class="md-nav__link">
-    <span class="md-ellipsis">
-      to_dict()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#validate" class="md-nav__link">
-    <span class="md-ellipsis">
-      validate()
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sub-configurations" class="md-nav__link">
-    <span class="md-ellipsis">
-      Sub-Configurations
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sub-Configurations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llmextractionconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      LLMExtractionConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#datapreprocessingconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      DataPreprocessingConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#semanticcacheconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      SemanticCacheConfig
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
-    <span class="md-ellipsis">
-      Example
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1013,7 +1031,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cost-estimation/" class="md-nav__link">
+      <a href="../../reference/cost-estimation/" class="md-nav__link">
         
   
   
@@ -1036,7 +1054,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../performance-evaluation/" class="md-nav__link">
+      <a href="../../reference/performance-evaluation/" class="md-nav__link">
         
   
   
@@ -1059,7 +1077,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../post-processing/" class="md-nav__link">
+      <a href="../../reference/post-processing/" class="md-nav__link">
         
   
   
@@ -1082,7 +1100,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../splitting-strategies/" class="md-nav__link">
+      <a href="../../reference/splitting-strategies/" class="md-nav__link">
         
   
   
@@ -1105,7 +1123,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../relevance-scorers/" class="md-nav__link">
+      <a href="../../reference/relevance-scorers/" class="md-nav__link">
         
   
   
@@ -1128,7 +1146,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../constants/" class="md-nav__link">
+      <a href="../../reference/constants/" class="md-nav__link">
         
   
   
@@ -1178,103 +1196,37 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#delmconfig_1" class="md-nav__link">
+  <a href="#splitting-strategies" class="md-nav__link">
     <span class="md-ellipsis">
-      DELMConfig
+      Splitting Strategies
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="DELMConfig">
+    <nav class="md-nav" aria-label="Splitting Strategies">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#methods" class="md-nav__link">
+  <a href="#1-paragraph-split" class="md-nav__link">
     <span class="md-ellipsis">
-      Methods
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Methods">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#from_yaml" class="md-nav__link">
-    <span class="md-ellipsis">
-      from_yaml()
+      1. Paragraph Split
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#to_yaml" class="md-nav__link">
+  <a href="#2-fixed-window-split" class="md-nav__link">
     <span class="md-ellipsis">
-      to_yaml()
+      2. Fixed Window Split
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#to_dict" class="md-nav__link">
+  <a href="#3-regex-split" class="md-nav__link">
     <span class="md-ellipsis">
-      to_dict()
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#validate" class="md-nav__link">
-    <span class="md-ellipsis">
-      validate()
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sub-configurations" class="md-nav__link">
-    <span class="md-ellipsis">
-      Sub-Configurations
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sub-Configurations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#llmextractionconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      LLMExtractionConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#datapreprocessingconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      DataPreprocessingConfig
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#semanticcacheconfig" class="md-nav__link">
-    <span class="md-ellipsis">
-      SemanticCacheConfig
+      3. Regex Split
     </span>
   </a>
   
@@ -1286,11 +1238,95 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#example" class="md-nav__link">
+  <a href="#relevance-scoring" class="md-nav__link">
     <span class="md-ellipsis">
-      Example
+      Relevance Scoring
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Relevance Scoring">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-keyword-scorer" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Keyword Scorer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-fuzzy-scorer" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Fuzzy Scorer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      Filtering
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternative-dictionary-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Alternative: Dictionary Configuration
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#full-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Full Example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-custom-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced: Custom Strategies
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced: Custom Strategies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#custom-splitter" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Splitter
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-scorer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Scorer
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1310,71 +1346,140 @@
 
 
 
-<h1 id="delmconfig">DELMConfig<a class="headerlink" href="#delmconfig" title="Permanent link">&para;</a></h1>
-<p>Configuration objects for DELM pipelines.</p>
-<h2 id="delmconfig_1">DELMConfig<a class="headerlink" href="#delmconfig_1" title="Permanent link">&para;</a></h2>
-<p>Main configuration object containing all settings.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELMConfig</span>
+<h1 id="preprocessing-text">Preprocessing Text<a class="headerlink" href="#preprocessing-text" title="Permanent link">&para;</a></h1>
+<p>Learn how to configure text splitting, relevance scoring, and filtering to optimize your extraction pipeline.</p>
+<p><img alt="Preprocessing Workflow" src="../../assets/preprocessing_diagram.png" /></p>
+<h2 id="splitting-strategies">Splitting Strategies<a class="headerlink" href="#splitting-strategies" title="Permanent link">&para;</a></h2>
+<p>Splitting strategies define how your large documents are broken down into manageable chunks for the LLM.</p>
+<p><strong>Default</strong>: <code>None</code> (No splitting - entire record is one chunk).</p>
+<h3 id="1-paragraph-split">1. Paragraph Split<a class="headerlink" href="#1-paragraph-split" title="Permanent link">&para;</a></h3>
+<p>Splits text at double newlines (<code>\n\n</code>).</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParagraphSplit</span>
+<span class="n">splitting_strategy</span> <span class="o">=</span> <span class="n">ParagraphSplit</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="2-fixed-window-split">2. Fixed Window Split<a class="headerlink" href="#2-fixed-window-split" title="Permanent link">&para;</a></h3>
+<p>Splits text into chunks of a specific number of sentences, with optional overlap.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">FixedWindowSplit</span>
+<span class="n">splitting_strategy</span> <span class="o">=</span> <span class="n">FixedWindowSplit</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="3-regex-split">3. Regex Split<a class="headerlink" href="#3-regex-split" title="Permanent link">&para;</a></h3>
+<p>Splits text using a custom regular expression pattern.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">RegexSplit</span>
+<span class="n">splitting_strategy</span> <span class="o">=</span> <span class="n">RegexSplit</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;\n\n+&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="relevance-scoring">Relevance Scoring<a class="headerlink" href="#relevance-scoring" title="Permanent link">&para;</a></h2>
+<p>Relevance scorers assign a score (0.0 to 1.0) to each chunk, allowing you to identify and filter out irrelevant text.</p>
+<p><strong>Default</strong>: <code>None</code> (No scoring - all chunks get a score of 0.0, or no score column is created).</p>
+<h3 id="1-keyword-scorer">1. Keyword Scorer<a class="headerlink" href="#1-keyword-scorer" title="Permanent link">&para;</a></h3>
+<p>Scores chunks based on the presence of specific keywords. Returns 1.0 if any keyword is found, 0.0 otherwise.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">KeywordScorer</span>
+<span class="n">relevance_scorer</span> <span class="o">=</span> <span class="n">KeywordScorer</span><span class="p">(</span><span class="n">keywords</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;revenue&quot;</span><span class="p">,</span> <span class="s2">&quot;profit&quot;</span><span class="p">,</span> <span class="s2">&quot;guidance&quot;</span><span class="p">])</span>
+</code></pre></div>
+<h3 id="2-fuzzy-scorer">2. Fuzzy Scorer<a class="headerlink" href="#2-fuzzy-scorer" title="Permanent link">&para;</a></h3>
+<p>Scores chunks using fuzzy string matching. Useful for OCR'd text or slight variations. Returns a score between 0.0 and 1.0 based on the best match.</p>
+<p><div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">FuzzyScorer</span>
+<span class="n">relevance_scorer</span> <span class="o">=</span> <span class="n">FuzzyScorer</span><span class="p">(</span><span class="n">keywords</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;revenue&quot;</span><span class="p">,</span> <span class="s2">&quot;profit&quot;</span><span class="p">,</span> <span class="s2">&quot;guidance&quot;</span><span class="p">])</span>
+</code></pre></div>
+<em>Note: Requires <code>pip install rapidfuzz</code>.</em></p>
+<h2 id="filtering">Filtering<a class="headerlink" href="#filtering" title="Permanent link">&para;</a></h2>
+<p>Once chunks are scored, you can filter them using a pandas-style query string. This ensures you only pay to process relevant chunks.</p>
+<p><strong>Default</strong>: <code>None</code> (No filtering).</p>
+<p><strong>Important</strong>: If you provide a <code>score_filter</code>, you <strong>must</strong> also provide a <code>relevance_scorer</code>. You cannot filter on scores that don't exist.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Keep chunks with a score of 0.5 or higher</span>
+<span class="n">score_filter</span> <span class="o">=</span> <span class="s2">&quot;delm_score &gt;= 0.5&quot;</span>
 
-<span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="p">(</span>
-    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
-    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
-    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">,</span>
-    <span class="o">**</span><span class="n">kwargs</span>
+<span class="c1"># Keep chunks with a score greater than 0 (at least one keyword match)</span>
+<span class="n">score_filter</span> <span class="o">=</span> <span class="s2">&quot;delm_score &gt; 0&quot;</span>
+</code></pre></div>
+<h2 id="alternative-dictionary-configuration">Alternative: Dictionary Configuration<a class="headerlink" href="#alternative-dictionary-configuration" title="Permanent link">&para;</a></h2>
+<p>Instead of importing classes, you can define any strategy as a dictionary with a <code>type</code> field matching the class name. This is useful for saving configurations to YAML or JSON files.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Equivalent to FixedWindowSplit(window=5, stride=2)</span>
+<span class="n">splitting</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;FixedWindowSplit&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;window&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="s2">&quot;stride&quot;</span><span class="p">:</span> <span class="mi">2</span>
+<span class="p">}</span>
+
+<span class="c1"># Equivalent to KeywordScorer(keywords=[&quot;price&quot;])</span>
+<span class="n">scoring</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;KeywordScorer&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;keywords&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;price&quot;</span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="full-example">Full Example<a class="headerlink" href="#full-example" title="Permanent link">&para;</a></h2>
+<p>Pass these configurations directly to the <code>DELM</code> constructor.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">delm.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">FixedWindowSplit</span><span class="p">,</span> <span class="n">KeywordScorer</span>
+
+<span class="c1"># 1. Initialize DELM with strategies</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="c1"># ... provider/model args ...</span>
+    <span class="n">splitting_strategy</span><span class="o">=</span><span class="n">FixedWindowSplit</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">stride</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+    <span class="n">relevance_scorer</span><span class="o">=</span><span class="n">KeywordScorer</span><span class="p">(</span><span class="n">keywords</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;price&quot;</span><span class="p">,</span> <span class="s2">&quot;cost&quot;</span><span class="p">]),</span>
+    <span class="n">score_filter</span><span class="o">=</span><span class="s2">&quot;delm_score &gt; 0&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># 2. Run extraction</span>
+<span class="n">delm</span><span class="o">.</span><span class="n">prep_data</span><span class="p">(</span><span class="s2">&quot;documents/&quot;</span><span class="p">)</span>
+<span class="n">delm</span><span class="o">.</span><span class="n">process_via_llm</span><span class="p">()</span>
+</code></pre></div>
+<h2 id="advanced-custom-strategies">Advanced: Custom Strategies<a class="headerlink" href="#advanced-custom-strategies" title="Permanent link">&para;</a></h2>
+<p>You can implement your own splitting or scoring logic by inheriting from the base classes.</p>
+<h3 id="custom-splitter">Custom Splitter<a class="headerlink" href="#custom-splitter" title="Permanent link">&para;</a></h3>
+<p>Inherit from <code>SplitStrategy</code> and implement the <code>split</code> method.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">delm.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">SplitStrategy</span><span class="p">,</span> <span class="n">SPLITTER_REGISTRY</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SentenceSplitter</span><span class="p">(</span><span class="n">SplitStrategy</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">split</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+        <span class="c1"># simple example splitting by periods</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;.&#39;</span><span class="p">)</span> <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+
+    <span class="c1"># REQUIRED for checkpointing/disk storage</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;SentenceSplitter&quot;</span><span class="p">}</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span>
+
+<span class="c1"># Usage</span>
+<span class="c1"># 1. Register your class (Important for checkpointing!)</span>
+<span class="n">SPLITTER_REGISTRY</span><span class="p">[</span><span class="s2">&quot;SentenceSplitter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">SentenceSplitter</span>
+
+<span class="c1"># 2. Pass instance to DELM</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="c1"># ...</span>
+    <span class="n">splitting_strategy</span><span class="o">=</span><span class="n">SentenceSplitter</span><span class="p">()</span>
 <span class="p">)</span>
 </code></pre></div>
-<p><strong>Parameters:</strong> Same as <a href="../delm/#constructor-parameters"><code>DELM</code> constructor</a></p>
-<h3 id="methods">Methods<a class="headerlink" href="#methods" title="Permanent link">&para;</a></h3>
-<h4 id="from_yaml">from_yaml()<a class="headerlink" href="#from_yaml" title="Permanent link">&para;</a></h4>
-<p>Load configuration from YAML file.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
-</code></pre></div>
-<hr />
-<h4 id="to_yaml">to_yaml()<a class="headerlink" href="#to_yaml" title="Permanent link">&para;</a></h4>
-<p>Save configuration to YAML file.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
-</code></pre></div>
-<hr />
-<h4 id="to_dict">to_dict()<a class="headerlink" href="#to_dict" title="Permanent link">&para;</a></h4>
-<p>Convert to dictionary.</p>
-<div class="highlight"><pre><span></span><code><span class="n">config_dict</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
-</code></pre></div>
-<hr />
-<h4 id="validate">validate()<a class="headerlink" href="#validate" title="Permanent link">&para;</a></h4>
-<p>Validate configuration (called automatically on construction).</p>
-<div class="highlight"><pre><span></span><code><span class="n">config</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>  <span class="c1"># Raises ValueError if invalid</span>
-</code></pre></div>
-<h2 id="sub-configurations">Sub-Configurations<a class="headerlink" href="#sub-configurations" title="Permanent link">&para;</a></h2>
-<h3 id="llmextractionconfig">LLMExtractionConfig<a class="headerlink" href="#llmextractionconfig" title="Permanent link">&para;</a></h3>
-<p>LLM and extraction settings.</p>
-<p><strong>Attributes:</strong>
-- <code>provider</code>, <code>model</code>, <code>temperature</code>
-- <code>batch_size</code>, <code>max_workers</code>, <code>max_retries</code>, <code>base_delay</code>, <code>tokens_per_minute</code>, <code>requests_per_minute</code>
-- <code>track_cost</code>, <code>max_budget</code>
-- <code>model_input_cost_per_1M_tokens</code>, <code>model_output_cost_per_1M_tokens</code>
-- <code>prompt_template</code>, <code>system_prompt</code></p>
-<hr />
-<h3 id="datapreprocessingconfig">DataPreprocessingConfig<a class="headerlink" href="#datapreprocessingconfig" title="Permanent link">&para;</a></h3>
-<p>Data loading and preprocessing settings.</p>
-<p><strong>Attributes:</strong>
-- <code>target_column</code>, <code>drop_target_column</code>
-- <code>splitting_strategy</code>, <code>relevance_scorer</code>, <code>score_filter</code></p>
-<hr />
-<h3 id="semanticcacheconfig">SemanticCacheConfig<a class="headerlink" href="#semanticcacheconfig" title="Permanent link">&para;</a></h3>
-<p>Caching settings.</p>
-<p><strong>Attributes:</strong>
-- <code>backend</code> (<code>"sqlite"</code>, <code>"lmdb"</code>, <code>"json"</code>)
-- <code>path</code>, <code>max_size_mb</code>, <code>synchronous</code></p>
-<h2 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span><span class="p">,</span> <span class="n">DELMConfig</span>
+<h3 id="custom-scorer">Custom Scorer<a class="headerlink" href="#custom-scorer" title="Permanent link">&para;</a></h3>
+<p>Inherit from <code>RelevanceScorer</code> and implement the <code>score</code> method.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">RelevanceScorer</span><span class="p">,</span> <span class="n">SCORER_REGISTRY</span>
 
-<span class="c1"># Create and save config</span>
-<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">)</span>
-<span class="n">delm</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">(</span><span class="s2">&quot;experiment_config.yaml&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LengthScorer</span><span class="p">(</span><span class="n">RelevanceScorer</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">score</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text_chunk</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="c1"># Example: Score based on length (longer chunks = higher score)</span>
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">text_chunk</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
 
-<span class="c1"># Load and reuse config</span>
-<span class="n">config</span> <span class="o">=</span> <span class="n">DELMConfig</span><span class="o">.</span><span class="n">from_yaml</span><span class="p">(</span><span class="s2">&quot;experiment_config.yaml&quot;</span><span class="p">)</span>
-<span class="n">delm2</span> <span class="o">=</span> <span class="n">DELM</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-3-5-sonnet-20241022&quot;</span><span class="p">)</span>  <span class="c1"># Override model</span>
+    <span class="c1"># REQUIRED for checkpointing/disk storage</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;LengthScorer&quot;</span><span class="p">}</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_dict</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span>
+
+<span class="c1"># Usage</span>
+<span class="c1"># 1. Register your class (Important for checkpointing!)</span>
+<span class="n">SCORER_REGISTRY</span><span class="p">[</span><span class="s2">&quot;LengthScorer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">LengthScorer</span>
+
+<span class="c1"># 2. Pass instance to DELM</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="c1"># ...</span>
+    <span class="n">relevance_scorer</span><span class="o">=</span><span class="n">LengthScorer</span><span class="p">(),</span>
+    <span class="n">score_filter</span><span class="o">=</span><span class="s2">&quot;delm_score &gt; 0.5&quot;</span>
+<span class="p">)</span>
 </code></pre></div>
 
 
@@ -1405,7 +1510,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../extraction-variable/" class="md-footer__link md-footer__link--prev" aria-label="Previous: ExtractionVariable">
+          <a href="../input-data/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Loading Data">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1415,20 +1520,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                ExtractionVariable
+                Loading Data
               </div>
             </div>
           </a>
         
         
           
-          <a href="../cost-estimation/" class="md-footer__link md-footer__link--next" aria-label="Next: Cost Estimation">
+          <a href="../cost-management/" class="md-footer__link md-footer__link--next" aria-label="Next: Cost Management">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Cost Estimation
+                Cost Management
               </div>
             </div>
             <div class="md-footer__button md-icon">

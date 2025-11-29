@@ -1,0 +1,1883 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Documentation for the DELM (Data Extraction with Language Models) toolkit.">
+      
+      
+      
+      
+        <link rel="prev" href="../schemas/">
+      
+      
+        <link rel="next" href="../input-data/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.22">
+    
+    
+      
+        <title>Customizing Prompts - DELM Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#prompt-customization" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="DELM Documentation" class="md-header__button md-logo" aria-label="DELM Documentation" data-md-component="logo">
+      
+  <img src="../../assets/delm_logo.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            DELM Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Customizing Prompts
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/Center-for-Applied-AI/delm" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Center-for-Applied-AI/delm
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="DELM Documentation" class="md-nav__button md-logo" aria-label="DELM Documentation" data-md-component="logo">
+      
+  <img src="../../assets/delm_logo.png" alt="logo">
+
+    </a>
+    DELM Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Center-for-Applied-AI/delm" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    Center-for-Applied-AI/delm
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    User Guide
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Model Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../schemas/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Defining Schemas
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Customizing Prompts
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Customizing Prompts
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-extractionvariable-descriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. ExtractionVariable Descriptions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. ExtractionVariable Descriptions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-descriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced Descriptions
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-prompt-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Prompt Template
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Prompt Template">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default Template
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Templates
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#available-placeholders" class="md-nav__link">
+    <span class="md-ellipsis">
+      Available Placeholders
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-system-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. System Prompt
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. System Prompt">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-system-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default System Prompt
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-system-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom System Prompts
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-complete-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Complete Example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-instructor-wraps-your-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      How Instructor Wraps Your Prompts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preview-your-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preview Your Prompts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Best Practices
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-start-simple" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Start Simple
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-be-explicit-about-edge-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Be Explicit About Edge Cases
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-test-incrementally" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Test Incrementally
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-avoid-redundancy" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Avoid Redundancy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-consider-token-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Consider Token Cost
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../input-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Loading Data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../text-preprocessing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Preprocessing Text
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cost-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cost Management
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Caching
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Evaluation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../output-data/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Output Data
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Advanced
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/large-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Large Jobs & Checkpointing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/config-files/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration Files
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/logging/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Logging & Debugging
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/two-stage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Two-Stage Processing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    API Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/delm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    DELM
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/schema/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Schema
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/extraction-variable/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    ExtractionVariable
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    DELMConfig
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/cost-estimation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cost Estimation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/performance-evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Performance Evaluation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/post-processing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Post-Processing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/splitting-strategies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Splitting Strategies
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/relevance-scorers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Relevance Scorers
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/constants/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    System Constants
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-extractionvariable-descriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. ExtractionVariable Descriptions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. ExtractionVariable Descriptions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Basic Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#advanced-descriptions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced Descriptions
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-prompt-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Prompt Template
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Prompt Template">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-template" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default Template
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-templates" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Templates
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#available-placeholders" class="md-nav__link">
+    <span class="md-ellipsis">
+      Available Placeholders
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-system-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. System Prompt
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. System Prompt">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-system-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default System Prompt
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-system-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom System Prompts
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-complete-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Complete Example
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-instructor-wraps-your-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      How Instructor Wraps Your Prompts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#preview-your-prompts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preview Your Prompts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Best Practices
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-start-simple" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Start Simple
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-be-explicit-about-edge-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Be Explicit About Edge Cases
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-test-incrementally" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Test Incrementally
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-avoid-redundancy" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Avoid Redundancy
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-consider-token-cost" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Consider Token Cost
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="prompt-customization">Prompt Customization<a class="headerlink" href="#prompt-customization" title="Permanent link">&para;</a></h1>
+<p>Learn how to customize prompts at multiple levels to optimize extraction quality for your specific use case.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>DELM builds prompts through multiple layers that you can customize:</p>
+<ol>
+<li><strong>ExtractionVariable descriptions</strong> - Define what each field means</li>
+<li><strong>Prompt template</strong> - Structure how variables and text are presented</li>
+<li><strong>System prompt</strong> - Set the LLM's role and behavior</li>
+<li><strong>Instructor wrapper</strong> - Adds structured output instructions (automatic)</li>
+</ol>
+<h2 id="1-extractionvariable-descriptions">1. ExtractionVariable Descriptions<a class="headerlink" href="#1-extractionvariable-descriptions" title="Permanent link">&para;</a></h2>
+<p>The most common customization point. Variable descriptions directly influence what the LLM extracts.</p>
+<h3 id="basic-example">Basic Example<a class="headerlink" href="#basic-example" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span><span class="p">,</span> <span class="n">Schema</span><span class="p">,</span> <span class="n">ExtractionVariable</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">simple</span><span class="p">([</span>
+    <span class="n">ExtractionVariable</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;price&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The numeric price value mentioned in the text&quot;</span><span class="p">,</span>
+        <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;number&quot;</span>
+    <span class="p">),</span>
+    <span class="n">ExtractionVariable</span><span class="p">(</span>
+        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;currency&quot;</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The currency code (USD, EUR, GBP, etc.)&quot;</span><span class="p">,</span>
+        <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;string&quot;</span>
+    <span class="p">)</span>
+<span class="p">])</span>
+</code></pre></div>
+<p><strong>Generated prompt variables section:</strong>
+<div class="highlight"><pre><span></span><code>- price (number): The numeric price value mentioned in the text
+- currency (string): The currency code (USD, EUR, GBP, etc.)
+</code></pre></div></p>
+<h3 id="advanced-descriptions">Advanced Descriptions<a class="headerlink" href="#advanced-descriptions" title="Permanent link">&para;</a></h3>
+<p>Use descriptions to:
+- <strong>Clarify ambiguity</strong>
+- <strong>Provide examples</strong>
+- <strong>Set extraction rules</strong></p>
+<div class="highlight"><pre><span></span><code><span class="n">ExtractionVariable</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;horizon&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Time horizon for the forecast if mentioned (e.g., &#39;2024&#39;, &#39;Q1 2025&#39;, &#39;next year&#39;). Only extract if explicitly stated.&quot;</span><span class="p">,</span>
+    <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;string&quot;</span>
+<span class="p">)</span>
+
+<span class="n">ExtractionVariable</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;commodity_type&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Type of commodity mentioned. Must be one of: oil, gas, gold, silver, copper. Do NOT extract if the commodity is not explicitly mentioned with a price.&quot;</span><span class="p">,</span>
+    <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;string&quot;</span><span class="p">,</span>
+    <span class="n">allowed_values</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;oil&quot;</span><span class="p">,</span> <span class="s2">&quot;gas&quot;</span><span class="p">,</span> <span class="s2">&quot;gold&quot;</span><span class="p">,</span> <span class="s2">&quot;silver&quot;</span><span class="p">,</span> <span class="s2">&quot;copper&quot;</span><span class="p">]</span>
+<span class="p">)</span>
+
+<span class="n">ExtractionVariable</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;price_range&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Extract as a list of two numbers [min, max] if a range is given (e.g., &#39;$50-75 per barrel&#39; → [50, 75]). If single price, return empty list.&quot;</span><span class="p">,</span>
+    <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;[number]&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="2-prompt-template">2. Prompt Template<a class="headerlink" href="#2-prompt-template" title="Permanent link">&para;</a></h2>
+<p>The <code>prompt_template</code> controls how your variables and text are presented to the LLM.</p>
+<h3 id="default-template">Default Template<a class="headerlink" href="#default-template" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">default_template</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;Extract the following information from the text:</span>
+
+<span class="si">{variables}</span>
+
+<span class="s2">Text to analyze:</span>
+<span class="si">{text}</span><span class="s2">&quot;&quot;&quot;</span>
+</code></pre></div>
+<h3 id="custom-templates">Custom Templates<a class="headerlink" href="#custom-templates" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Example: Financial analysis focus</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">prompt_template</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;You are analyzing a financial earnings report.</span>
+
+<span class="s2">Extract these specific data points:</span>
+<span class="si">{variables}</span>
+
+<span class="s2">Important: Only extract information explicitly stated in the text. Do not infer or estimate values.</span>
+
+<span class="s2">Report text:</span>
+<span class="si">{text}</span>
+
+<span class="s2">Remember: If a field is not mentioned, leave it empty rather than guessing.&quot;&quot;&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Example: Academic research extraction</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">prompt_template</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;Task: Extract structured data from an academic paper excerpt.</span>
+
+<span class="s2">Data fields to extract:</span>
+<span class="si">{variables}</span>
+
+<span class="s2">Source text:</span>
+<span class="si">{text}</span>
+
+<span class="s2">Extraction guidelines:</span>
+<span class="s2">- Be precise and cite exact phrases when possible</span>
+<span class="s2">- Distinguish between stated facts and author interpretations</span>
+<span class="s2">- Mark uncertainty when information is ambiguous&quot;&quot;&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Example: Multi-language support</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">prompt_template</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;Extract the following information from the text (text may be in English, Spanish, or French):</span>
+
+<span class="si">{variables}</span>
+
+<span class="s2">Text:</span>
+<span class="si">{text}</span>
+
+<span class="s2">Note: Normalize all extracted values to English.&quot;&quot;&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="available-placeholders">Available Placeholders<a class="headerlink" href="#available-placeholders" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>{text}</code></strong> - The text chunk to extract from (required)</li>
+<li><strong><code>{variables}</code></strong> - Auto-generated list of variables from your schema (required)</li>
+</ul>
+<h2 id="3-system-prompt">3. System Prompt<a class="headerlink" href="#3-system-prompt" title="Permanent link">&para;</a></h2>
+<p>The <code>system_prompt</code> sets the LLM's role and behavior. This is sent as the "system" message in the API call.</p>
+<h3 id="default-system-prompt">Default System Prompt<a class="headerlink" href="#default-system-prompt" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">default_system_prompt</span> <span class="o">=</span> <span class="s2">&quot;You are a precise data-extraction assistant.&quot;</span>
+</code></pre></div>
+<h3 id="custom-system-prompts">Custom System Prompts<a class="headerlink" href="#custom-system-prompts" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># Example: Strict extraction</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;You are a meticulous data extraction specialist.</span>
+<span class="s2">Your core principle: ONLY extract information that is explicitly stated in the text.</span>
+<span class="s2">NEVER infer, guess, or fill in missing information.</span>
+<span class="s2">When uncertain, leave the field empty.&quot;&quot;&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Example: Domain expert</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;You are a finance professor with expertise in commodity markets.</span>
+<span class="s2">You extract structured data from earnings reports and market analyses with high precision.</span>
+<span class="s2">You understand financial terminology and can distinguish between forecasts, guidance, and reported figures.&quot;&quot;&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Example: Quality focus</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;You are a data-extraction assistant optimized for accuracy over coverage.</span>
+<span class="s2">Better to extract nothing than extract something incorrectly.</span>
+<span class="s2">Only extract data when you are highly confident it matches the field description.&quot;&quot;&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="4-complete-example">4. Complete Example<a class="headerlink" href="#4-complete-example" title="Permanent link">&para;</a></h2>
+<p>Combining all customization layers:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span><span class="p">,</span> <span class="n">Schema</span><span class="p">,</span> <span class="n">ExtractionVariable</span>
+
+<span class="c1"># 1. Define schema with detailed descriptions</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="o">.</span><span class="n">nested</span><span class="p">(</span>
+    <span class="n">container_name</span><span class="o">=</span><span class="s2">&quot;price_forecasts&quot;</span><span class="p">,</span>
+    <span class="n">variables_list</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">ExtractionVariable</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;commodity&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Specific commodity mentioned (e.g., &#39;Brent crude oil&#39;, &#39;natural gas&#39;, &#39;gold&#39;). Include the full commodity name as stated.&quot;</span><span class="p">,</span>
+            <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;string&quot;</span>
+        <span class="p">),</span>
+        <span class="n">ExtractionVariable</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;price_value&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The forecasted price value as a number. If a range is given, extract the midpoint.&quot;</span><span class="p">,</span>
+            <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;number&quot;</span>
+        <span class="p">),</span>
+        <span class="n">ExtractionVariable</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;unit&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The unit of measure (e.g., &#39;per barrel&#39;, &#39;per MMBtu&#39;, &#39;per ounce&#39;)&quot;</span><span class="p">,</span>
+            <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;string&quot;</span>
+        <span class="p">),</span>
+        <span class="n">ExtractionVariable</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;time_horizon&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;When this forecast applies (e.g., &#39;Q4 2024&#39;, &#39;2025&#39;, &#39;end of year&#39;). Only extract if explicitly mentioned.&quot;</span><span class="p">,</span>
+            <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;string&quot;</span>
+        <span class="p">),</span>
+        <span class="n">ExtractionVariable</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;source&quot;</span><span class="p">,</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Who made this forecast (e.g., company name, analyst firm, &#39;management&#39;). Only extract if clearly attributed.&quot;</span><span class="p">,</span>
+            <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;string&quot;</span>
+        <span class="p">)</span>
+    <span class="p">]</span>
+<span class="p">)</span>
+
+<span class="c1"># 2. Create DELM with custom prompts</span>
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">,</span>
+    <span class="n">temperature</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+
+    <span class="c1"># Custom system prompt</span>
+    <span class="n">system_prompt</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;You are a financial data extraction specialist with expertise in commodity markets and earnings reports.</span>
+<span class="s2">Your goal is to extract price forecasts with high accuracy.</span>
+<span class="s2">Only extract information that is explicitly stated - never infer or estimate.&quot;&quot;&quot;</span><span class="p">,</span>
+
+    <span class="c1"># Custom prompt template</span>
+    <span class="n">prompt_template</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;Extract price forecast information from this earnings report excerpt.</span>
+
+<span class="s2">For each distinct price forecast mentioned, extract:</span>
+<span class="si">{variables}</span>
+
+<span class="s2">CRITICAL RULES:</span>
+<span class="s2">1. Only extract forecasts that include an actual price number</span>
+<span class="s2">2. If multiple forecasts are mentioned, create separate entries</span>
+<span class="s2">3. If information for a field is not stated, leave it empty</span>
+<span class="s2">4. Distinguish between forecasts and historical/current prices</span>
+
+<span class="s2">Text to analyze:</span>
+<span class="si">{text}</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># 3. Run extraction</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">extract</span><span class="p">(</span><span class="s2">&quot;data/earnings_reports.csv&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="how-instructor-wraps-your-prompts">How Instructor Wraps Your Prompts<a class="headerlink" href="#how-instructor-wraps-your-prompts" title="Permanent link">&para;</a></h2>
+<p>DELM uses the <a href="https://python.useinstructor.com/">Instructor library</a> for structured output. Instructor automatically:</p>
+<ol>
+<li><strong>Adds JSON schema instructions</strong> to ensure the LLM returns valid structured data</li>
+<li><strong>Wraps your prompts</strong> in a messages array:
+   <div class="highlight"><pre><span></span><code><span class="n">messages</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;system&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">your_system_prompt</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">your_prompt_template_filled</span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div></li>
+<li><strong>Validates responses</strong> against your schema and retries if needed</li>
+</ol>
+<p>You don't need to worry about JSON formatting instructions - Instructor handles this automatically.</p>
+<h2 id="preview-your-prompts">Preview Your Prompts<a class="headerlink" href="#preview-your-prompts" title="Permanent link">&para;</a></h2>
+<p>Use <code>preview_prompt()</code> to see the DELM-built prompt after variable substitution:</p>
+<div class="highlight"><pre><span></span><code><span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">prompt_template</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">)</span>
+
+<span class="c1"># Preview with sample text</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">delm</span><span class="o">.</span><span class="n">preview_prompt</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">&quot;Oil prices are expected to reach $80 per barrel by Q4 2024.&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Important</strong>: This shows only the user prompt that DELM builds (your <code>prompt_template</code> with <code>{text}</code> and <code>{variables}</code> filled in). It does <strong>not</strong> include:
+- The system prompt (sent separately in the API call)
+- Instructor's JSON schema wrapper (added automatically during the API call)</p>
+<p>This preview is useful for debugging your template and variable formatting, but the actual LLM receives additional instructions from Instructor for structured output.</p>
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+<h3 id="1-start-simple">1. Start Simple<a class="headerlink" href="#1-start-simple" title="Permanent link">&para;</a></h3>
+<p>Begin with clear variable descriptions before customizing the template:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Good: Clear, specific description</span>
+<span class="n">ExtractionVariable</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;price&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;The numeric price value mentioned (without currency symbol)&quot;</span><span class="p">,</span>
+    <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;number&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Less effective: Vague description</span>
+<span class="n">ExtractionVariable</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;price&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;price&quot;</span><span class="p">,</span>
+    <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;number&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="2-be-explicit-about-edge-cases">2. Be Explicit About Edge Cases<a class="headerlink" href="#2-be-explicit-about-edge-cases" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">ExtractionVariable</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;revenue&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Quarterly revenue in millions. If revenue is stated in billions, convert to millions. If &#39;year-to-date&#39; or &#39;annual&#39; revenue is mentioned, do NOT extract.&quot;</span><span class="p">,</span>
+    <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;number&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+<h3 id="3-test-incrementally">3. Test Incrementally<a class="headerlink" href="#3-test-incrementally" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Start with default prompts</li>
+<li>Run evaluation to identify issues</li>
+<li>Adjust descriptions for low-performing fields</li>
+<li>If descriptions aren't enough, customize the prompt template</li>
+<li>Use system prompt for overall behavior changes</li>
+</ol>
+<h3 id="4-avoid-redundancy">4. Avoid Redundancy<a class="headerlink" href="#4-avoid-redundancy" title="Permanent link">&para;</a></h3>
+<p>Don't repeat the same instructions in multiple places. If all variables need the same rule, put it in the prompt template or system prompt:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Less efficient: Repeating in every variable</span>
+<span class="n">ExtractionVariable</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;price&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Price value. Only extract if explicitly mentioned.&quot;</span><span class="p">,</span>
+    <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;number&quot;</span>
+<span class="p">)</span>
+<span class="n">ExtractionVariable</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;volume&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Volume value. Only extract if explicitly mentioned.&quot;</span><span class="p">,</span>
+    <span class="n">data_type</span><span class="o">=</span><span class="s2">&quot;number&quot;</span>
+<span class="p">)</span>
+
+<span class="c1"># Better: Put general rule in prompt template</span>
+<span class="n">prompt_template</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;Extract the following (ONLY if explicitly mentioned):</span>
+<span class="si">{variables}</span>
+
+<span class="s2">Text: </span><span class="si">{text}</span><span class="s2">&quot;&quot;&quot;</span>
+</code></pre></div>
+<h3 id="5-consider-token-cost">5. Consider Token Cost<a class="headerlink" href="#5-consider-token-cost" title="Permanent link">&para;</a></h3>
+<p>Longer prompts cost more. Find the balance between clarity and conciseness:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Verbose (higher cost)</span>
+<span class="n">description</span><span class="o">=</span><span class="s2">&quot;This field should contain the price value mentioned in the text. The price should be a numeric value without any currency symbols or units. If a price range is given, extract the midpoint. If multiple prices are mentioned, extract all of them as a list.&quot;</span>
+
+<span class="c1"># Concise (lower cost, equally clear)</span>
+<span class="n">description</span><span class="o">=</span><span class="s2">&quot;Numeric price value without symbols. For ranges, use midpoint. Extract all if multiple.&quot;</span>
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../schemas/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Defining Schemas">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Defining Schemas
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../input-data/" class="md-footer__link md-footer__link--next" aria-label="Next: Loading Data">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Loading Data
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.footer", "content.code.copy"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>
