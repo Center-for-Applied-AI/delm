@@ -37,15 +37,29 @@ _MODEL_PRICING_DB: dict[tuple[str, str], dict[str, float]] = {
     ("openai", "gpt-4.5"): {"input": 75.0, "output": 150.0},
     ("openai", "gpt-3.5-turbo"): {"input": 0.50, "output": 1.50},
     ("openai", "gpt-3.5-turbo-instruct"): {"input": 1.50, "output": 2.00},
+    # GPT-5.2 family
+    ("openai", "gpt-5.2"): {"input": 1.75, "output": 14.0},
+    ("openai", "gpt-5.2-pro"): {"input": 21.0, "output": 168.0},
+    # o1 model
+    ("openai", "o1"): {"input": 15.0, "output": 60.0},
 
     # ----------------------------------------------------------------------
     # Anthropic Claude models
-    # Claude 4 family
+    # Claude 4-5 family
+    ("anthropic", "claude-opus-4-5"): {"input": 5.0, "output": 25.0},
+    ("anthropic", "claude-sonnet-4-5"): {"input": 3.0, "output": 15.0},
+    ("anthropic", "claude-haiku-4-5"): {"input": 1.0, "output": 5.0},
+    ("anthropic", "claude-opus-4-5-latest"): {"input": 5.0, "output": 25.0},
+    ("anthropic", "claude-sonnet-4-5-latest"): {"input": 3.0, "output": 15.0},
+    ("anthropic", "claude-haiku-4-5-latest"): {"input": 1.0, "output": 5.0},
+    # Claude 4-1 family
+    ("anthropic", "claude-opus-4-1"): {"input": 15.0, "output": 75.0},
+    # Claude 4 family
     ("anthropic", "claude-opus-4"): {"input": 15.0, "output": 75.0},
     ("anthropic", "claude-sonnet-4"): {"input": 3.0, "output": 15.0},
     # Claude 3 family (latest versions)
-    ("anthropic", "claude-3.7-sonnet"): {"input": 3.0, "output": 15.0},
-    ("anthropic", "claude-3.5-haiku"): {"input": 0.80, "output": 4.0},
+    ("anthropic", "claude-3-7-sonnet"): {"input": 3.0, "output": 15.0},
+    ("anthropic", "claude-3-5-haiku"): {"input": 0.80, "output": 4.0},
     # Legacy Claude 3 models retained for backward compatibility.
     ("anthropic", "claude-3-opus"): {"input": 15.0, "output": 75.0},
     ("anthropic", "claude-3-haiku"): {"input": 0.25, "output": 1.25},
@@ -57,6 +71,9 @@ _MODEL_PRICING_DB: dict[tuple[str, str], dict[str, float]] = {
 
     # ----------------------------------------------------------------------
     # Google (Gemini) models — pricing from Google AI Developer docs and UC Today
+    ("google", "gemini-3-pro-preview"): {"input": 2.0, "output": 12.0},
+    ("google", "gemini-3-flash-preview"): {"input": 0.50, "output": 3.0},
+    ("google", "gemini-3-flash-lite-preview"): {"input": 0.15, "output": 1.25},
     ("google", "gemini-2.5-pro"): {"input": 1.25, "output": 10.0},
     ("google", "gemini-2.5-flash"): {"input": 0.30, "output": 2.50},
     ("google", "gemini-2.5-flash-lite"): {"input": 0.10, "output": 0.40},
@@ -75,8 +92,8 @@ _MODEL_PRICING_DB: dict[tuple[str, str], dict[str, float]] = {
 
     # ----------------------------------------------------------------------
     # Groq hosted models — pricing from Groq official pricing page
-    ("groq", "gpt-oss-20b"): {"input": 0.10, "output": 0.50},
-    ("groq", "gpt-oss-120b"): {"input": 0.15, "output": 0.75},
+    ("groq", "gpt-oss-20b"): {"input": 0.075, "output": 0.30},
+    ("groq", "gpt-oss-120b"): {"input": 0.15, "output": 0.60},
     ("groq", "kimi-k2-0905-1t"): {"input": 1.00, "output": 3.00},
     ("groq", "llama-4-scout"): {"input": 0.11, "output": 0.34},
     ("groq", "llama-4-maverick"): {"input": 0.20, "output": 0.60},
@@ -93,11 +110,17 @@ _MODEL_PRICING_DB: dict[tuple[str, str], dict[str, float]] = {
 
     # ----------------------------------------------------------------------
     # DeepSeek models — pricing based on DeepSeek API documentation
-    # Note: for cacheable models (V3/V3.1/R1) we use the cache‑miss price as
-    # a conservative default.
-    ("deepseek", "deepseek-v3.1"): {"input": 0.56, "output": 1.68},
-    ("deepseek", "deepseek-v3"): {"input": 0.27, "output": 1.10},
-    ("deepseek", "deepseek-r1"): {"input": 0.55, "output": 2.19},
+    ("deepseek", "deepseek-chat"): {"input": 0.27, "output": 1.10},
+    ("deepseek", "deepseek-reasoner"): {"input": 0.55, "output": 2.19},
+
+    # ----------------------------------------------------------------------
+    # xAI (Grok) models
+    ("xai", "grok-4"): {"input": 3.00, "output": 15.00},
+    ("xai", "grok-4-fast-reasoning"): {"input": 0.20, "output": 0.50},
+    ("xai", "grok-4-fast-non-reasoning"): {"input": 0.20, "output": 0.50},
+    ("xai", "grok-4-1-fast-reasoning"): {"input": 0.20, "output": 0.50},
+    ("xai", "grok-4-1-fast-non-reasoning"): {"input": 0.20, "output": 0.50},
+    ("xai", "grok-code-fast-1"): {"input": 0.20, "output": 1.50},
 
     # ----------------------------------------------------------------------
     # Ollama hosted models — local inference; zero cost
