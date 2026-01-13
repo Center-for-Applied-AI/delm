@@ -45,7 +45,7 @@ from .constants import (
 from delm.schemas import Schema
 from delm.models import ExtractionVariable
 
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __author__ = "Eric Fithian - Chicago Booth CAAI Lab"
 
 __all__ = [
