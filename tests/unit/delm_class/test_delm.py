@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
 from delm import DELM, Schema
+from delm.config import DELMConfig
 from delm.models import ExtractionVariable
 
 
@@ -278,3 +279,38 @@ This is line 3"""
             # Verify custom template is used
             assert isinstance(result, str)
             assert "Custom template" in result or "Extract" in result
+
+
+class TestDELMConfigFromAny:
+    """Test DELMConfig.from_any behavior with DELM objects."""
+
+    def test_from_any_rejects_delm_instance(self):
+        schema = Schema.simple(
+            variables_list=[
+                ExtractionVariable(
+                    name="test_field",
+                    description="A test field",
+                    data_type="string",
+                )
+            ]
+        )
+
+        with patch("delm.delm.DataProcessor"), patch(
+            "delm.delm.InMemoryExperimentManager"
+        ), patch("delm.delm.CostTracker"), patch(
+            "delm.delm.SemanticCacheFactory"
+        ), patch(
+            "delm.delm.ExtractionManager"
+        ), patch(
+            "delm.delm._configure_logging"
+        ):
+            delm = DELM(
+                schema=schema,
+                provider="openai",
+                model="gpt-4o-mini",
+                target_column="text_column",
+                override_logging=False,
+            )
+
+            with pytest.raises(ValueError, match="config must be a DELMConfig"):
+                DELMConfig.from_any(delm)

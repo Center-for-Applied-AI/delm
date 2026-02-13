@@ -455,6 +455,7 @@ class ExtractionManager:
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": prompt},
                         ],
+                        max_completion_tokens=self.model_config.max_completion_tokens,
                         max_retries=0,
                     )
                 )
@@ -508,6 +509,8 @@ class ExtractionManager:
                 system_prompt=system_prompt,
                 model_name=provider_and_model,
                 temperature=self.temperature,
+                mode=self.model_config.mode,
+                max_completion_tokens=self.model_config.max_completion_tokens,
             )
             cached = self.semantic_cache.get(key)
             if cached:

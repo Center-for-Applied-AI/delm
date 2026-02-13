@@ -115,6 +115,7 @@ class MockChatCompletions:
         temperature: float,
         response_model: Any,
         messages: list,
+        max_completion_tokens: int = 4096,
         max_retries: int = 0,
     ):
         """Mock the create_with_completion method with realistic behavior."""

@@ -14,7 +14,7 @@ from delm.schemas.schemas import (
     Schema,
 )
 from delm.delm import DELM, DELMConfig
-from delm.constants import SYSTEM_EXTRACTED_DATA_JSON_COLUMN
+from delm.constants import SYSTEM_EXTRACTED_DATA_JSON_COLUMN, SYSTEM_ERRORS_COLUMN
 
 # Module-level logger
 log = logging.getLogger(__name__)
@@ -251,16 +251,28 @@ def explode_json_results(
     if len(df) == 0:
         return pd.DataFrame()
 
-    # Convert JSON strings to Python objects if needed
-    if df[json_column].dtype == "object" and isinstance(df[json_column].iloc[0], str):
-        df[json_column] = df[json_column].apply(lambda x: json.loads(x) if x else {})
+    # Convert JSON strings to Python objects when present.
+    # This must run row-wise because error rows can have None in the JSON column.
+    if df[json_column].dtype == "object":
+        df[json_column] = df[json_column].apply(
+            lambda value: json.loads(value) if isinstance(value, str) and value else value
+        )
 
     exploded_rows = []
 
     for idx, row in df.iterrows():
         json_data = row[json_column]
+        row_has_errors = (
+            SYSTEM_ERRORS_COLUMN in row.index and pd.notna(row[SYSTEM_ERRORS_COLUMN])
+        )
+        if row_has_errors:
+            continue
         if not json_data:
             continue
+        if not isinstance(json_data, dict):
+            raise ValueError(
+                f"Expected dict in `{json_column}` for row {idx}, got {type(json_data).__name__}"
+            )
 
         # Get system columns (non-JSON data)
         system_cols = {col: row[col] for col in row.index if col != json_column}

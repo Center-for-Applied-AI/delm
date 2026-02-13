@@ -74,6 +74,7 @@ max_retries: 3                   # Default: 3, API retry attempts
 base_delay: 1.0                  # Default: 1.0, seconds between retries
 tokens_per_minute: null          # Default: null, max tokens per minute
 requests_per_minute: null        # Default: null, max requests per minute
+max_completion_tokens: 4096      # Default: 4096, max completion tokens per request
 
 # Cost Management
 track_cost: true                 # Default: true
@@ -255,6 +256,7 @@ Contains all LLM-related settings including provider, model, prompts, processing
 | `batch_size` | int | 10 | Number of chunks processed per batch |
 | `max_workers` | int | 1 | Concurrent workers (within each batch) |
 | `base_delay` | float | 1.0 | Seconds between retry attempts |
+| `max_completion_tokens` | int | 4096 | Maximum completion tokens per request |
 | `track_cost` | bool | true | Enable cost tracking |
 | `max_budget` | float | null | Maximum budget in dollars (requires `track_cost: true`) |
 | `model_input_cost_per_1M_tokens` | float | null | Custom input token cost (auto-detected from model database if null) |

@@ -36,6 +36,7 @@ delm = DELM(
 | `base_delay` | `float` | `1.0` | Exponential backoff base delay (seconds) |
 | `tokens_per_minute` | `int` | `null` | Maximum tokens per minute |
 | `requests_per_minute` | `int` | `null` | Maximum requests per minute |
+| `max_completion_tokens` | `int` | `4096` | Max completion tokens per request |
 
 
 ### Cost Tracking
@@ -68,7 +69,7 @@ delm = DELM(
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `cache_backend` | `str` | `"sqlite"` | Cache backend (`"sqlite"`, `"lmdb"`, `"json"`) |
+| `cache_backend` | `str` | `"sqlite"` | Cache backend (`"sqlite"`, `"lmdb"`, `"filesystem"`) |
 | `cache_path` | `str \| Path` | `".delm/cache"` | Cache directory |
 | `cache_max_size_mb` | `int` | `512` | Max cache size (MB) |
 | `cache_synchronous` | `str` | `"normal"` | SQLite sync mode |

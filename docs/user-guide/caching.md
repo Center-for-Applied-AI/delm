@@ -8,7 +8,7 @@ Learn how to use DELM's caching to reduce costs and improve performance by avoid
 
 ## What is Caching?
 
-DELM caches LLM responses using an **exact-match** key system. When you process text with the same prompt, model, and temperature settings, DELM returns the cached result instead of making a new API call.
+DELM caches LLM responses using an **exact-match** key system. When you process text with the same prompt, model, and request settings, DELM returns the cached result instead of making a new API call.
 
 ### How It Works
 
@@ -17,8 +17,12 @@ The cache key is computed from:
 - The system prompt
 - The model name (e.g., `gpt-4o-mini`)
 - The temperature setting
+- The Instructor `mode` (when set)
+- `max_completion_tokens` (when not the default `4096`)
 
 If all of these match exactly, the cached response is returned. This means **identical inputs always return identical outputs**, even across different runs.
+
+For backward compatibility, older cache entries (created before `mode`/`max_completion_tokens` were included) are still reused when running with `mode=None` and `max_completion_tokens=4096`.
 
 ### Benefits
 

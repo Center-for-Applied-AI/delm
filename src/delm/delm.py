@@ -64,6 +64,7 @@ class DELM:
         max_budget: Optional[float] = None,
         model_input_cost_per_1M_tokens: Optional[float] = None,
         model_output_cost_per_1M_tokens: Optional[float] = None,
+        max_completion_tokens: int = 4096,
         # Data Preprocessing (flat)
         target_column: str = "text",
         drop_target_column: bool = False,
@@ -175,6 +176,7 @@ class DELM:
             max_budget=max_budget,
             model_input_cost_per_1M_tokens=model_input_cost_per_1M_tokens,
             model_output_cost_per_1M_tokens=model_output_cost_per_1M_tokens,
+            max_completion_tokens=max_completion_tokens,
             target_column=target_column,
             drop_target_column=drop_target_column,
             splitting_strategy=splitting_strategy,
@@ -268,6 +270,7 @@ class DELM:
             max_budget=config.llm_extraction_cfg.max_budget,
             model_input_cost_per_1M_tokens=config.llm_extraction_cfg.model_input_cost_per_1M_tokens,
             model_output_cost_per_1M_tokens=config.llm_extraction_cfg.model_output_cost_per_1M_tokens,
+            max_completion_tokens=config.llm_extraction_cfg.max_completion_tokens,
             target_column=config.data_preprocessing_cfg.target_column,
             drop_target_column=config.data_preprocessing_cfg.drop_target_column,
             splitting_strategy=config.data_preprocessing_cfg.splitting_strategy,

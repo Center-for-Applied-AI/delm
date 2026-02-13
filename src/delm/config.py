@@ -65,6 +65,7 @@ class LLMExtractionConfig(BaseConfig):
     max_budget: Optional[float]
     model_input_cost_per_1M_tokens: Optional[float]
     model_output_cost_per_1M_tokens: Optional[float]
+    max_completion_tokens: int
 
     def get_provider_string(self) -> str:
         """Return the combined provider string for Instructor.
@@ -137,6 +138,14 @@ class LLMExtractionConfig(BaseConfig):
                 raise ValueError(
                     f"max_budget must be a number. max_budget: {self.max_budget}, Suggestion: Use a number"
                 )
+        if not isinstance(self.max_completion_tokens, int):
+            raise ValueError(
+                f"max_completion_tokens must be an integer. max_completion_tokens: {self.max_completion_tokens}"
+            )
+        if self.max_completion_tokens <= 0:
+            raise ValueError(
+                f"max_completion_tokens must be greater than 0. max_completion_tokens: {self.max_completion_tokens}"
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -157,6 +166,7 @@ class LLMExtractionConfig(BaseConfig):
             "max_budget": self.max_budget,
             "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,
             "model_output_cost_per_1M_tokens": self.model_output_cost_per_1M_tokens,
+            "max_completion_tokens": self.max_completion_tokens,
         }
 
 
@@ -445,6 +455,7 @@ class DELMConfig:
         max_budget: Optional[float] = None,
         model_input_cost_per_1M_tokens: Optional[float] = None,
         model_output_cost_per_1M_tokens: Optional[float] = None,
+        max_completion_tokens: int = 4096,
         # Data Preprocessing (flat)
         target_column: str = "text",
         drop_target_column: bool = False,
@@ -472,13 +483,19 @@ class DELMConfig:
 
         # Load SplittingStrategy
         if isinstance(splitting_strategy, dict):
-            splitting_strategy = SplitStrategy.from_dict(splitting_strategy)
+            if splitting_strategy.get("type") in {"None", None}:
+                splitting_strategy = None
+            else:
+                splitting_strategy = SplitStrategy.from_dict(splitting_strategy)
         elif isinstance(splitting_strategy, SplitStrategy):
             splitting_strategy = splitting_strategy
 
         # Load RelevanceScorer
         if isinstance(relevance_scorer, dict):
-            relevance_scorer = RelevanceScorer.from_dict(relevance_scorer)
+            if relevance_scorer.get("type") in {"None", None}:
+                relevance_scorer = None
+            else:
+                relevance_scorer = RelevanceScorer.from_dict(relevance_scorer)
         elif isinstance(relevance_scorer, RelevanceScorer):
             relevance_scorer = relevance_scorer
 
@@ -502,6 +519,7 @@ class DELMConfig:
             max_budget=max_budget,
             model_input_cost_per_1M_tokens=model_input_cost_per_1M_tokens,
             model_output_cost_per_1M_tokens=model_output_cost_per_1M_tokens,
+            max_completion_tokens=max_completion_tokens,
         )
         self.data_preprocessing_cfg = DataPreprocessingConfig(
             target_column=target_column,
@@ -565,6 +583,7 @@ class DELMConfig:
             max_budget=data["max_budget"],
             model_input_cost_per_1M_tokens=data["model_input_cost_per_1M_tokens"],
             model_output_cost_per_1M_tokens=data["model_output_cost_per_1M_tokens"],
+            max_completion_tokens=data.get("max_completion_tokens", 4096),
             target_column=data["target_column"],
             drop_target_column=data["drop_target_column"],
             splitting_strategy=data["splitting_strategy"],
@@ -603,7 +622,7 @@ class DELMConfig:
 
     @staticmethod
     def from_any(
-        config_like: "DELMConfig | dict[str, Any] | str | Path | DELM",
+        config_like: "DELMConfig | dict[str, Any] | str | Path",
     ) -> "DELMConfig":
         """Create ``DELMConfig`` from various input types.
 
@@ -620,13 +639,11 @@ class DELMConfig:
             return config_like
         elif isinstance(config_like, str):
             return DELMConfig.from_yaml(Path(config_like))
+        elif isinstance(config_like, Path):
+            return DELMConfig.from_yaml(config_like)
         elif isinstance(config_like, dict):
             return DELMConfig.from_dict(config_like)
         else:
-            raise ValueError(
-                f"config must be a DELMConfig, dict, or path to YAML. config_type: {type(config_like).__name__}"
-            )
-
             raise ValueError(
                 f"config must be a DELMConfig, dict, or path to YAML. config_type: {type(config_like).__name__}"
             )

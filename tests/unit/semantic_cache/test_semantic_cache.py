@@ -54,10 +54,61 @@ class TestUtilities:
             system_prompt="system prompt",
             model_name="gpt-4",
             temperature=0.1,
+            mode="json",
+            max_completion_tokens=4096,
         )
 
         assert len(key) == 64
         assert isinstance(key, str)
+
+    def test_make_cache_key_changes_for_mode_and_max_completion_tokens(self):
+        """Test cache key changes when mode or token cap changes."""
+        key_json = make_cache_key(
+            prompt_text="test prompt",
+            system_prompt="system prompt",
+            model_name="gpt-4",
+            temperature=0.1,
+            mode="json",
+            max_completion_tokens=4096,
+        )
+        key_tools = make_cache_key(
+            prompt_text="test prompt",
+            system_prompt="system prompt",
+            model_name="gpt-4",
+            temperature=0.1,
+            mode="tools",
+            max_completion_tokens=4096,
+        )
+        key_low_tokens = make_cache_key(
+            prompt_text="test prompt",
+            system_prompt="system prompt",
+            model_name="gpt-4",
+            temperature=0.1,
+            mode="json",
+            max_completion_tokens=1024,
+        )
+
+        assert key_json != key_tools
+        assert key_json != key_low_tokens
+
+    def test_make_cache_key_default_values_match_legacy_material(self):
+        """Test default mode/token settings produce legacy-compatible key."""
+        key_default = make_cache_key(
+            prompt_text="test prompt",
+            system_prompt="system prompt",
+            model_name="gpt-4",
+            temperature=0.1,
+        )
+        key_legacy = make_semantic_key(
+            {
+                "prompt": "test prompt",
+                "system": "system prompt",
+                "model": "gpt-4",
+                "temperature": 0.1,
+            }
+        )
+
+        assert key_default == key_legacy
 
 
 class TestSemanticCache:

@@ -68,6 +68,7 @@ LLM and extraction settings.
 **Attributes:**
 - `provider`, `model`, `temperature`
 - `batch_size`, `max_workers`, `max_retries`, `base_delay`, `tokens_per_minute`, `requests_per_minute`
+- `max_completion_tokens`
 - `track_cost`, `max_budget`
 - `model_input_cost_per_1M_tokens`, `model_output_cost_per_1M_tokens`
 - `prompt_template`, `system_prompt`

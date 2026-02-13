@@ -15,6 +15,7 @@ from delm.utils.post_processing import (
 )
 from delm.schemas.schemas import SimpleSchema, NestedSchema, MultipleSchema, ExtractionVariable
 from delm.constants import SYSTEM_EXTRACTED_DATA_JSON_COLUMN
+from delm.constants import SYSTEM_ERRORS_COLUMN
 
 
 class TestMajorityVote:
@@ -317,6 +318,29 @@ class TestExplodeJsonResults:
         assert len(result) == 1
         assert result.iloc[0]["company"] == "Apple"
         assert result.iloc[0]["price"] == 150.0
+
+    def test_explode_skips_error_rows(self):
+        """Test exploding ignores rows where DELM reported errors."""
+        input_df = pd.DataFrame(
+            {
+                "chunk_id": [1, 2],
+                SYSTEM_EXTRACTED_DATA_JSON_COLUMN: [
+                    None,
+                    '{"company": "Apple", "price": 150.0, "tags": ["tech"]}',
+                ],
+                SYSTEM_ERRORS_COLUMN: ['["Failed extraction"]', None],
+            }
+        )
+
+        result = explode_json_results(
+            input_df,
+            self.simple_schema,
+            json_column=SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
+        )
+
+        assert len(result) == 1
+        assert result.iloc[0]["chunk_id"] == 2
+        assert result.iloc[0]["company"] == "Apple"
     
     def test_explode_empty_dataframe(self):
         """Test exploding empty DataFrame."""

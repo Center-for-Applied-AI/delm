@@ -88,6 +88,8 @@ def make_cache_key(
     system_prompt: str,
     model_name: str,
     temperature: float,
+    mode: Optional[str] = None,
+    max_completion_tokens: int = 4096,
 ) -> str:
     """
     Build a deterministic cache key that depends **only** on:
@@ -95,6 +97,8 @@ def make_cache_key(
       • system prompt text
       • model_name  (e.g. 'gpt‑4o-mini')
       • temperature
+      • instructor mode (e.g. 'tools', 'json')
+      • max completion tokens
     """
     log.debug(
         "Creating cache key: model=%s, temperature=%s, prompt_length=%d, system_length=%d",
@@ -109,6 +113,12 @@ def make_cache_key(
         "model": model_name,
         "temperature": temperature,
     }
+    # Backward compatibility: old cache keys did not include mode/token cap.
+    # Keep default behavior hash-compatible with existing caches.
+    if mode is not None:
+        material["mode"] = mode
+    if max_completion_tokens != 4096:
+        material["max_completion_tokens"] = max_completion_tokens
     return make_semantic_key(material)
 
 

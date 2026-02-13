@@ -71,7 +71,7 @@ def estimate_input_token_cost(
 
     log.debug("Estimating input token cost for data source: %s", data_source)
     if isinstance(config, DELM):
-        config = config.config.to_dict()
+        config = config.config
     config_obj = DELMConfig.from_any(config)
     log.debug(
         "Config loaded: %s",
@@ -140,7 +140,7 @@ def estimate_input_token_cost(
 
 
 def estimate_total_cost(
-    config: Union[str, Dict[str, Any], DELMConfig],
+    config: Union[str, Dict[str, Any], DELMConfig, DELM],
     data_source: Union[str, Path] | pd.DataFrame,
     sample_size: int = 10,
     save_file_log: bool = False,
@@ -188,6 +188,8 @@ def estimate_total_cost(
         data_source,
         sample_size,
     )
+    if isinstance(config, DELM):
+        config = config.config
     config_obj = DELMConfig.from_any(config)
     log.debug(
         "Config loaded: %s",

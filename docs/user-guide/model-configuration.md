@@ -120,6 +120,21 @@ delm = DELM(
 )
 ```
 
+## Max Completion Tokens
+
+DELM passes `max_completion_tokens` directly to Instructor for each request. The default is `4096`.
+
+```python
+from delm import DELM
+
+delm = DELM(
+    schema=my_schema,
+    provider="openai",
+    model="gpt-4o-mini",
+    max_completion_tokens=2048,
+)
+```
+
 ## API Keys
 
 DELM reads API keys from environment variables:

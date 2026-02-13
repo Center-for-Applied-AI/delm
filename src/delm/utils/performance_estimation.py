@@ -89,7 +89,7 @@ def estimate_performance(
     )
 
     if isinstance(config, DELM):
-        config = config.config.to_dict()
+        config = config.config
     config_obj = DELMConfig.from_any(config)
     log.debug(
         "Config loaded: %s",
