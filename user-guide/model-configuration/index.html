@@ -505,6 +505,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#max-completion-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      Max Completion Tokens
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#api-keys" class="md-nav__link">
     <span class="md-ellipsis">
       API Keys
@@ -1280,6 +1289,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#max-completion-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      Max Completion Tokens
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#api-keys" class="md-nav__link">
     <span class="md-ellipsis">
       API Keys
@@ -1449,6 +1467,17 @@
     <span class="n">base_url</span><span class="o">=</span><span class="s2">&quot;http://localhost:8000/v1&quot;</span><span class="p">,</span>
     <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;md_json&quot;</span><span class="p">,</span>  <span class="c1"># Works with almost any server</span>
     <span class="n">track_cost</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<h2 id="max-completion-tokens">Max Completion Tokens<a class="headerlink" href="#max-completion-tokens" title="Permanent link">&para;</a></h2>
+<p>DELM passes <code>max_completion_tokens</code> directly to Instructor for each request. The default is <code>4096</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">delm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DELM</span>
+
+<span class="n">delm</span> <span class="o">=</span> <span class="n">DELM</span><span class="p">(</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">my_schema</span><span class="p">,</span>
+    <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;openai&quot;</span><span class="p">,</span>
+    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;gpt-4o-mini&quot;</span><span class="p">,</span>
+    <span class="n">max_completion_tokens</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <h2 id="api-keys">API Keys<a class="headerlink" href="#api-keys" title="Permanent link">&para;</a></h2>

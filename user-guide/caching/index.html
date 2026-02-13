@@ -1501,14 +1501,17 @@
 <p><strong>Recommendation</strong>: Caching is <strong>nearly always recommended</strong>. It saves money by avoiding duplicate API calls, and the performance overhead is minimal. Enable caching unless you have a specific reason not to.</p>
 <p><strong>Default Behavior</strong>: Caching is <strong>enabled by default</strong> using the SQLite backend. The cache is stored at <code>.delm/cache</code> (relative to your current working directory). You don't need to configure anything to start using it.</p>
 <h2 id="what-is-caching">What is Caching?<a class="headerlink" href="#what-is-caching" title="Permanent link">&para;</a></h2>
-<p>DELM caches LLM responses using an <strong>exact-match</strong> key system. When you process text with the same prompt, model, and temperature settings, DELM returns the cached result instead of making a new API call.</p>
+<p>DELM caches LLM responses using an <strong>exact-match</strong> key system. When you process text with the same prompt, model, and request settings, DELM returns the cached result instead of making a new API call.</p>
 <h3 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
 <p>The cache key is computed from:
 - The rendered prompt text (including chunk content and template variables)
 - The system prompt
 - The model name (e.g., <code>gpt-4o-mini</code>)
-- The temperature setting</p>
+- The temperature setting
+- The Instructor <code>mode</code> (when set)
+- <code>max_completion_tokens</code> (when not the default <code>4096</code>)</p>
 <p>If all of these match exactly, the cached response is returned. This means <strong>identical inputs always return identical outputs</strong>, even across different runs.</p>
+<p>For backward compatibility, older cache entries (created before <code>mode</code>/<code>max_completion_tokens</code> were included) are still reused when running with <code>mode=None</code> and <code>max_completion_tokens=4096</code>.</p>
 <h3 id="benefits">Benefits<a class="headerlink" href="#benefits" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong>Cost reduction</strong>: Avoid paying for duplicate API calls</li>

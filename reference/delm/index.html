@@ -1519,6 +1519,12 @@
 <td><code>null</code></td>
 <td>Maximum requests per minute</td>
 </tr>
+<tr>
+<td><code>max_completion_tokens</code></td>
+<td><code>int</code></td>
+<td><code>4096</code></td>
+<td>Max completion tokens per request</td>
+</tr>
 </tbody>
 </table>
 <h3 id="cost-tracking">Cost Tracking<a class="headerlink" href="#cost-tracking" title="Permanent link">&para;</a></h3>
@@ -1641,7 +1647,7 @@
 <td><code>cache_backend</code></td>
 <td><code>str</code></td>
 <td><code>"sqlite"</code></td>
-<td>Cache backend (<code>"sqlite"</code>, <code>"lmdb"</code>, <code>"json"</code>)</td>
+<td>Cache backend (<code>"sqlite"</code>, <code>"lmdb"</code>, <code>"filesystem"</code>)</td>
 </tr>
 <tr>
 <td><code>cache_path</code></td>

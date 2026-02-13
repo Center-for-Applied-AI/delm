@@ -1377,6 +1377,7 @@
 <span class="nt">base_delay</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span><span class="w">                  </span><span class="c1"># Default: 1.0, seconds between retries</span>
 <span class="nt">tokens_per_minute</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span><span class="w">          </span><span class="c1"># Default: null, max tokens per minute</span>
 <span class="nt">requests_per_minute</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">null</span><span class="w">        </span><span class="c1"># Default: null, max requests per minute</span>
+<span class="nt">max_completion_tokens</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4096</span><span class="w">      </span><span class="c1"># Default: 4096, max completion tokens per request</span>
 
 <span class="c1"># Cost Management</span>
 <span class="nt">track_cost</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span><span class="w">                 </span><span class="c1"># Default: true</span>
@@ -1605,6 +1606,12 @@
 <td>float</td>
 <td>1.0</td>
 <td>Seconds between retry attempts</td>
+</tr>
+<tr>
+<td><code>max_completion_tokens</code></td>
+<td>int</td>
+<td>4096</td>
+<td>Maximum completion tokens per request</td>
 </tr>
 <tr>
 <td><code>track_cost</code></td>
