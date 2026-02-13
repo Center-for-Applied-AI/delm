@@ -252,11 +252,11 @@ def explode_json_results(
         return pd.DataFrame()
 
     # Convert JSON strings to Python objects when present.
-    # This must run row-wise because error rows can have None in the JSON column.
-    if df[json_column].dtype == "object":
-        df[json_column] = df[json_column].apply(
-            lambda value: json.loads(value) if isinstance(value, str) and value else value
-        )
+    # This must run row-wise because error rows can have None in the JSON column,
+    # and because string-backed dtypes may not be reported as plain "object".
+    df[json_column] = df[json_column].apply(
+        lambda value: json.loads(value) if isinstance(value, str) and value else value
+    )
 
     exploded_rows = []
 
