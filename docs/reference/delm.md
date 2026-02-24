@@ -34,9 +34,11 @@ delm = DELM(
 | `max_workers` | `int` | `1` | Concurrent workers per batch |
 | `max_retries` | `int` | `3` | Retry attempts for failed requests |
 | `base_delay` | `float` | `1.0` | Exponential backoff base delay (seconds) |
-| `tokens_per_minute` | `int` | `null` | Maximum tokens per minute |
-| `requests_per_minute` | `int` | `null` | Maximum requests per minute |
+| `rate_limit_tokens` | `int` | `null` | Maximum tokens per rate limit period |
+| `rate_limit_requests` | `int` | `null` | Maximum requests per rate limit period |
+| `rate_limit_period_seconds` | `float` | `60.0` | Rate limit window in seconds |
 | `max_completion_tokens` | `int` | `4096` | Max completion tokens per request |
+| `api_kwargs` | `dict \| None` | `None` | Extra kwargs passed through to the LLM API call |
 
 
 ### Cost Tracking

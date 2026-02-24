@@ -457,6 +457,7 @@ class ExtractionManager:
                         ],
                         max_completion_tokens=self.model_config.max_completion_tokens,
                         max_retries=0,
+                        **self.model_config.api_kwargs,
                     )
                 )
             except Exception as e:

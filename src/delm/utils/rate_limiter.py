@@ -41,8 +41,10 @@ class NoOpRateLimiter(RateLimiter):
 class BucketRateLimiter(RateLimiter):
     """
     Simple token-bucket rate limiter supporting both:
-      - requests_per_minute (RPM)
-      - tokens_per_minute (TPM; total tokens: input + output)
+      - rate_limit_requests (requests per period)
+      - rate_limit_tokens (tokens per period; total tokens: input + output)
+
+    The period is configurable via ``period_seconds`` (defaults to 60s).
 
     Uses a token-bucket per resource, refilled continuously over time.
     Thread-safe and blocking: callers of `before_request` will sleep
@@ -58,29 +60,36 @@ class BucketRateLimiter(RateLimiter):
     def __init__(
         self,
         *,
-        requests_per_minute: Optional[int] = None,
-        tokens_per_minute: Optional[int] = None,
+        rate_limit_requests: Optional[int] = None,
+        rate_limit_tokens: Optional[int] = None,
+        period_seconds: float = 60.0,
         time_fn: Callable[[], float] = time.monotonic,
     ) -> None:
         self._time_fn = time_fn
+        self._period_seconds = period_seconds
 
-        # RPM setup
-        self._rpm = requests_per_minute
-        if self._rpm is None or self._rpm <= 0:
+        if self._period_seconds <= 0:
+            raise ValueError(
+                f"period_seconds must be positive, got {self._period_seconds}"
+            )
+
+        # Requests-per-period setup
+        self._rp = rate_limit_requests
+        if self._rp is None or self._rp <= 0:
             self._req_capacity = float("inf")
-            self._req_rate_per_sec = 0.0  # "unlimited"
+            self._req_rate_per_sec = 0.0
         else:
-            self._req_capacity = float(self._rpm)
-            self._req_rate_per_sec = self._rpm / 60.0
+            self._req_capacity = float(self._rp)
+            self._req_rate_per_sec = self._rp / self._period_seconds
 
-        # TPM setup
-        self._tpm = tokens_per_minute
-        if self._tpm is None or self._tpm <= 0:
+        # Tokens-per-period setup
+        self._tp = rate_limit_tokens
+        if self._tp is None or self._tp <= 0:
             self._tok_capacity = float("inf")
-            self._tok_rate_per_sec = 0.0  # "unlimited"
+            self._tok_rate_per_sec = 0.0
         else:
-            self._tok_capacity = float(self._tpm)
-            self._tok_rate_per_sec = self._tpm / 60.0
+            self._tok_capacity = float(self._tp)
+            self._tok_rate_per_sec = self._tp / self._period_seconds
 
         # Current bucket levels
         self._req_tokens = self._req_capacity
@@ -157,9 +166,13 @@ class BucketRateLimiter(RateLimiter):
 
         est_tokens = max(0, est_tokens)
 
-        # Clamp estimate to capacity to avoid "impossible" waits
-        if self._tok_capacity != float("inf"):
-            est_tokens = min(est_tokens, int(self._tok_capacity))
+        # For oversized requests (est_tokens > capacity), we require a full
+        # bucket before proceeding, then let the bucket go negative.  The
+        # negative balance naturally delays subsequent requests.
+        if self._tok_capacity != float("inf") and est_tokens > 0:
+            tok_threshold = min(float(est_tokens), self._tok_capacity)
+        else:
+            tok_threshold = 0.0
 
         with self._cond:
             while True:
@@ -169,12 +182,12 @@ class BucketRateLimiter(RateLimiter):
                 need_req = self._req_capacity != float("inf")
                 need_tok = self._tok_capacity != float("inf") and est_tokens > 0
 
-                # Do we have enough for this call?
-                enough_req = (not need_req) or (self._req_tokens >= 1.0)
-                enough_tok = (not need_tok) or (self._tok_tokens >= est_tokens)
+                # Small epsilon avoids infinite loops from floating-point drift
+                _EPS = 1e-9
+                enough_req = (not need_req) or (self._req_tokens >= 1.0 - _EPS)
+                enough_tok = (not need_tok) or (self._tok_tokens >= tok_threshold - _EPS)
 
                 if enough_req and enough_tok:
-                    # Consume from buckets and proceed
                     if need_req:
                         self._req_tokens -= 1.0
                     if need_tok:
@@ -184,10 +197,9 @@ class BucketRateLimiter(RateLimiter):
                     self.total_tokens += est_tokens
                     return
 
-                # Not enough capacity yet — compute how long to wait
                 wait_time = self._compute_wait_time(
                     need_req=not enough_req,
-                    need_tokens=est_tokens if not enough_tok else 0,
+                    need_tokens=tok_threshold if not enough_tok else 0,
                 )
                 self._cond.wait(timeout=wait_time)
 

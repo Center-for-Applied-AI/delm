@@ -72,15 +72,19 @@ batch_size: 10                   # Default: 10, chunks per batch
 max_workers: 1                   # Default: 1, concurrent workers per batch
 max_retries: 3                   # Default: 3, API retry attempts
 base_delay: 1.0                  # Default: 1.0, seconds between retries
-tokens_per_minute: null          # Default: null, max tokens per minute
-requests_per_minute: null        # Default: null, max requests per minute
+rate_limit_tokens: null          # Default: null, max tokens per rate limit period
+rate_limit_requests: null        # Default: null, max requests per rate limit period
+rate_limit_period_seconds: 60.0  # Default: 60.0, rate limit window in seconds
 max_completion_tokens: 4096      # Default: 4096, max completion tokens per request
+
+# API Pass-through
+api_kwargs: {}                   # Default: {}, extra kwargs sent to the LLM API (e.g. {store: false})
 
 # Cost Management
 track_cost: true                 # Default: true
 max_budget: null                 # Default: null, max spend in dollars (requires track_cost: true)
-model_input_cost_per_1M_tokens: null   # Default: auto-detected from model database
-model_output_cost_per_1M_tokens: null  # Default: auto-detected from model database
+model_input_cost_per_1M_tokens: null   # Default: auto-detected via tokencost
+model_output_cost_per_1M_tokens: null  # Default: auto-detected via tokencost
 
 # Data Preprocessing  
 target_column: "text"            # Default: "text", input text column name
@@ -181,8 +185,9 @@ batch_size: 20
 max_workers: 4
 max_retries: 3
 base_delay: 1.0
-tokens_per_minute: 500000
-requests_per_minute: 500
+rate_limit_tokens: 500000
+rate_limit_requests: 500
+rate_limit_period_seconds: 60.0
 
 # Cost tracking
 track_cost: true
@@ -256,11 +261,15 @@ Contains all LLM-related settings including provider, model, prompts, processing
 | `batch_size` | int | 10 | Number of chunks processed per batch |
 | `max_workers` | int | 1 | Concurrent workers (within each batch) |
 | `base_delay` | float | 1.0 | Seconds between retry attempts |
+| `rate_limit_tokens` | int | null | Max tokens per rate limit period |
+| `rate_limit_requests` | int | null | Max requests per rate limit period |
+| `rate_limit_period_seconds` | float | 60.0 | Rate limit window in seconds |
 | `max_completion_tokens` | int | 4096 | Maximum completion tokens per request |
+| `api_kwargs` | dict | {} | Extra kwargs passed through to the LLM API call |
 | `track_cost` | bool | true | Enable cost tracking |
 | `max_budget` | float | null | Maximum budget in dollars (requires `track_cost: true`) |
-| `model_input_cost_per_1M_tokens` | float | null | Custom input token cost (auto-detected from model database if null) |
-| `model_output_cost_per_1M_tokens` | float | null | Custom output token cost (auto-detected from model database if null) |
+| `model_input_cost_per_1M_tokens` | float | null | Custom input token cost (auto-detected via tokencost if null) |
+| `model_output_cost_per_1M_tokens` | float | null | Custom output token cost (auto-detected via tokencost if null) |
 
 ### Data Preprocessing Config
 
