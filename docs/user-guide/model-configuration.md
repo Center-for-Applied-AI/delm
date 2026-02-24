@@ -135,6 +135,49 @@ delm = DELM(
 )
 ```
 
+## API Pass-through (`api_kwargs`)
+
+The `api_kwargs` parameter lets you pass arbitrary keyword arguments through to the underlying LLM API call. This is useful for provider-specific options that DELM doesn't expose directly.
+
+```python
+from delm import DELM
+
+# Disable request storage on Fireworks AI
+delm = DELM(
+    schema=my_schema,
+    provider="openai",
+    model="accounts/fireworks/models/llama-v3p1-8b-instruct",
+    base_url="https://api.fireworks.ai/inference/v1",
+    api_kwargs={"store": False},
+)
+```
+
+Any keys in `api_kwargs` are unpacked into the `instructor` `create_with_completion` call alongside `model`, `temperature`, `messages`, etc.
+
+## Rate Limiting
+
+Control how fast DELM sends API requests using token-bucket rate limiting. You can specify the number of tokens and/or requests allowed within a configurable time window.
+
+```python
+from delm import DELM
+
+# 500k tokens and 500 requests per minute (default period)
+delm = DELM(
+    schema=my_schema,
+    rate_limit_tokens=500_000,
+    rate_limit_requests=500,
+)
+
+# 33k tokens per second (for high-throughput providers)
+delm = DELM(
+    schema=my_schema,
+    rate_limit_tokens=33_000,
+    rate_limit_period_seconds=1.0,
+)
+```
+
+If a single request requires more tokens than the limit (e.g., a 99k-token prompt with a 33k token/sec limit), the limiter waits until the bucket is fully refilled before allowing that request, then naturally delays subsequent requests until the "debt" is recovered.
+
 ## API Keys
 
 DELM reads API keys from environment variables:

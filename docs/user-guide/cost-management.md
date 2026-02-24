@@ -6,7 +6,7 @@ DELM provides tools to estimate costs before running a job, track costs during e
 
 Before running a large extraction job, you should estimate the potential cost. DELM offers two methods for this: a free input-only estimate and a more accurate sample-based estimate.
 
-**Note on Pricing**: Since model prices change frequently, you should configure your `DELM` instance with current pricing if the defaults are outdated.
+**Note on Pricing**: DELM uses the [tokencost](https://github.com/AgentOps-AI/tokencost) package to look up model prices automatically (400+ models supported). If your model isn't in the database or prices have changed, override with `model_input_cost_per_1M_tokens` and `model_output_cost_per_1M_tokens`.
 
 ### 1. Input Token Estimation (Free)
 

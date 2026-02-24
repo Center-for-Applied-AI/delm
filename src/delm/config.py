@@ -59,13 +59,15 @@ class LLMExtractionConfig(BaseConfig):
     batch_size: int
     max_workers: int
     base_delay: float
-    tokens_per_minute: Optional[int]
-    requests_per_minute: Optional[int]
+    rate_limit_tokens: Optional[int]
+    rate_limit_requests: Optional[int]
+    rate_limit_period_seconds: float
     track_cost: bool
     max_budget: Optional[float]
     model_input_cost_per_1M_tokens: Optional[float]
     model_output_cost_per_1M_tokens: Optional[float]
     max_completion_tokens: int
+    api_kwargs: dict
 
     def get_provider_string(self) -> str:
         """Return the combined provider string for Instructor.
@@ -117,13 +119,17 @@ class LLMExtractionConfig(BaseConfig):
             raise ValueError(
                 f"base_delay must be non-negative. base_delay: {self.base_delay}, Suggestion: Use a non-negative float"
             )
-        if self.tokens_per_minute is not None and self.tokens_per_minute <= 0:
+        if self.rate_limit_tokens is not None and self.rate_limit_tokens <= 0:
             raise ValueError(
-                f"tokens_per_minute must be positive. tokens_per_minute: {self.tokens_per_minute}, Suggestion: Use a positive integer"
+                f"rate_limit_tokens must be positive. rate_limit_tokens: {self.rate_limit_tokens}, Suggestion: Use a positive integer"
             )
-        if self.requests_per_minute is not None and self.requests_per_minute <= 0:
+        if self.rate_limit_requests is not None and self.rate_limit_requests <= 0:
             raise ValueError(
-                f"requests_per_minute must be positive. requests_per_minute: {self.requests_per_minute}, Suggestion: Use a positive integer"
+                f"rate_limit_requests must be positive. rate_limit_requests: {self.rate_limit_requests}, Suggestion: Use a positive integer"
+            )
+        if self.rate_limit_period_seconds <= 0:
+            raise ValueError(
+                f"rate_limit_period_seconds must be positive. rate_limit_period_seconds: {self.rate_limit_period_seconds}"
             )
         if not isinstance(self.track_cost, bool):
             raise ValueError(
@@ -146,6 +152,10 @@ class LLMExtractionConfig(BaseConfig):
             raise ValueError(
                 f"max_completion_tokens must be greater than 0. max_completion_tokens: {self.max_completion_tokens}"
             )
+        if not isinstance(self.api_kwargs, dict):
+            raise ValueError(
+                f"api_kwargs must be a dict. api_kwargs: {self.api_kwargs}"
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -160,13 +170,15 @@ class LLMExtractionConfig(BaseConfig):
             "batch_size": self.batch_size,
             "max_workers": self.max_workers,
             "base_delay": self.base_delay,
-            "tokens_per_minute": self.tokens_per_minute,
-            "requests_per_minute": self.requests_per_minute,
+            "rate_limit_tokens": self.rate_limit_tokens,
+            "rate_limit_requests": self.rate_limit_requests,
+            "rate_limit_period_seconds": self.rate_limit_period_seconds,
             "track_cost": self.track_cost,
             "max_budget": self.max_budget,
             "model_input_cost_per_1M_tokens": self.model_input_cost_per_1M_tokens,
             "model_output_cost_per_1M_tokens": self.model_output_cost_per_1M_tokens,
             "max_completion_tokens": self.max_completion_tokens,
+            "api_kwargs": self.api_kwargs,
         }
 
 
@@ -449,13 +461,15 @@ class DELMConfig:
         max_workers: int = 1,
         max_retries: int = 3,
         base_delay: float = 1.0,
-        tokens_per_minute: Optional[int] = None,
-        requests_per_minute: Optional[int] = None,
+        rate_limit_tokens: Optional[int] = None,
+        rate_limit_requests: Optional[int] = None,
+        rate_limit_period_seconds: float = 60.0,
         track_cost: bool = True,
         max_budget: Optional[float] = None,
         model_input_cost_per_1M_tokens: Optional[float] = None,
         model_output_cost_per_1M_tokens: Optional[float] = None,
         max_completion_tokens: int = 4096,
+        api_kwargs: Optional[Dict[str, Any]] = None,
         # Data Preprocessing (flat)
         target_column: str = "text",
         drop_target_column: bool = False,
@@ -513,13 +527,15 @@ class DELMConfig:
             max_workers=max_workers,
             max_retries=max_retries,
             base_delay=base_delay,
-            tokens_per_minute=tokens_per_minute,
-            requests_per_minute=requests_per_minute,
+            rate_limit_tokens=rate_limit_tokens,
+            rate_limit_requests=rate_limit_requests,
+            rate_limit_period_seconds=rate_limit_period_seconds,
             track_cost=track_cost,
             max_budget=max_budget,
             model_input_cost_per_1M_tokens=model_input_cost_per_1M_tokens,
             model_output_cost_per_1M_tokens=model_output_cost_per_1M_tokens,
             max_completion_tokens=max_completion_tokens,
+            api_kwargs=api_kwargs if api_kwargs is not None else {},
         )
         self.data_preprocessing_cfg = DataPreprocessingConfig(
             target_column=target_column,
@@ -577,13 +593,15 @@ class DELMConfig:
             max_workers=data["max_workers"],
             max_retries=data["max_retries"],
             base_delay=data["base_delay"],
-            tokens_per_minute=data["tokens_per_minute"],
-            requests_per_minute=data["requests_per_minute"],
+            rate_limit_tokens=data["rate_limit_tokens"],
+            rate_limit_requests=data["rate_limit_requests"],
+            rate_limit_period_seconds=data.get("rate_limit_period_seconds", 60.0),
             track_cost=data["track_cost"],
             max_budget=data["max_budget"],
             model_input_cost_per_1M_tokens=data["model_input_cost_per_1M_tokens"],
             model_output_cost_per_1M_tokens=data["model_output_cost_per_1M_tokens"],
             max_completion_tokens=data.get("max_completion_tokens", 4096),
+            api_kwargs=data.get("api_kwargs", {}),
             target_column=data["target_column"],
             drop_target_column=data["drop_target_column"],
             splitting_strategy=data["splitting_strategy"],

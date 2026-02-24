@@ -58,13 +58,15 @@ class DELM:
         max_workers: int = 1,
         max_retries: int = 3,
         base_delay: float = 1.0,
-        tokens_per_minute: Optional[int] = None,
-        requests_per_minute: Optional[int] = None,
+        rate_limit_tokens: Optional[int] = None,
+        rate_limit_requests: Optional[int] = None,
+        rate_limit_period_seconds: float = 60.0,
         track_cost: bool = True,
         max_budget: Optional[float] = None,
         model_input_cost_per_1M_tokens: Optional[float] = None,
         model_output_cost_per_1M_tokens: Optional[float] = None,
         max_completion_tokens: int = 4096,
+        api_kwargs: Optional[Dict[str, Any]] = None,
         # Data Preprocessing (flat)
         target_column: str = "text",
         drop_target_column: bool = False,
@@ -115,14 +117,18 @@ class DELM:
             max_workers: Maximum number of concurrent workers for parallel processing.
             max_retries: Maximum number of retry attempts for failed API calls.
             base_delay: Base delay in seconds for exponential backoff between retries.
-            tokens_per_minute: Rate limit for tokens per minute.
-            requests_per_minute: Rate limit for requests per minute.
+            rate_limit_tokens: Maximum number of tokens allowed per rate limit period.
+            rate_limit_requests: Maximum number of requests allowed per rate limit period.
+            rate_limit_period_seconds: Duration of the rate limit window in seconds
+                (default 60). For example, set to 2 for "tokens per 2 seconds".
             track_cost: Whether to track API costs during extraction.
             max_budget: Maximum budget in dollars. Extraction stops if exceeded.
             model_input_cost_per_1M_tokens: Override input token cost per 1M tokens.
-                Uses built-in pricing if not specified.
+                Uses tokencost pricing if not specified.
             model_output_cost_per_1M_tokens: Override output token cost per 1M tokens.
-                Uses built-in pricing if not specified.
+                Uses tokencost pricing if not specified.
+            api_kwargs: Extra keyword arguments passed through to the underlying LLM API
+                call (e.g. ``{"store": False}`` for Fireworks AI).
 
             target_column: Name of the column containing text to extract from.
             drop_target_column: Whether to drop the original target column after
@@ -170,13 +176,15 @@ class DELM:
             max_workers=max_workers,
             max_retries=max_retries,
             base_delay=base_delay,
-            tokens_per_minute=tokens_per_minute,
-            requests_per_minute=requests_per_minute,
+            rate_limit_tokens=rate_limit_tokens,
+            rate_limit_requests=rate_limit_requests,
+            rate_limit_period_seconds=rate_limit_period_seconds,
             track_cost=track_cost,
             max_budget=max_budget,
             model_input_cost_per_1M_tokens=model_input_cost_per_1M_tokens,
             model_output_cost_per_1M_tokens=model_output_cost_per_1M_tokens,
             max_completion_tokens=max_completion_tokens,
+            api_kwargs=api_kwargs,
             target_column=target_column,
             drop_target_column=drop_target_column,
             splitting_strategy=splitting_strategy,
@@ -264,13 +272,15 @@ class DELM:
             max_workers=config.llm_extraction_cfg.max_workers,
             max_retries=config.llm_extraction_cfg.max_retries,
             base_delay=config.llm_extraction_cfg.base_delay,
-            tokens_per_minute=config.llm_extraction_cfg.tokens_per_minute,
-            requests_per_minute=config.llm_extraction_cfg.requests_per_minute,
+            rate_limit_tokens=config.llm_extraction_cfg.rate_limit_tokens,
+            rate_limit_requests=config.llm_extraction_cfg.rate_limit_requests,
+            rate_limit_period_seconds=config.llm_extraction_cfg.rate_limit_period_seconds,
             track_cost=config.llm_extraction_cfg.track_cost,
             max_budget=config.llm_extraction_cfg.max_budget,
             model_input_cost_per_1M_tokens=config.llm_extraction_cfg.model_input_cost_per_1M_tokens,
             model_output_cost_per_1M_tokens=config.llm_extraction_cfg.model_output_cost_per_1M_tokens,
             max_completion_tokens=config.llm_extraction_cfg.max_completion_tokens,
+            api_kwargs=config.llm_extraction_cfg.api_kwargs,
             target_column=config.data_preprocessing_cfg.target_column,
             drop_target_column=config.data_preprocessing_cfg.drop_target_column,
             splitting_strategy=config.data_preprocessing_cfg.splitting_strategy,
@@ -512,12 +522,13 @@ class DELM:
         )
 
         if (
-            self.config.llm_extraction_cfg.tokens_per_minute
-            or self.config.llm_extraction_cfg.requests_per_minute
+            self.config.llm_extraction_cfg.rate_limit_tokens
+            or self.config.llm_extraction_cfg.rate_limit_requests
         ):
             self.rate_limiter = BucketRateLimiter(
-                tokens_per_minute=self.config.llm_extraction_cfg.tokens_per_minute,
-                requests_per_minute=self.config.llm_extraction_cfg.requests_per_minute,
+                rate_limit_tokens=self.config.llm_extraction_cfg.rate_limit_tokens,
+                rate_limit_requests=self.config.llm_extraction_cfg.rate_limit_requests,
+                period_seconds=self.config.llm_extraction_cfg.rate_limit_period_seconds,
             )
         else:
             self.rate_limiter = NoOpRateLimiter()
