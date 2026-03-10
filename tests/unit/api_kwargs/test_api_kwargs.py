@@ -51,6 +51,21 @@ class TestApiKwargsConfig:
         restored = DELMConfig.from_dict(config_dict)
         assert restored.llm_extraction_cfg.api_kwargs == kwargs
 
+    def test_from_dict_uses_defaults_for_missing_optional_fields(self, simple_schema):
+        config = DELMConfig(schema=simple_schema)
+        config_dict = config.to_dict()
+
+        del config_dict["base_url"]
+        del config_dict["mode"]
+        del config_dict["api_kwargs"]
+        del config_dict["rate_limit_period_seconds"]
+
+        restored = DELMConfig.from_dict(config_dict)
+        assert restored.llm_extraction_cfg.base_url is None
+        assert restored.llm_extraction_cfg.mode is None
+        assert restored.llm_extraction_cfg.api_kwargs == {}
+        assert restored.llm_extraction_cfg.rate_limit_period_seconds == 60.0
+
     def test_api_kwargs_validation_rejects_non_dict(self, simple_schema):
         config = DELMConfig(schema=simple_schema, api_kwargs={"valid": True})
         config.llm_extraction_cfg.api_kwargs = "not_a_dict"
