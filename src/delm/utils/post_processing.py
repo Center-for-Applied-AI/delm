@@ -73,9 +73,16 @@ def merge_jsons_for_record(json_list: List[Dict[str, Any]], schema: ExtractionSc
     if not json_list:
         log.debug("Empty JSON list, using empty list")
         json_list = []
+    json_list = [j for j in json_list if j is not None]
     if json_list and isinstance(json_list[0], str):
         log.debug("Converting %d JSON strings to dicts", len(json_list))
-        json_list = [json.loads(j) for j in json_list]  # type: ignore
+        parsed: List[Any] = []
+        for j in json_list:
+            try:
+                parsed.append(json.loads(j))
+            except (json.JSONDecodeError, TypeError):
+                continue
+        json_list = parsed
 
     schema_type = getattr(schema, "schema_type", type(schema).__name__).lower()
     log.debug("Schema type: %s", schema_type)
@@ -88,6 +95,15 @@ def merge_jsons_for_record(json_list: List[Dict[str, Any]], schema: ExtractionSc
             log.debug("Processing variable: %s", schema_var.name)
             bucket: List[Any] = []
             for json_item in json_list:
+                if json_item is None:
+                    continue
+                if isinstance(json_item, str):
+                    try:
+                        json_item = json.loads(json_item)
+                    except json.JSONDecodeError:
+                        continue
+                if not isinstance(json_item, dict):
+                    continue
                 val = json_item.get(schema_var.name)
                 if val is None:
                     continue
@@ -127,6 +143,15 @@ def merge_jsons_for_record(json_list: List[Dict[str, Any]], schema: ExtractionSc
         log.debug("Processing NestedSchema with container: %s", nested_container_name)
         merged_nested: List[Dict[str, Any]] = []
         for json_item in json_list:
+            if json_item is None:
+                continue
+            if isinstance(json_item, str):
+                try:
+                    json_item = json.loads(json_item)
+                except json.JSONDecodeError:
+                    continue
+            if not isinstance(json_item, dict):
+                continue
             items = json_item.get(nested_container_name, [])
             if items:
                 log.debug(
@@ -161,6 +186,8 @@ def merge_jsons_for_record(json_list: List[Dict[str, Any]], schema: ExtractionSc
 
             sub_jsons = []
             for json_item in json_list:
+                if json_item is None:
+                    continue
                 if sub_schema_type == "simpleschema":
                     sub_jsons.append(json_item[sub_schema_spec_name])
                 elif sub_schema_type == "nestedschema":
