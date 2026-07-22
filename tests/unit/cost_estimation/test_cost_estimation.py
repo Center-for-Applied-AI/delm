@@ -3,14 +3,18 @@ Unit tests for offline cost estimation, including the upper-bound estimate
 from issue #44. No API calls are made.
 """
 
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 
-from delm import DELMConfig, Schema
+from delm import DELM, DELMConfig, Schema
 from delm.models import ExtractionVariable
+from delm.utils.cost_tracker import CostTracker
 from delm.utils.cost_estimation import (
     estimate_input_token_cost,
     estimate_max_total_cost,
+    estimate_total_cost,
 )
 
 
@@ -123,3 +127,47 @@ class TestEstimateMaxTotalCost:
             config, report_text_df, console_log_level="ERROR"
         )
         assert max_cost > 0
+
+
+class TestEstimateTotalCostScaling:
+    """estimate_total_cost must scale by token share, not record count (issue #66)."""
+
+    def _run_with_mocked_llm(self, config, records_df, sample_size, sample_cost):
+        with (
+            patch.object(DELM, "process_via_llm", return_value=pd.DataFrame()),
+            patch.object(CostTracker, "get_current_cost", return_value=sample_cost),
+        ):
+            return estimate_total_cost(
+                config,
+                records_df,
+                sample_size=sample_size,
+                console_log_level="ERROR",
+            )
+
+    def test_uniform_records_scale_like_record_count(self, simple_schema):
+        """With identical records, token share equals record share."""
+        n_records = 4
+        records_df = pd.DataFrame({"text": ["Same text for every record."] * n_records})
+        config = _make_config(simple_schema)
+        estimate = self._run_with_mocked_llm(
+            config, records_df, sample_size=1, sample_cost=1.0
+        )
+        assert estimate == pytest.approx(n_records)
+
+    def test_skewed_records_scale_by_token_share(self, simple_schema):
+        """Sampling a short record must not scale as if all records were short."""
+        records_df = pd.DataFrame(
+            {"text": ["short text", "long text " * 300, "long text " * 300]}
+        )
+        config = _make_config(simple_schema)
+        estimates = {
+            sample_size: self._run_with_mocked_llm(
+                config, records_df, sample_size=sample_size, sample_cost=1.0
+            )
+            for sample_size in [1, 3]
+        }
+        # Record-count scaling would give exactly 3.0 for sample_size=1; token
+        # scaling gives the true token ratio, which differs for skewed data.
+        assert estimates[1] != pytest.approx(3.0)
+        # Full sample must scale by exactly 1 regardless of skew.
+        assert estimates[3] == pytest.approx(1.0)

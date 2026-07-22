@@ -19,6 +19,7 @@ from delm.delm import DELM
 from delm.constants import (
     SYSTEM_CHUNK_COLUMN,
     SYSTEM_RANDOM_SEED,
+    SYSTEM_RECORD_ID_COLUMN,
     SYSTEM_LOG_FILE_PREFIX,
     SYSTEM_LOG_FILE_SUFFIX,
 )
@@ -81,8 +82,19 @@ def _build_estimation_delm(
     return delm
 
 
-def _compute_chunk_input_tokens(delm: DELM) -> List[int]:
-    """Compute per-chunk input token counts (system + user prompt + schema JSON)."""
+def _compute_chunk_input_tokens(
+    delm: DELM, chunks: Optional[List[str]] = None
+) -> List[int]:
+    """Compute per-chunk input token counts (system + user prompt + schema JSON).
+
+    Args:
+        delm: DELM instance with a cost tracker.
+        chunks: Text chunks to count tokens for. When None, chunks are loaded
+            from the experiment manager's preprocessed data.
+
+    Returns:
+        Per-chunk token counts of the complete prompt.
+    """
     extraction_schema = delm.config.schema.schema
     log.debug("Extraction schema loaded: %s", type(extraction_schema).__name__)
 
@@ -112,9 +124,10 @@ def _compute_chunk_input_tokens(delm: DELM) -> List[int]:
     schema_text = json.dumps(SchemaType.model_json_schema())
     log.debug("Computed schema overhead for estimation: %d chars", len(schema_text))
 
-    chunks = delm.experiment_manager.load_preprocessed_data()[
-        SYSTEM_CHUNK_COLUMN
-    ].tolist()
+    if chunks is None:
+        chunks = delm.experiment_manager.load_preprocessed_data()[
+            SYSTEM_CHUNK_COLUMN
+        ].tolist()
     log.debug("Processing %d chunks for token estimation", len(chunks))
 
     chunk_input_tokens: List[int] = []
@@ -283,6 +296,10 @@ def estimate_total_cost(
 ) -> float:
     """Estimate total cost using API calls on a sample of the data.
 
+    The sampled cost is extrapolated by input-token share rather than record
+    count, so datasets with uneven record lengths do not bias the estimate:
+    ``total = sample_cost * total_input_tokens / sample_input_tokens``.
+
     Args:
         config: Configuration for the DELM pipeline (config path | dict | ``DELMConfig``).
         data_source: Source data for extraction (path or DataFrame).
@@ -294,6 +311,10 @@ def estimate_total_cost(
 
     Returns:
         Estimated dollar cost for processing the entire dataset, scaled from the sample.
+
+    Raises:
+        ValueError: If the sampled records produce no chunks (e.g. everything
+            is removed by the score filter).
     """
     _configure_estimation_logging(
         save_file_log, log_dir, console_log_level, file_log_level
@@ -329,13 +350,34 @@ def estimate_total_cost(
     total_records = len(records_df)
     log.debug("Loaded %d total records from data source", total_records)
 
-    sample_records_df = records_df.sample(
+    sample_record_ids = records_df.sample(
         n=sample_size, random_state=SYSTEM_RANDOM_SEED
-    )
-    log.debug("Sampled %d records for cost estimation", len(sample_records_df))
+    )[SYSTEM_RECORD_ID_COLUMN]
+    log.debug("Sampled %d records for cost estimation", len(sample_record_ids))
 
-    sample_chunks_df = delm.data_processor.process_dataframe(sample_records_df)
-    log.debug("Processed sample records into %d chunks", len(sample_chunks_df))
+    all_chunks_df = delm.data_processor.process_dataframe(records_df)
+    sample_chunks_df = all_chunks_df[
+        all_chunks_df[SYSTEM_RECORD_ID_COLUMN].isin(sample_record_ids)
+    ]
+    log.debug(
+        "Processed data into %d chunks (%d in sample)",
+        len(all_chunks_df),
+        len(sample_chunks_df),
+    )
+
+    total_input_tokens = sum(
+        _compute_chunk_input_tokens(delm, all_chunks_df[SYSTEM_CHUNK_COLUMN].tolist())
+    )
+    sample_input_tokens = sum(
+        _compute_chunk_input_tokens(
+            delm, sample_chunks_df[SYSTEM_CHUNK_COLUMN].tolist()
+        )
+    )
+    if sample_input_tokens == 0:
+        raise ValueError(
+            "Sampled records produced no chunks to process; cannot extrapolate "
+            "cost. Increase sample_size or relax the score filter."
+        )
 
     delm.experiment_manager.save_preprocessed_data(sample_chunks_df)
     log.debug("Saved preprocessed sample data")
@@ -345,11 +387,14 @@ def estimate_total_cost(
     log.debug("LLM processing completed")
 
     sample_cost = delm.cost_tracker.get_current_cost()
-    total_estimated_cost = sample_cost * (total_records / sample_size)
+    total_estimated_cost = sample_cost * (total_input_tokens / sample_input_tokens)
 
     log.debug(
-        "Total cost estimation completed: sample_cost=$%.6f, total_estimated_cost=$%.6f",
+        "Total cost estimation completed: sample_cost=$%.6f (%d/%d input tokens), "
+        "total_estimated_cost=$%.6f",
         sample_cost,
+        sample_input_tokens,
+        total_input_tokens,
         total_estimated_cost,
     )
     return total_estimated_cost
