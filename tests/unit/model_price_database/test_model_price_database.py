@@ -4,7 +4,10 @@ Unit tests for the tokencost-backed model price database.
 
 import pytest
 
-from delm.utils.model_price_database import get_model_token_price
+from delm.utils.model_price_database import (
+    get_model_token_limits,
+    get_model_token_price,
+)
 
 
 class TestGetModelTokenPrice:
@@ -52,6 +55,25 @@ class TestGetModelTokenPrice:
         input_price, output_price = get_model_token_price("google", "gemini-2.0-flash")
         assert input_price >= 0
         assert output_price >= 0
+
+    def test_new_model_resolved_via_live_price_refresh(self):
+        """Models missing from the bundled DB are found after a live refresh."""
+        input_price, output_price = get_model_token_price("openai", "gpt-5.6-sol")
+        assert input_price > 0
+        assert output_price > 0
+
+
+class TestGetModelTokenLimits:
+    """Test get_model_token_limits using tokencost backend."""
+
+    def test_known_model_limits(self):
+        max_input, max_output = get_model_token_limits("openai", "gpt-4o-mini")
+        assert max_input is not None and max_input > 0
+        assert max_output is not None and max_output > 0
+
+    def test_unknown_model_raises_value_error(self):
+        with pytest.raises(ValueError, match="not found in tokencost database"):
+            get_model_token_limits("nonexistent_provider", "nonexistent_model_xyz_123")
 
 
 class TestTokencostIntegrationWithCostTracker:
