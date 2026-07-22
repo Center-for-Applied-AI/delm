@@ -30,6 +30,7 @@ from delm.constants import (
 from delm.exceptions import InstructorError
 from delm.utils.cost_tracker import CostTracker
 from delm.core.experiment_manager import BaseExperimentManager
+from delm.utils.few_shot import FewShotExampleSelector
 from delm.utils.type_checks import is_pydantic_model
 from delm.utils.semantic_cache import SemanticCache, make_cache_key
 
@@ -139,6 +140,20 @@ class ExtractionManager:
 
         self.prompt_template = model_config.prompt_template
         self.system_prompt = model_config.system_prompt
+
+        self.few_shot_selector = FewShotExampleSelector.from_optional(
+            examples=model_config.few_shot_examples,
+            num_examples=model_config.few_shot_num_examples,
+            truncate_length=model_config.few_shot_truncate_length,
+            random_sample=model_config.few_shot_random_sample,
+        )
+        if self.few_shot_selector is not None:
+            log.debug(
+                "Few-shot selector created with %d examples (num=%d, random=%s)",
+                len(model_config.few_shot_examples),
+                model_config.few_shot_num_examples,
+                model_config.few_shot_random_sample,
+            )
 
         self.cost_tracker = cost_tracker
         self.semantic_cache = semantic_cache
@@ -435,7 +450,12 @@ class ExtractionManager:
         """
         # Hot path - minimal logging. Schema is cached internally.
         schema = self.extraction_schema.create_pydantic_schema()
-        prompt = self.extraction_schema.create_prompt(text_chunk, self.prompt_template)
+        prompt_template = self.prompt_template
+        if self.few_shot_selector is not None:
+            prompt_template = self.few_shot_selector.inject_into_template(
+                prompt_template
+            )
+        prompt = self.extraction_schema.create_prompt(text_chunk, prompt_template)
         system_prompt = self.system_prompt
 
         estimated_total_tokens = self._estimate_total_tokens(

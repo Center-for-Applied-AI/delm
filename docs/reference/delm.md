@@ -66,6 +66,10 @@ delm = DELM(
 |-----------|------|---------|-------------|
 | `prompt_template` | `str \| None` | `"Extract the following..."` | User prompt template |
 | `system_prompt` | `str \| None` | `"You are a precise..."` | System prompt |
+| `few_shot_examples` | `list[dict] \| None` | `None` | Pool of hand-labeled examples, each with `"text"` and `"output"` keys |
+| `few_shot_num_examples` | `int` | `3` | Number of few-shot examples included per prompt |
+| `few_shot_truncate_length` | `int \| None` | `None` | Max token length per example text (`None` = no truncation) |
+| `few_shot_random_sample` | `bool` | `False` | Randomly sample examples from the pool per request (seeded) |
 
 ### Caching
 

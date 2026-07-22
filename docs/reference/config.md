@@ -74,6 +74,7 @@ LLM and extraction settings.
 - `model_input_cost_per_1M_tokens`, `model_output_cost_per_1M_tokens`
 - `prompt_template`, `system_prompt`
 - `api_kwargs`
+- `few_shot_examples`, `few_shot_num_examples`, `few_shot_truncate_length`, `few_shot_random_sample`
 
 ---
 

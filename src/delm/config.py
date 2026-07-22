@@ -18,6 +18,7 @@ T = TypeVar("T", bound="BaseConfig")
 from delm.strategies import RelevanceScorer
 from delm.strategies import SplitStrategy
 from delm.schemas import Schema
+from delm.utils.few_shot import validate_few_shot_params
 
 
 class BaseConfig:
@@ -68,6 +69,10 @@ class LLMExtractionConfig(BaseConfig):
     model_output_cost_per_1M_tokens: Optional[float]
     max_completion_tokens: int
     api_kwargs: dict
+    few_shot_examples: Optional[List[Dict[str, Any]]] = None
+    few_shot_num_examples: int = 3
+    few_shot_truncate_length: Optional[int] = None
+    few_shot_random_sample: bool = False
 
     def get_provider_string(self) -> str:
         """Return the combined provider string for Instructor.
@@ -156,6 +161,16 @@ class LLMExtractionConfig(BaseConfig):
             raise ValueError(
                 f"api_kwargs must be a dict. api_kwargs: {self.api_kwargs}"
             )
+        if not isinstance(self.few_shot_random_sample, bool):
+            raise ValueError(
+                f"few_shot_random_sample must be a boolean. few_shot_random_sample: {self.few_shot_random_sample}"
+            )
+        if self.few_shot_examples is not None:
+            validate_few_shot_params(
+                self.few_shot_examples,
+                self.few_shot_num_examples,
+                self.few_shot_truncate_length,
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -179,6 +194,10 @@ class LLMExtractionConfig(BaseConfig):
             "model_output_cost_per_1M_tokens": self.model_output_cost_per_1M_tokens,
             "max_completion_tokens": self.max_completion_tokens,
             "api_kwargs": self.api_kwargs,
+            "few_shot_examples": self.few_shot_examples,
+            "few_shot_num_examples": self.few_shot_num_examples,
+            "few_shot_truncate_length": self.few_shot_truncate_length,
+            "few_shot_random_sample": self.few_shot_random_sample,
         }
 
 
@@ -470,6 +489,10 @@ class DELMConfig:
         model_output_cost_per_1M_tokens: Optional[float] = None,
         max_completion_tokens: int = 4096,
         api_kwargs: Optional[Dict[str, Any]] = None,
+        few_shot_examples: Optional[List[Dict[str, Any]]] = None,
+        few_shot_num_examples: int = 3,
+        few_shot_truncate_length: Optional[int] = None,
+        few_shot_random_sample: bool = False,
         # Data Preprocessing (flat)
         target_column: str = "text",
         drop_target_column: bool = False,
@@ -536,6 +559,10 @@ class DELMConfig:
             model_output_cost_per_1M_tokens=model_output_cost_per_1M_tokens,
             max_completion_tokens=max_completion_tokens,
             api_kwargs=api_kwargs if api_kwargs is not None else {},
+            few_shot_examples=few_shot_examples,
+            few_shot_num_examples=few_shot_num_examples,
+            few_shot_truncate_length=few_shot_truncate_length,
+            few_shot_random_sample=few_shot_random_sample,
         )
         self.data_preprocessing_cfg = DataPreprocessingConfig(
             target_column=target_column,
@@ -602,6 +629,10 @@ class DELMConfig:
             model_output_cost_per_1M_tokens=data["model_output_cost_per_1M_tokens"],
             max_completion_tokens=data.get("max_completion_tokens", 4096),
             api_kwargs=data.get("api_kwargs", {}),
+            few_shot_examples=data.get("few_shot_examples"),
+            few_shot_num_examples=data.get("few_shot_num_examples", 3),
+            few_shot_truncate_length=data.get("few_shot_truncate_length"),
+            few_shot_random_sample=data.get("few_shot_random_sample", False),
             target_column=data["target_column"],
             drop_target_column=data["drop_target_column"],
             splitting_strategy=data["splitting_strategy"],

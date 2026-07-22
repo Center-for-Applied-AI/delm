@@ -31,8 +31,9 @@ from delm.constants import (
 )
 from delm.strategies import SplitStrategy, RelevanceScorer
 from delm.utils.cost_tracker import CostTracker
+from delm.utils.few_shot import FewShotExampleSelector
 from delm.utils.semantic_cache import SemanticCacheFactory
-from typing import Any, Union, Optional
+from typing import Any, Dict, List, Union, Optional
 
 # --------------------------------------------------------------------------- #
 # Main class                                                                  #
@@ -67,6 +68,10 @@ class DELM:
         model_output_cost_per_1M_tokens: Optional[float] = None,
         max_completion_tokens: int = 4096,
         api_kwargs: Optional[Dict[str, Any]] = None,
+        few_shot_examples: Optional[List[Dict[str, Any]]] = None,
+        few_shot_num_examples: int = 3,
+        few_shot_truncate_length: Optional[int] = None,
+        few_shot_random_sample: bool = False,
         # Data Preprocessing (flat)
         target_column: str = "text",
         drop_target_column: bool = False,
@@ -129,6 +134,14 @@ class DELM:
                 Uses tokencost pricing if not specified.
             api_kwargs: Extra keyword arguments passed through to the underlying LLM API
                 call (e.g. ``{"store": False}`` for Fireworks AI).
+            few_shot_examples: Pool of hand-labeled examples to include in the
+                extraction prompt. Each example is a dict with ``"text"`` (source
+                text) and ``"output"`` (expected extraction as dict or JSON string).
+            few_shot_num_examples: Number of few-shot examples to include per prompt.
+            few_shot_truncate_length: Maximum token length for each example's text.
+                ``None`` disables truncation.
+            few_shot_random_sample: Whether to randomly sample examples from the
+                pool for each request (seeded with ``SYSTEM_RANDOM_SEED``).
 
             target_column: Name of the column containing text to extract from.
             drop_target_column: Whether to drop the original target column after
@@ -185,6 +198,10 @@ class DELM:
             model_output_cost_per_1M_tokens=model_output_cost_per_1M_tokens,
             max_completion_tokens=max_completion_tokens,
             api_kwargs=api_kwargs,
+            few_shot_examples=few_shot_examples,
+            few_shot_num_examples=few_shot_num_examples,
+            few_shot_truncate_length=few_shot_truncate_length,
+            few_shot_random_sample=few_shot_random_sample,
             target_column=target_column,
             drop_target_column=drop_target_column,
             splitting_strategy=splitting_strategy,
@@ -281,6 +298,10 @@ class DELM:
             model_output_cost_per_1M_tokens=config.llm_extraction_cfg.model_output_cost_per_1M_tokens,
             max_completion_tokens=config.llm_extraction_cfg.max_completion_tokens,
             api_kwargs=config.llm_extraction_cfg.api_kwargs,
+            few_shot_examples=config.llm_extraction_cfg.few_shot_examples,
+            few_shot_num_examples=config.llm_extraction_cfg.few_shot_num_examples,
+            few_shot_truncate_length=config.llm_extraction_cfg.few_shot_truncate_length,
+            few_shot_random_sample=config.llm_extraction_cfg.few_shot_random_sample,
             target_column=config.data_preprocessing_cfg.target_column,
             drop_target_column=config.data_preprocessing_cfg.drop_target_column,
             splitting_strategy=config.data_preprocessing_cfg.splitting_strategy,
@@ -462,9 +483,19 @@ class DELM:
         target_column_name = self.config.data_preprocessing_cfg.target_column
         if text is None:
             text = f"<{target_column_name}>"
+        llm_cfg = self.config.llm_extraction_cfg
+        prompt_template = llm_cfg.prompt_template
+        few_shot_selector = FewShotExampleSelector.from_optional(
+            examples=llm_cfg.few_shot_examples,
+            num_examples=llm_cfg.few_shot_num_examples,
+            truncate_length=llm_cfg.few_shot_truncate_length,
+            random_sample=llm_cfg.few_shot_random_sample,
+        )
+        if few_shot_selector is not None:
+            prompt_template = few_shot_selector.inject_into_template(prompt_template)
         prompt = self.config.schema.schema.create_prompt(
             text=text,
-            prompt_template=self.config.llm_extraction_cfg.prompt_template,
+            prompt_template=prompt_template,
         )
         return prompt
 

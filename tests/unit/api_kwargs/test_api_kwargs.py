@@ -154,6 +154,7 @@ class TestApiKwargsExtractionManager:
             manager.retry_handler = MagicMock()
             manager.prompt_template = model_config.prompt_template
             manager.system_prompt = model_config.system_prompt
+            manager.few_shot_selector = None
             manager.cost_tracker = None
             manager.semantic_cache = mock_cache
             manager.rate_limiter = mock_rate_limiter
