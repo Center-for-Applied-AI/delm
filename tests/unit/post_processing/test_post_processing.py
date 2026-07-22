@@ -11,39 +11,44 @@ from unittest.mock import Mock, patch
 from delm.utils.post_processing import (
     merge_jsons_for_record,
     explode_json_results,
-    _majority_vote
+    _majority_vote,
 )
-from delm.schemas.schemas import SimpleSchema, NestedSchema, MultipleSchema, ExtractionVariable
+from delm.schemas.schemas import (
+    SimpleSchema,
+    NestedSchema,
+    MultipleSchema,
+    ExtractionVariable,
+)
 from delm.constants import SYSTEM_EXTRACTED_DATA_JSON_COLUMN
 from delm.constants import SYSTEM_ERRORS_COLUMN
 
 
 class TestMajorityVote:
     """Test the _majority_vote helper function."""
-    
+
     def test_majority_vote_basic(self):
         """Test basic majority vote functionality."""
         values = ["A", "B", "A", "C", "A"]
         result = _majority_vote(values)
         assert result == "A"
-    
+
     def test_majority_vote_tie(self):
         """Test majority vote with a tie - should return first winner."""
         values = ["A", "B", "A", "B"]
         result = _majority_vote(values)
         assert result == "A"  # First winner wins
-    
+
     def test_majority_vote_empty_list(self):
         """Test majority vote with empty list."""
         result = _majority_vote([])
         assert result is None
-    
+
     def test_majority_vote_single_value(self):
         """Test majority vote with single value."""
         values = ["A"]
         result = _majority_vote(values)
         assert result == "A"
-    
+
     def test_majority_vote_numbers(self):
         """Test majority vote with numbers."""
         values = [1, 2, 1, 3, 1, 2]
@@ -53,39 +58,85 @@ class TestMajorityVote:
 
 class TestMergeJsonsForRecord:
     """Test the merge_jsons_for_record function."""
-    
+
     def setup_method(self):
         """Set up test schemas."""
-        self.simple_schema = SimpleSchema([
-            ExtractionVariable(name="source", data_type="string", required=True, description=""),
-            ExtractionVariable(name="ratings", data_type="[integer]", required=False, description=""),
-            ExtractionVariable(name="price", data_type="number", required=False, description=""),
-        ])
-        
+        self.simple_schema = SimpleSchema(
+            [
+                ExtractionVariable(
+                    name="source", data_type="string", required=True, description=""
+                ),
+                ExtractionVariable(
+                    name="ratings",
+                    data_type="[integer]",
+                    required=False,
+                    description="",
+                ),
+                ExtractionVariable(
+                    name="price", data_type="number", required=False, description=""
+                ),
+            ]
+        )
+
         self.nested_schema = NestedSchema(
             container_name="books",
             variables=[
-                ExtractionVariable(name="title", data_type="string", required=True, description=""),
-                ExtractionVariable(name="author", data_type="string", required=True, description=""),
-                ExtractionVariable(name="sales", data_type="[integer]", required=False, description=""),
-            ]
+                ExtractionVariable(
+                    name="title", data_type="string", required=True, description=""
+                ),
+                ExtractionVariable(
+                    name="author", data_type="string", required=True, description=""
+                ),
+                ExtractionVariable(
+                    name="sales", data_type="[integer]", required=False, description=""
+                ),
+            ],
         )
-        
-        self.multiple_schema = MultipleSchema({
-            "info": SimpleSchema([
-                ExtractionVariable(name="source", data_type="string", required=True, description=""),
-                ExtractionVariable(name="ratings", data_type="[integer]", required=False, description=""),
-            ]),
-            "books": NestedSchema(
-                container_name="entries",
-                variables=[
-                    ExtractionVariable(name="title", data_type="string", required=True, description=""),
-                    ExtractionVariable(name="author", data_type="string", required=True, description=""),
-                    ExtractionVariable(name="sales", data_type="[integer]", required=False, description=""),
-                ]
-            )
-        })
-    
+
+        self.multiple_schema = MultipleSchema(
+            {
+                "info": SimpleSchema(
+                    [
+                        ExtractionVariable(
+                            name="source",
+                            data_type="string",
+                            required=True,
+                            description="",
+                        ),
+                        ExtractionVariable(
+                            name="ratings",
+                            data_type="[integer]",
+                            required=False,
+                            description="",
+                        ),
+                    ]
+                ),
+                "books": NestedSchema(
+                    container_name="entries",
+                    variables=[
+                        ExtractionVariable(
+                            name="title",
+                            data_type="string",
+                            required=True,
+                            description="",
+                        ),
+                        ExtractionVariable(
+                            name="author",
+                            data_type="string",
+                            required=True,
+                            description="",
+                        ),
+                        ExtractionVariable(
+                            name="sales",
+                            data_type="[integer]",
+                            required=False,
+                            description="",
+                        ),
+                    ],
+                ),
+            }
+        )
+
     def test_merge_simple_schema_scalars(self):
         """Test merging simple schema with scalar values."""
         input_jsons = [
@@ -94,11 +145,11 @@ class TestMergeJsonsForRecord:
             {"source": "B", "price": 200},
         ]
         merged = merge_jsons_for_record(input_jsons, self.simple_schema)
-        
+
         assert merged["source"] == "B"  # Majority vote
-        assert merged["price"] == 200   # Majority vote
+        assert merged["price"] == 200  # Majority vote
         assert merged["ratings"] == []  # Empty list for missing field
-    
+
     def test_merge_simple_schema_lists(self):
         """Test merging simple schema with list values."""
         input_jsons = [
@@ -107,10 +158,10 @@ class TestMergeJsonsForRecord:
             {"source": "A", "ratings": [5]},
         ]
         merged = merge_jsons_for_record(input_jsons, self.simple_schema)
-        
+
         assert merged["source"] == "A"  # First winner in tie
         assert merged["ratings"] == [1, 2, 3, 4, 5]  # Concatenated lists
-    
+
     def test_merge_simple_schema_mixed(self):
         """Test merging simple schema with mixed scalar and list values."""
         input_jsons = [
@@ -119,31 +170,31 @@ class TestMergeJsonsForRecord:
             {"source": "B", "price": 200, "ratings": [4]},
         ]
         merged = merge_jsons_for_record(input_jsons, self.simple_schema)
-        
+
         assert merged["source"] == "B"  # Majority vote
-        assert merged["price"] == 200   # Majority vote
+        assert merged["price"] == 200  # Majority vote
         assert merged["ratings"] == [1, 2, 3, 4]  # Concatenated lists
-    
+
     def test_merge_nested_schema(self):
         """Test merging nested schema."""
         input_jsons = [
-            {"books": [
-                {"title": "Book A", "author": "Author X", "sales": [100]},
-                {"title": "Book B", "author": "Author Y", "sales": [200]},
-            ]},
-            {"books": [
-                {"title": "Book C", "author": "Author Z", "sales": [300]}
-            ]},
+            {
+                "books": [
+                    {"title": "Book A", "author": "Author X", "sales": [100]},
+                    {"title": "Book B", "author": "Author Y", "sales": [200]},
+                ]
+            },
+            {"books": [{"title": "Book C", "author": "Author Z", "sales": [300]}]},
         ]
         merged = merge_jsons_for_record(input_jsons, self.nested_schema)
-        
+
         expected_books = [
             {"title": "Book A", "author": "Author X", "sales": [100]},
             {"title": "Book B", "author": "Author Y", "sales": [200]},
             {"title": "Book C", "author": "Author Z", "sales": [300]},
         ]
         assert merged["books"] == expected_books
-    
+
     def test_merge_multiple_schema(self):
         """Test merging multiple schema."""
         input_jsons = [
@@ -152,32 +203,54 @@ class TestMergeJsonsForRecord:
                 "books": [
                     {"title": "Book A", "author": "Author X", "sales": [100]},
                     {"title": "Book B", "author": "Author Y", "sales": [200]},
-                ]
+                ],
             },
             {
                 "info": {"source": "A", "ratings": [2]},
                 "books": [
                     {"title": "Book C", "author": "Author Z", "sales": [300]},
-                ]
-            }
+                ],
+            },
         ]
         merged = merge_jsons_for_record(input_jsons, self.multiple_schema)
-        
+
         assert merged["info"]["source"] == "A"
         assert merged["info"]["ratings"] == [1, 2]
-        
+
         expected_books = [
             {"title": "Book A", "author": "Author X", "sales": [100]},
             {"title": "Book B", "author": "Author Y", "sales": [200]},
             {"title": "Book C", "author": "Author Z", "sales": [300]},
         ]
         assert merged["books"] == expected_books
-    
+
+    def test_merge_multiple_schema_with_malformed_items(self):
+        """MultipleSchema merge must skip None, bad strings, and non-dicts."""
+        input_jsons = [
+            {
+                "info": {"source": "A", "ratings": [1]},
+                "books": [
+                    {"title": "Book A", "author": "Author X", "sales": [100]},
+                ],
+            },
+            "not-json",
+            None,
+            123,
+            '{"info": {"source": "A", "ratings": [2]}, "books": []}',
+        ]
+        merged = merge_jsons_for_record(input_jsons, self.multiple_schema)
+
+        assert merged["info"]["source"] == "A"
+        assert merged["info"]["ratings"] == [1, 2]
+        assert merged["books"] == [
+            {"title": "Book A", "author": "Author X", "sales": [100]},
+        ]
+
     def test_merge_empty_json_list(self):
         """Test merging with empty JSON list."""
         merged = merge_jsons_for_record([], self.simple_schema)
         assert merged == {"source": None, "ratings": [], "price": None}
-    
+
     def test_merge_json_strings(self):
         """Test merging with JSON strings instead of dicts."""
         input_jsons = [
@@ -185,69 +258,130 @@ class TestMergeJsonsForRecord:
             '{"source": "B", "price": 200}',
         ]
         merged = merge_jsons_for_record(input_jsons, self.simple_schema)
-        
+
         assert merged["source"] == "A"  # First value in tie
-        assert merged["price"] == 100   # First value in tie
-    
+        assert merged["price"] == 100  # First value in tie
+
     def test_merge_unknown_schema_type(self):
         """Test merging with unknown schema type."""
         mock_schema = Mock()
         mock_schema.schema_type = "unknown"
-        
+
         with pytest.raises(ValueError, match="Unknown schema type: unknown"):
             merge_jsons_for_record([{"test": "data"}], mock_schema)
 
 
 class TestExplodeJsonResults:
     """Test the explode_json_results function."""
-    
+
     def setup_method(self):
         """Set up test schemas."""
-        self.simple_schema = SimpleSchema([
-            ExtractionVariable(name="company", description="Company name", data_type="string", required=True),
-            ExtractionVariable(name="price", description="Price value", data_type="number", required=False),
-            ExtractionVariable(name="tags", description="Tags", data_type="[string]", required=False),
-        ])
-        
+        self.simple_schema = SimpleSchema(
+            [
+                ExtractionVariable(
+                    name="company",
+                    description="Company name",
+                    data_type="string",
+                    required=True,
+                ),
+                ExtractionVariable(
+                    name="price",
+                    description="Price value",
+                    data_type="number",
+                    required=False,
+                ),
+                ExtractionVariable(
+                    name="tags",
+                    description="Tags",
+                    data_type="[string]",
+                    required=False,
+                ),
+            ]
+        )
+
         self.nested_schema = NestedSchema(
             container_name="books",
             variables=[
-                ExtractionVariable(name="title", description="Book title", data_type="string", required=True),
-                ExtractionVariable(name="author", description="Book author", data_type="string", required=True),
-                ExtractionVariable(name="price", description="Book price", data_type="number", required=False),
-                ExtractionVariable(name="genres", description="Book genres", data_type="[string]", required=False),
-            ]
+                ExtractionVariable(
+                    name="title",
+                    description="Book title",
+                    data_type="string",
+                    required=True,
+                ),
+                ExtractionVariable(
+                    name="author",
+                    description="Book author",
+                    data_type="string",
+                    required=True,
+                ),
+                ExtractionVariable(
+                    name="price",
+                    description="Book price",
+                    data_type="number",
+                    required=False,
+                ),
+                ExtractionVariable(
+                    name="genres",
+                    description="Book genres",
+                    data_type="[string]",
+                    required=False,
+                ),
+            ],
         )
-        
-        self.multiple_schema = MultipleSchema({
-            "books": NestedSchema(
-                container_name="books",
-                variables=[
-                    ExtractionVariable(name="title", description="Book title", data_type="string", required=True),
-                    ExtractionVariable(name="author", description="Book author", data_type="string", required=True),
-                ]
-            ),
-            "authors": NestedSchema(
-                container_name="authors",
-                variables=[
-                    ExtractionVariable(name="name", description="Author name", data_type="string", required=True),
-                    ExtractionVariable(name="genre", description="Author genre", data_type="string", required=False),
-                ]
-            )
-        })
-    
+
+        self.multiple_schema = MultipleSchema(
+            {
+                "books": NestedSchema(
+                    container_name="books",
+                    variables=[
+                        ExtractionVariable(
+                            name="title",
+                            description="Book title",
+                            data_type="string",
+                            required=True,
+                        ),
+                        ExtractionVariable(
+                            name="author",
+                            description="Book author",
+                            data_type="string",
+                            required=True,
+                        ),
+                    ],
+                ),
+                "authors": NestedSchema(
+                    container_name="authors",
+                    variables=[
+                        ExtractionVariable(
+                            name="name",
+                            description="Author name",
+                            data_type="string",
+                            required=True,
+                        ),
+                        ExtractionVariable(
+                            name="genre",
+                            description="Author genre",
+                            data_type="string",
+                            required=False,
+                        ),
+                    ],
+                ),
+            }
+        )
+
     def test_explode_simple_schema(self):
         """Test exploding simple schema results."""
-        input_df = pd.DataFrame({
-            "chunk_id": [1, 2],
-            "json": [
-                '{"company": "Apple", "price": 150.0, "tags": ["tech", "hardware"]}',
-                '{"company": "Microsoft", "price": 300.0, "tags": ["tech", "software", "cloud"]}'
-            ]
-        })
-        
+        input_df = pd.DataFrame(
+            {
+                "chunk_id": [1, 2],
+                "json": [
+                    '{"company": "Apple", "price": 150.0, "tags": ["tech", "hardware"]}',
+                    '{"company": "Microsoft", "price": 300.0, "tags": ["tech", "software", "cloud"]}',
+                ],
+            }
+        )
+
         result = explode_json_results(input_df, self.simple_schema, json_column="json")
-        
+
         assert len(result) == 2
         assert result.iloc[0]["company"] == "Apple"
         assert result.iloc[0]["price"] == 150.0
@@ -256,19 +390,21 @@ class TestExplodeJsonResults:
         assert result.iloc[1]["price"] == 300.0
         assert result.iloc[1]["tags"] == ["tech", "software", "cloud"]
         assert "chunk_id" in result.columns
-    
+
     def test_explode_nested_schema(self):
         """Test exploding nested schema results."""
-        input_df = pd.DataFrame({
-            "chunk_id": [1, 2],
-            "json": [
-                '{"books": [{"title": "Python Guide", "author": "Alice", "price": 29.99, "genres": ["programming", "education"]}, {"title": "Data Science", "author": "Bob", "price": 39.99, "genres": ["programming", "science"]}]}',
-                '{"books": [{"title": "Machine Learning", "author": "Carol", "price": 49.99, "genres": ["AI", "programming"]}]}'
-            ]
-        })
-        
+        input_df = pd.DataFrame(
+            {
+                "chunk_id": [1, 2],
+                "json": [
+                    '{"books": [{"title": "Python Guide", "author": "Alice", "price": 29.99, "genres": ["programming", "education"]}, {"title": "Data Science", "author": "Bob", "price": 39.99, "genres": ["programming", "science"]}]}',
+                    '{"books": [{"title": "Machine Learning", "author": "Carol", "price": 49.99, "genres": ["AI", "programming"]}]}',
+                ],
+            }
+        )
+
         result = explode_json_results(input_df, self.nested_schema, json_column="json")
-        
+
         assert len(result) == 3
         assert result.iloc[0]["title"] == "Python Guide"
         assert result.iloc[0]["author"] == "Alice"
@@ -278,43 +414,51 @@ class TestExplodeJsonResults:
         assert result.iloc[1]["author"] == "Bob"
         assert result.iloc[2]["title"] == "Machine Learning"
         assert result.iloc[2]["author"] == "Carol"
-    
+
     def test_explode_multiple_schema(self):
         """Test exploding multiple schema results."""
-        input_df = pd.DataFrame({
-            "chunk_id": [1, 2],
-            "json": [
-                '{"books": {"books": [{"title": "Python Guide", "author": "Alice"}, {"title": "Data Science", "author": "Bob"}]}, "authors": {"authors": [{"name": "Alice", "genre": "programming"}, {"name": "Bob", "genre": "science"}]}}',
-                '{"books": {"books": [{"title": "Machine Learning", "author": "Carol"}]}, "authors": {"authors": [{"name": "Carol", "genre": "AI"}]}}'
-            ]
-        })
-        
-        result = explode_json_results(input_df, self.multiple_schema, json_column="json")
-        
+        input_df = pd.DataFrame(
+            {
+                "chunk_id": [1, 2],
+                "json": [
+                    '{"books": {"books": [{"title": "Python Guide", "author": "Alice"}, {"title": "Data Science", "author": "Bob"}]}, "authors": {"authors": [{"name": "Alice", "genre": "programming"}, {"name": "Bob", "genre": "science"}]}}',
+                    '{"books": {"books": [{"title": "Machine Learning", "author": "Carol"}]}, "authors": {"authors": [{"name": "Carol", "genre": "AI"}]}}',
+                ],
+            }
+        )
+
+        result = explode_json_results(
+            input_df, self.multiple_schema, json_column="json"
+        )
+
         assert len(result) == 6  # 3 books + 3 authors
         assert "schema_name" in result.columns
-        
+
         # Check books
         books = result[result["schema_name"] == "books"]
         assert len(books) == 3
         assert books.iloc[0]["books_title"] == "Python Guide"
         assert books.iloc[0]["books_author"] == "Alice"
-        
+
         # Check authors
         authors = result[result["schema_name"] == "authors"]
         assert len(authors) == 3
         assert authors.iloc[0]["authors_name"] == "Alice"
         assert authors.iloc[0]["authors_genre"] == "programming"
-    
+
     def test_explode_with_dict_json(self):
         """Test exploding with dict JSON instead of strings."""
-        input_df = pd.DataFrame({
-            "chunk_id": [1],
-            "json": [{"company": "Apple", "price": 150.0, "tags": ["tech", "hardware"]}]
-        })
-        
+        input_df = pd.DataFrame(
+            {
+                "chunk_id": [1],
+                "json": [
+                    {"company": "Apple", "price": 150.0, "tags": ["tech", "hardware"]}
+                ],
+            }
+        )
+
         result = explode_json_results(input_df, self.simple_schema, json_column="json")
-        
+
         assert len(result) == 1
         assert result.iloc[0]["company"] == "Apple"
         assert result.iloc[0]["price"] == 150.0
@@ -341,52 +485,64 @@ class TestExplodeJsonResults:
         assert len(result) == 1
         assert result.iloc[0]["chunk_id"] == 2
         assert result.iloc[0]["company"] == "Apple"
-    
+
     def test_explode_empty_dataframe(self):
         """Test exploding empty DataFrame."""
         input_df = pd.DataFrame(columns=["chunk_id", "json"])
-        
+
         result = explode_json_results(input_df, self.simple_schema, json_column="json")
-        
+
         assert len(result) == 0
-    
+
     def test_explode_missing_json_column(self):
         """Test exploding with missing JSON column."""
         input_df = pd.DataFrame({"chunk_id": [1]})
-        
-        with pytest.raises(ValueError, match="Column json not found in input DataFrame"):
+
+        with pytest.raises(
+            ValueError, match="Column json not found in input DataFrame"
+        ):
             explode_json_results(input_df, self.simple_schema, json_column="json")
-    
+
     def test_explode_with_schema_path(self):
         """Test exploding with schema path instead of schema object.
-        
+
         NOTE: This functionality is no longer supported in the new API.
         The explode_json_results function now requires an ExtractionSchema object,
         not a file path. If you need to load from a file, use Schema.from_yaml()
         first to get the schema object, then pass that to explode_json_results.
         """
-        pytest.skip("Schema path loading is no longer supported - use Schema.from_yaml() first")
+        pytest.skip(
+            "Schema path loading is no longer supported - use Schema.from_yaml() first"
+        )
 
 
 class TestExtractionVariableIsList:
     """Test the is_list method of ExtractionVariable."""
-    
+
     def test_is_list_with_list_type(self):
         """Test is_list method with list data type."""
-        var = ExtractionVariable(name="test", data_type="[string]", required=True, description="")
+        var = ExtractionVariable(
+            name="test", data_type="[string]", required=True, description=""
+        )
         assert var.is_list() is True
-    
+
     def test_is_list_with_scalar_type(self):
         """Test is_list method with scalar data type."""
-        var = ExtractionVariable(name="test", data_type="string", required=True, description="")
+        var = ExtractionVariable(
+            name="test", data_type="string", required=True, description=""
+        )
         assert var.is_list() is False
-    
+
     def test_is_list_with_number_type(self):
         """Test is_list method with number data type."""
-        var = ExtractionVariable(name="test", data_type="number", required=True, description="")
+        var = ExtractionVariable(
+            name="test", data_type="number", required=True, description=""
+        )
         assert var.is_list() is False
-    
+
     def test_is_list_with_integer_list_type(self):
         """Test is_list method with integer list data type."""
-        var = ExtractionVariable(name="test", data_type="[integer]", required=True, description="")
-        assert var.is_list() is True 
+        var = ExtractionVariable(
+            name="test", data_type="[integer]", required=True, description=""
+        )
+        assert var.is_list() is True

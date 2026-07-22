@@ -9,14 +9,14 @@ Estimate cost based on input tokens only (free, no API calls).
 ```python
 from delm.utils.cost_estimation import estimate_input_token_cost
 
-cost_report = estimate_input_token_cost(
+input_cost = estimate_input_token_cost(
     config: DELM | DELMConfig | str | Path,
     data_source: str | Path | pd.DataFrame,
     save_file_log: bool = False,
     log_dir: str | Path | None = ".delm/logs/cost_estimation",
     console_log_level: str = "INFO",
     file_log_level: str = "DEBUG"
-) -> dict
+) -> float
 ```
 
 **Parameters:**
@@ -27,13 +27,41 @@ cost_report = estimate_input_token_cost(
 - `console_log_level`: Console verbosity
 - `file_log_level`: File verbosity
 
-**Returns:** Dictionary with:
-- `estimated_input_tokens` (int)
-- `estimated_input_cost` (float)
-- `num_records` (int)
-- `num_chunks` (int)
+**Returns:** Estimated dollar cost (float) of input tokens for all chunks.
 
 **Note:** Counts cached requests toward token cost (they would be cached on first run).
+
+## estimate_max_total_cost()
+
+Estimate an upper bound on total cost (free, no API calls). For each chunk the
+output tokens are bounded by
+`min(max_completion_tokens, context_window - input_tokens)`, so the bound is
+
+```
+input_price * input_tokens
++ output_price * min(max_completion_tokens, context_window - input_tokens)
+```
+
+summed over all chunks. Context window and max output tokens are looked up
+from the tokencost database; when unavailable (custom models with manual price
+overrides), only `max_completion_tokens` bounds the output.
+
+```python
+from delm.utils.cost_estimation import estimate_max_total_cost
+
+max_cost = estimate_max_total_cost(
+    config: DELM | DELMConfig | str | Path,
+    data_source: str | Path | pd.DataFrame,
+    save_file_log: bool = False,
+    log_dir: str | Path | None = ".delm/logs/cost_estimation",
+    console_log_level: str = "INFO",
+    file_log_level: str = "DEBUG"
+) -> float
+```
+
+**Parameters:** Same as `estimate_input_token_cost()`.
+
+**Returns:** Upper-bound dollar cost (float) for processing all chunks.
 
 ## estimate_total_cost()
 
@@ -42,7 +70,7 @@ Estimate total cost (input + output tokens) using sample API calls.
 ```python
 from delm.utils.cost_estimation import estimate_total_cost
 
-cost_report = estimate_total_cost(
+total_cost = estimate_total_cost(
     config: DELM | DELMConfig | str | Path,
     data_source: str | Path | pd.DataFrame,
     sample_size: int = 10,
@@ -50,23 +78,17 @@ cost_report = estimate_total_cost(
     log_dir: str | Path | None = ".delm/logs/cost_estimation",
     console_log_level: str = "INFO",
     file_log_level: str = "DEBUG"
-) -> dict
+) -> float
 ```
 
 **Parameters:**
 - `config`: DELM instance, DELMConfig, or path to config YAML
 - `data_source`: Input data
-- `sample_size`: Number of chunks to sample for estimation
+- `sample_size`: Number of records to sample for estimation
 - `save_file_log`, `log_dir`, `console_log_level`, `file_log_level`: Logging settings
 
-**Returns:** Dictionary with:
-- `estimated_total_cost` (float)
-- `estimated_input_tokens` (int)
-- `estimated_output_tokens` (int)
-- `estimated_input_cost` (float)
-- `estimated_output_cost` (float)
-- `sample_size` (int)
-- `total_chunks` (int)
+**Returns:** Estimated dollar cost (float) for processing the entire dataset,
+extrapolated from the sample by input-token share.
 
 **Warning:** Makes real API calls (costs apply).
 
@@ -90,10 +112,10 @@ delm = DELM(
 
 # Free estimate (input tokens only)
 input_cost = estimate_input_token_cost(delm, "data.csv")
-print(f"Input cost: ${input_cost['estimated_input_cost']:.4f}")
+print(f"Input cost: ${input_cost:.4f}")
 
 # Sample-based estimate (costs ~$0.01)
 total_cost = estimate_total_cost(delm, "data.csv", sample_size=10)
-print(f"Total estimated cost: ${total_cost['estimated_total_cost']:.2f}")
+print(f"Total estimated cost: ${total_cost:.2f}")
 ```
 

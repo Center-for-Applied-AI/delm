@@ -1,6 +1,7 @@
 """Token counting and cost tracking utilities for DELM."""
 
 import logging
+import threading
 import tiktoken
 import json
 from delm.utils.model_price_database import get_model_token_price
@@ -9,6 +10,26 @@ from pydantic import BaseModel
 
 # Module-level logger
 log = logging.getLogger(__name__)
+
+
+def get_tokenizer_for_model(model: str) -> tiktoken.Encoding:
+    """Return the tiktoken encoding for a model, falling back to cl100k_base.
+
+    Args:
+        model: The model name (e.g. "gpt-4o-mini").
+
+    Returns:
+        The tiktoken encoding registered for the model, or ``cl100k_base``
+        when the model is unknown to tiktoken.
+    """
+    try:
+        return tiktoken.encoding_for_model(model)
+    except KeyError:
+        log.debug(
+            "No tiktoken encoding registered for model '%s'; using cl100k_base",
+            model,
+        )
+        return tiktoken.get_encoding("cl100k_base")
 
 
 class CostTracker:
@@ -26,7 +47,7 @@ class CostTracker:
         log.debug("Initializing cost tracker for %s/%s", provider, model)
         self.provider = provider
         self.model = model
-        self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        self.tokenizer = get_tokenizer_for_model(model)
         self.model_input_cost_per_1M_tokens = (
             model_input_cost_per_1M_tokens
             if model_input_cost_per_1M_tokens is not None
@@ -41,6 +62,8 @@ class CostTracker:
         self.output_tokens = 0
         self.count_cache_hits_towards_cost = count_cache_hits_towards_cost
         self.max_budget = max_budget
+        self.reserved_cost = 0.0
+        self._reservation_lock = threading.Lock()
 
         log.debug(
             "Cost tracker initialized - input: $%.6f/1M tokens, output: $%.6f/1M tokens",
@@ -57,6 +80,65 @@ class CostTracker:
         if is_over:
             log.warning("Budget exceeded: $%.4f > $%.4f", current_cost, self.max_budget)
         return is_over
+
+    def try_reserve_budget(
+        self, input_tokens: int, output_tokens: int
+    ) -> Optional[float]:
+        """Reserve the estimated cost of a request against the budget.
+
+        With concurrent workers, checking the budget only after responses
+        arrive can overshoot ``max_budget`` by a full batch of in-flight
+        requests. Reserving the worst-case cost of each request before
+        dispatch enforces the budget strictly.
+
+        Args:
+            input_tokens: Estimated input tokens for the request.
+            output_tokens: Upper bound on output tokens (e.g. ``max_completion_tokens``).
+
+        Returns:
+            The reserved dollar amount to later pass to
+            ``release_budget_reservation``, or None when the reservation would
+            exceed ``max_budget``. When no budget is set, returns 0.0 and
+            tracks nothing.
+        """
+        if self.max_budget is None:
+            return 0.0
+        estimated_cost = self.estimate_cost(input_tokens, output_tokens)
+        with self._reservation_lock:
+            projected = self.get_current_cost() + self.reserved_cost + estimated_cost
+            if projected > self.max_budget:
+                log.warning(
+                    "Budget reservation denied: projected $%.4f > budget $%.4f",
+                    projected,
+                    self.max_budget,
+                )
+                return None
+            self.reserved_cost += estimated_cost
+        log.debug(
+            "Reserved $%.6f against budget (total reserved: $%.6f)",
+            estimated_cost,
+            self.reserved_cost,
+        )
+        return estimated_cost
+
+    def release_budget_reservation(self, reserved_cost: float) -> None:
+        """Release a reservation made by ``try_reserve_budget``.
+
+        Call after the request settles (actual usage is tracked separately
+        via ``track_token_usage``).
+
+        Args:
+            reserved_cost: The amount returned by ``try_reserve_budget``.
+        """
+        if self.max_budget is None or reserved_cost == 0.0:
+            return
+        with self._reservation_lock:
+            self.reserved_cost = max(0.0, self.reserved_cost - reserved_cost)
+        log.debug(
+            "Released $%.6f budget reservation (total reserved: $%.6f)",
+            reserved_cost,
+            self.reserved_cost,
+        )
 
     def track_input_text(self, *parts: Any) -> None:
         """Accumulate input tokens for one or more parts.
@@ -176,7 +258,7 @@ class CostTracker:
         obj = cls.__new__(cls)
         obj.provider = d["provider"]
         obj.model = d["model"]
-        obj.tokenizer = tiktoken.get_encoding("cl100k_base")
+        obj.tokenizer = get_tokenizer_for_model(obj.model)
         obj.model_input_cost_per_1M_tokens = d.get(
             "model_input_cost_per_1M_tokens", 0.0
         )
@@ -187,6 +269,8 @@ class CostTracker:
         obj.output_tokens = d.get("output_tokens", 0)
         obj.count_cache_hits_towards_cost = False  # Default value
         obj.max_budget = d.get("max_budget", None)
+        obj.reserved_cost = 0.0
+        obj._reservation_lock = threading.Lock()
         log.debug(
             "CostTracker restored from dict: provider=%s, model=%s, input_tokens=%d, output_tokens=%d",
             obj.provider,

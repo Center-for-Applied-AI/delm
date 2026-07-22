@@ -6,7 +6,7 @@ DELM provides tools to estimate costs before running a job, track costs during e
 
 Before running a large extraction job, you should estimate the potential cost. DELM offers two methods for this: a free input-only estimate and a more accurate sample-based estimate.
 
-**Note on Pricing**: DELM uses the [tokencost](https://github.com/AgentOps-AI/tokencost) package to look up model prices automatically (400+ models supported). If your model isn't in the database or prices have changed, override with `model_input_cost_per_1M_tokens` and `model_output_cost_per_1M_tokens`.
+**Note on Pricing**: DELM uses the [tokencost](https://github.com/AgentOps-AI/tokencost) package to look up model prices automatically. If a model is missing from the bundled database (e.g. a model released after your tokencost version), DELM fetches tokencost's live price feed once per process, so newly released models (such as `claude-fable-5` or `gpt-5.6-sol`) resolve without an upgrade. If the model still isn't found or prices have changed, override with `model_input_cost_per_1M_tokens` and `model_output_cost_per_1M_tokens`.
 
 ### 1. Input Token Estimation (Free)
 
@@ -34,7 +34,27 @@ input_cost = estimate_input_token_cost(
 print(f"Estimated minimum cost (input only): ${input_cost:.2f}")
 ```
 
-### 2. Total Cost Estimation (Sampled)
+### 2. Upper-Bound Estimation (Free)
+
+This method computes a **worst-case total cost** without API calls. Output
+tokens per chunk are bounded by
+`min(max_completion_tokens, context_window - input_tokens)`, using the model's
+limits from the tokencost database.
+
+**Best for**: Knowing the maximum you could possibly spend before launching a job.
+
+```python
+from delm.utils.cost_estimation import estimate_max_total_cost
+
+max_cost = estimate_max_total_cost(
+    config=delm,
+    data_source="data/financial_reports.csv"
+)
+
+print(f"Worst-case total cost: ${max_cost:.2f}")
+```
+
+### 3. Total Cost Estimation (Sampled)
 
 This method runs the full extraction pipeline on a small sample of your data to measure both **input and output** tokens. It then extrapolates the total cost.
 
@@ -68,6 +88,8 @@ print(f"Estimated total cost: ${total_cost:.2f}")
 ## Budget Limits
 
 You can set a hard budget limit to ensure you never accidentally overspend. If the limit is reached, DELM stops processing immediately but preserves all results extracted up to that point.
+
+Before dispatching each request, DELM reserves its worst-case cost (input tokens plus `max_completion_tokens`) against the budget, so even with many concurrent workers the in-flight requests cannot overshoot `max_budget`.
 
 ```python
 from delm import DELM

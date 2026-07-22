@@ -13,10 +13,17 @@ from pathlib import Path
 def update_version(version: str):
     """Update version in pyproject.toml and __init__.py"""
 
-    # Update pyproject.toml
+    # Update pyproject.toml. The pattern is anchored to the start of the line
+    # so it cannot match other keys such as mypy's python_version.
     pyproject_path = Path("pyproject.toml")
     content = pyproject_path.read_text()
-    content = re.sub(r'version = "[^"]*"', f'version = "{version}"', content)
+    content = re.sub(
+        r'^version = "[^"]*"',
+        f'version = "{version}"',
+        content,
+        count=1,
+        flags=re.MULTILINE,
+    )
     pyproject_path.write_text(content)
     print(f"✅ Updated pyproject.toml to version {version}")
 

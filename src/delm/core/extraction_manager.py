@@ -10,7 +10,6 @@ from typing import Any, Optional, Dict, List
 import pandas as pd
 import instructor
 from pydantic import BaseModel
-import tiktoken
 
 from delm.utils.rate_limiter import RateLimiter
 
@@ -28,8 +27,9 @@ from delm.constants import (
     SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
 )
 from delm.exceptions import InstructorError
-from delm.utils.cost_tracker import CostTracker
+from delm.utils.cost_tracker import CostTracker, get_tokenizer_for_model
 from delm.core.experiment_manager import BaseExperimentManager
+from delm.utils.few_shot import FewShotExampleSelector
 from delm.utils.type_checks import is_pydantic_model
 from delm.utils.semantic_cache import SemanticCache, make_cache_key
 
@@ -140,9 +140,24 @@ class ExtractionManager:
         self.prompt_template = model_config.prompt_template
         self.system_prompt = model_config.system_prompt
 
+        self.few_shot_selector = FewShotExampleSelector.from_optional(
+            examples=model_config.few_shot_examples,
+            num_examples=model_config.few_shot_num_examples,
+            truncate_length=model_config.few_shot_truncate_length,
+            random_sample=model_config.few_shot_random_sample,
+        )
+        if self.few_shot_selector is not None:
+            log.debug(
+                "Few-shot selector created with %d examples (num=%d, random=%s)",
+                len(model_config.few_shot_examples),
+                model_config.few_shot_num_examples,
+                model_config.few_shot_random_sample,
+            )
+
         self.cost_tracker = cost_tracker
         self.semantic_cache = semantic_cache
         self.rate_limiter = rate_limiter
+        self.tokenizer = get_tokenizer_for_model(model_config.model)
 
         self.max_output_tokens = 0
 
@@ -436,11 +451,14 @@ class ExtractionManager:
         # Hot path - minimal logging. Schema is cached internally.
         schema = self.extraction_schema.create_pydantic_schema()
         prompt = self.extraction_schema.create_prompt(text_chunk, self.prompt_template)
+        if self.few_shot_selector is not None:
+            prompt = self.few_shot_selector.prepend_to_prompt(prompt)
         system_prompt = self.system_prompt
 
-        estimated_total_tokens = self._estimate_total_tokens(
+        estimated_input_tokens = self._estimate_input_tokens(
             system_prompt, prompt, schema, tokenize=True
         )
+        estimated_total_tokens = estimated_input_tokens + self.max_output_tokens
 
         def _instructor_extract():
             self.rate_limiter.before_request(est_tokens=estimated_total_tokens)
@@ -529,7 +547,24 @@ class ExtractionManager:
         except Exception as e:
             log.error(f"Cache error {e}, performing new extraction")
 
-        response = self.retry_handler.execute_with_retry(_instructor_extract)
+        # Reserve the worst-case cost of this request against the budget so
+        # concurrent in-flight requests cannot overshoot max_budget.
+        reserved_cost = None
+        if self.cost_tracker is not None:
+            reserved_cost = self.cost_tracker.try_reserve_budget(
+                estimated_input_tokens, self.model_config.max_completion_tokens
+            )
+            if reserved_cost is None:
+                raise ValueError(
+                    "Over budget: request reservation would exceed max_budget"
+                )
+
+        try:
+            response = self.retry_handler.execute_with_retry(_instructor_extract)
+        finally:
+            if self.cost_tracker is not None and reserved_cost is not None:
+                self.cost_tracker.release_budget_reservation(reserved_cost)
+
         response_dict = response.model_dump(mode="json")
         # Convert to dict to save to semantic cache
         try:
@@ -538,27 +573,24 @@ class ExtractionManager:
             log.error(f"Cache error {e}, did not cache result")
         return response
 
-    def _estimate_total_tokens(
+    def _estimate_input_tokens(
         self,
         system_prompt: str,
         prompt: str,
         schema: BaseModel,
         tokenize: bool = True,
     ) -> int:
-        """Estimate the total tokens for a given system prompt, prompt, and schema."""
+        """Estimate the input tokens for a given system prompt, prompt, and schema."""
         # Include schema JSON for estimation alongside system + user prompt
         complete_prompt = (
             f"{system_prompt}\n{prompt}\n{json.dumps(schema.model_json_schema())}"
         )
         if tokenize:
-            tokenizer = tiktoken.get_encoding("cl100k_base")
-            input_tokens = len(tokenizer.encode(complete_prompt))
+            input_tokens = len(self.tokenizer.encode(complete_prompt))
         else:
             input_tokens = len(complete_prompt) // 4
 
-        total_tokens = input_tokens + self.max_output_tokens
-
-        return total_tokens
+        return input_tokens
 
     def parse_results_dataframe(
         self,

@@ -2,9 +2,16 @@
 Unit tests for the tokencost-backed model price database.
 """
 
-import pytest
+from unittest.mock import patch
 
-from delm.utils.model_price_database import get_model_token_price
+import pytest
+from tokencost.constants import TOKEN_COSTS
+
+import delm.utils.model_price_database as mpd
+from delm.utils.model_price_database import (
+    get_model_token_limits,
+    get_model_token_price,
+)
 
 
 class TestGetModelTokenPrice:
@@ -52,6 +59,48 @@ class TestGetModelTokenPrice:
         input_price, output_price = get_model_token_price("google", "gemini-2.0-flash")
         assert input_price >= 0
         assert output_price >= 0
+
+    def test_missing_model_triggers_one_refresh_and_resolves(self, monkeypatch):
+        """A model missing from the bundled DB resolves after the price feed
+        refresh; the refresh runs at most once per process. The feed is mocked
+        so the test does not depend on network access."""
+        model_key = "test-refresh-only-model"
+        assert model_key not in TOKEN_COSTS
+
+        def fake_refresh(write_file):
+            TOKEN_COSTS[model_key] = {
+                "input_cost_per_token": 1e-6,
+                "output_cost_per_token": 2e-6,
+                "max_input_tokens": 1000,
+                "max_output_tokens": 100,
+            }
+            return TOKEN_COSTS
+
+        monkeypatch.setattr(mpd, "_PRICES_REFRESHED", False)
+        try:
+            with patch.object(
+                mpd, "refresh_prices", side_effect=fake_refresh
+            ) as mock_refresh:
+                input_price, output_price = get_model_token_price("openai", model_key)
+                assert input_price == pytest.approx(1.0)
+                assert output_price == pytest.approx(2.0)
+                assert get_model_token_limits("openai", model_key) == (1000, 100)
+                mock_refresh.assert_called_once()
+        finally:
+            TOKEN_COSTS.pop(model_key, None)
+
+
+class TestGetModelTokenLimits:
+    """Test get_model_token_limits using tokencost backend."""
+
+    def test_known_model_limits(self):
+        max_input, max_output = get_model_token_limits("openai", "gpt-4o-mini")
+        assert max_input is not None and max_input > 0
+        assert max_output is not None and max_output > 0
+
+    def test_unknown_model_raises_value_error(self):
+        with pytest.raises(ValueError, match="not found in tokencost database"):
+            get_model_token_limits("nonexistent_provider", "nonexistent_model_xyz_123")
 
 
 class TestTokencostIntegrationWithCostTracker:

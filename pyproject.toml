@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "delm"
-version = "1.1.0"
+version = "1.2.0"
 description = "DELM:Data Extraction with Language Models"
 readme = "README.md"
 license = { text = "MIT" }
@@ -91,7 +91,7 @@ extend-exclude = '''
 '''
 
 [tool.mypy]
-python_version = "1.1.0"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

@@ -142,6 +142,41 @@ Note: Normalize all extracted values to English."""
 - **`{text}`** - The text chunk to extract from (required)
 - **`{variables}`** - Auto-generated list of variables from your schema (required)
 
+## Few-Shot Examples
+
+Include hand-labeled examples in the prompt to improve extraction quality.
+Each example is a dict with a `"text"` key (source text) and an `"output"`
+key (expected extraction result as a dict or JSON string).
+
+```python
+delm = DELM(
+    schema=schema,
+    few_shot_examples=[
+        {
+            "text": "Brent crude is forecast to hit $85 per barrel in Q4.",
+            "output": {"commodity": "Brent crude", "price_value": 85},
+        },
+        {
+            "text": "Gold remained flat this week.",
+            "output": {"commodity": "gold", "price_value": None},
+        },
+    ],
+    few_shot_num_examples=2,        # examples per prompt
+    few_shot_truncate_length=200,   # max tokens per example text (None = no truncation)
+    few_shot_random_sample=True,    # sample randomly from the pool per request
+)
+```
+
+Notes:
+
+- The rendered examples block is prepended once to the final prompt (this also
+  holds for `Schema.multiple`, which repeats the template per sub-schema).
+- Random sampling is seeded (`SYSTEM_RANDOM_SEED = 42`), so runs are reproducible.
+- If fewer examples are available than requested, all available examples are
+  used and a warning is logged.
+- Few-shot examples count toward input tokens; cost estimation utilities
+  include them automatically.
+
 ## 3. System Prompt
 
 The `system_prompt` sets the LLM's role and behavior. This is sent as the "system" message in the API call.

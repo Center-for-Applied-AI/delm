@@ -7,17 +7,20 @@ and the top‑level ``DELMConfig`` aggregator.
 Docstrings follow Google style.
 """
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, TypeVar, List
 import yaml
 
-T = TypeVar("T", bound="BaseConfig")
+log = logging.getLogger(__name__)
+
 T = TypeVar("T", bound="BaseConfig")
 
 from delm.strategies import RelevanceScorer
 from delm.strategies import SplitStrategy
 from delm.schemas import Schema
+from delm.utils.few_shot import validate_few_shot_params
 
 
 class BaseConfig:
@@ -68,6 +71,10 @@ class LLMExtractionConfig(BaseConfig):
     model_output_cost_per_1M_tokens: Optional[float]
     max_completion_tokens: int
     api_kwargs: dict
+    few_shot_examples: Optional[List[Dict[str, Any]]] = None
+    few_shot_num_examples: int = 3
+    few_shot_truncate_length: Optional[int] = None
+    few_shot_random_sample: bool = False
 
     def get_provider_string(self) -> str:
         """Return the combined provider string for Instructor.
@@ -156,6 +163,16 @@ class LLMExtractionConfig(BaseConfig):
             raise ValueError(
                 f"api_kwargs must be a dict. api_kwargs: {self.api_kwargs}"
             )
+        if not isinstance(self.few_shot_random_sample, bool):
+            raise ValueError(
+                f"few_shot_random_sample must be a boolean. few_shot_random_sample: {self.few_shot_random_sample}"
+            )
+        if self.few_shot_examples is not None:
+            validate_few_shot_params(
+                self.few_shot_examples,
+                self.few_shot_num_examples,
+                self.few_shot_truncate_length,
+            )
 
     def to_dict(self) -> dict:
         return {
@@ -179,6 +196,10 @@ class LLMExtractionConfig(BaseConfig):
             "model_output_cost_per_1M_tokens": self.model_output_cost_per_1M_tokens,
             "max_completion_tokens": self.max_completion_tokens,
             "api_kwargs": self.api_kwargs,
+            "few_shot_examples": self.few_shot_examples,
+            "few_shot_num_examples": self.few_shot_num_examples,
+            "few_shot_truncate_length": self.few_shot_truncate_length,
+            "few_shot_random_sample": self.few_shot_random_sample,
         }
 
 
@@ -470,6 +491,10 @@ class DELMConfig:
         model_output_cost_per_1M_tokens: Optional[float] = None,
         max_completion_tokens: int = 4096,
         api_kwargs: Optional[Dict[str, Any]] = None,
+        few_shot_examples: Optional[List[Dict[str, Any]]] = None,
+        few_shot_num_examples: int = 3,
+        few_shot_truncate_length: Optional[int] = None,
+        few_shot_random_sample: bool = False,
         # Data Preprocessing (flat)
         target_column: str = "text",
         drop_target_column: bool = False,
@@ -536,6 +561,10 @@ class DELMConfig:
             model_output_cost_per_1M_tokens=model_output_cost_per_1M_tokens,
             max_completion_tokens=max_completion_tokens,
             api_kwargs=api_kwargs if api_kwargs is not None else {},
+            few_shot_examples=few_shot_examples,
+            few_shot_num_examples=few_shot_num_examples,
+            few_shot_truncate_length=few_shot_truncate_length,
+            few_shot_random_sample=few_shot_random_sample,
         )
         self.data_preprocessing_cfg = DataPreprocessingConfig(
             target_column=target_column,
@@ -568,50 +597,76 @@ class DELMConfig:
 
         return data
 
+    # Keys accepted by ``from_dict`` besides the required ``schema``.
+    _FROM_DICT_KEYS = (
+        "provider",
+        "model",
+        "base_url",
+        "mode",
+        "temperature",
+        "prompt_template",
+        "system_prompt",
+        "batch_size",
+        "max_workers",
+        "max_retries",
+        "base_delay",
+        "rate_limit_tokens",
+        "rate_limit_requests",
+        "rate_limit_period_seconds",
+        "track_cost",
+        "max_budget",
+        "model_input_cost_per_1M_tokens",
+        "model_output_cost_per_1M_tokens",
+        "max_completion_tokens",
+        "api_kwargs",
+        "few_shot_examples",
+        "few_shot_num_examples",
+        "few_shot_truncate_length",
+        "few_shot_random_sample",
+        "target_column",
+        "drop_target_column",
+        "splitting_strategy",
+        "relevance_scorer",
+        "score_filter",
+        "cache_backend",
+        "cache_path",
+        "cache_max_size_mb",
+        "cache_synchronous",
+    )
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DELMConfig":
         """Create ``DELMConfig`` from a mapping.
 
-        Handles two formats:
-        1. Nested format (from to_dict()): Has 'llm_extraction', 'data_preprocessing', 'semantic_cache' keys
-        2. Flat format: All fields at top level
+        Only ``schema`` is required. Any other key that is absent falls back
+        to the ``DELMConfig`` constructor default, so configs saved by older
+        versions keep loading after new fields are added.
+
+        Args:
+            data: Mapping of configuration options.
+
+        Returns:
+            A configured ``DELMConfig`` instance.
+
+        Raises:
+            ValueError: If ``schema`` is missing.
         """
         if data is None:
             data = {}
+        if "schema" not in data:
+            raise ValueError(
+                "Config dict must contain a 'schema' key. "
+                f"Got keys: {sorted(data.keys())}"
+            )
 
-        # Check if this is nested format (from to_dict())
-        return cls(
-            schema=data["schema"],
-            provider=data["provider"],
-            model=data["model"],
-            base_url=data["base_url"],
-            mode=data["mode"],
-            temperature=data["temperature"],
-            prompt_template=data["prompt_template"],
-            system_prompt=data["system_prompt"],
-            batch_size=data["batch_size"],
-            max_workers=data["max_workers"],
-            max_retries=data["max_retries"],
-            base_delay=data["base_delay"],
-            rate_limit_tokens=data["rate_limit_tokens"],
-            rate_limit_requests=data["rate_limit_requests"],
-            rate_limit_period_seconds=data.get("rate_limit_period_seconds", 60.0),
-            track_cost=data["track_cost"],
-            max_budget=data["max_budget"],
-            model_input_cost_per_1M_tokens=data["model_input_cost_per_1M_tokens"],
-            model_output_cost_per_1M_tokens=data["model_output_cost_per_1M_tokens"],
-            max_completion_tokens=data.get("max_completion_tokens", 4096),
-            api_kwargs=data.get("api_kwargs", {}),
-            target_column=data["target_column"],
-            drop_target_column=data["drop_target_column"],
-            splitting_strategy=data["splitting_strategy"],
-            relevance_scorer=data["relevance_scorer"],
-            score_filter=data["score_filter"],
-            cache_backend=data["cache_backend"],
-            cache_path=data["cache_path"],
-            cache_max_size_mb=data["cache_max_size_mb"],
-            cache_synchronous=data["cache_synchronous"],
-        )
+        unknown_keys = set(data) - set(cls._FROM_DICT_KEYS) - {"schema"}
+        if unknown_keys:
+            log.warning(
+                "Ignoring unknown config keys: %s", sorted(unknown_keys)
+            )
+
+        kwargs = {key: data[key] for key in cls._FROM_DICT_KEYS if key in data}
+        return cls(schema=data["schema"], **kwargs)
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "DELMConfig":
@@ -626,8 +681,6 @@ class DELMConfig:
         Raises:
             FileNotFoundError: If the file does not exist.
         """
-        if isinstance(path, str):
-            path = Path(path)
         if isinstance(path, str):
             path = Path(path)
         if not path.exists():
