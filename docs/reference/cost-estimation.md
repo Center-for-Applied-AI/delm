@@ -35,6 +35,38 @@ cost_report = estimate_input_token_cost(
 
 **Note:** Counts cached requests toward token cost (they would be cached on first run).
 
+## estimate_max_total_cost()
+
+Estimate an upper bound on total cost (free, no API calls). For each chunk the
+output tokens are bounded by
+`min(max_completion_tokens, context_window - input_tokens)`, so the bound is
+
+```
+input_price * input_tokens
++ output_price * min(max_completion_tokens, context_window - input_tokens)
+```
+
+summed over all chunks. Context window and max output tokens are looked up
+from the tokencost database; when unavailable (custom models with manual price
+overrides), only `max_completion_tokens` bounds the output.
+
+```python
+from delm.utils.cost_estimation import estimate_max_total_cost
+
+max_cost = estimate_max_total_cost(
+    config: DELM | DELMConfig | str | Path,
+    data_source: str | Path | pd.DataFrame,
+    save_file_log: bool = False,
+    log_dir: str | Path | None = ".delm/logs/cost_estimation",
+    console_log_level: str = "INFO",
+    file_log_level: str = "DEBUG"
+) -> float
+```
+
+**Parameters:** Same as `estimate_input_token_cost()`.
+
+**Returns:** Upper-bound dollar cost (float) for processing all chunks.
+
 ## estimate_total_cost()
 
 Estimate total cost (input + output tokens) using sample API calls.
