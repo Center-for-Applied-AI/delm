@@ -5,9 +5,11 @@ Unit tests for cost_tracker module.
 import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
+
+import tiktoken
 from pydantic import BaseModel
 
-from delm.utils.cost_tracker import CostTracker
+from delm.utils.cost_tracker import CostTracker, get_tokenizer_for_model
 
 
 class MockResponse(BaseModel):
@@ -37,6 +39,21 @@ class TestCostTrackerInitialization:
         assert tracker.count_cache_hits_towards_cost is False
         assert tracker.tokenizer is not None
     
+    def test_tokenizer_matches_model_encoding(self):
+        """gpt-4o models use o200k_base; older models use cl100k_base (issue #62)."""
+        assert (
+            get_tokenizer_for_model("gpt-4o-mini").name
+            == tiktoken.encoding_for_model("gpt-4o-mini").name
+        )
+        assert get_tokenizer_for_model("gpt-4").name == "cl100k_base"
+        assert get_tokenizer_for_model("unknown-model-xyz").name == "cl100k_base"
+
+    @patch('delm.utils.cost_tracker.get_model_token_price')
+    def test_tracker_uses_model_specific_encoding(self, mock_get_price):
+        mock_get_price.return_value = (0.15, 0.60)
+        tracker = CostTracker("openai", "gpt-4o-mini")
+        assert tracker.tokenizer.name == tiktoken.encoding_for_model("gpt-4o-mini").name
+
     def test_initialization_with_custom_prices(self):
         """Test initialization with custom prices."""
         tracker = CostTracker(

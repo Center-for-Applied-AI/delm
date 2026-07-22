@@ -11,6 +11,26 @@ from pydantic import BaseModel
 log = logging.getLogger(__name__)
 
 
+def get_tokenizer_for_model(model: str) -> tiktoken.Encoding:
+    """Return the tiktoken encoding for a model, falling back to cl100k_base.
+
+    Args:
+        model: The model name (e.g. "gpt-4o-mini").
+
+    Returns:
+        The tiktoken encoding registered for the model, or ``cl100k_base``
+        when the model is unknown to tiktoken.
+    """
+    try:
+        return tiktoken.encoding_for_model(model)
+    except KeyError:
+        log.debug(
+            "No tiktoken encoding registered for model '%s'; using cl100k_base",
+            model,
+        )
+        return tiktoken.get_encoding("cl100k_base")
+
+
 class CostTracker:
     """Track tokens and estimate cost for an extraction run."""
 
@@ -26,7 +46,7 @@ class CostTracker:
         log.debug("Initializing cost tracker for %s/%s", provider, model)
         self.provider = provider
         self.model = model
-        self.tokenizer = tiktoken.get_encoding("cl100k_base")
+        self.tokenizer = get_tokenizer_for_model(model)
         self.model_input_cost_per_1M_tokens = (
             model_input_cost_per_1M_tokens
             if model_input_cost_per_1M_tokens is not None
@@ -176,7 +196,7 @@ class CostTracker:
         obj = cls.__new__(cls)
         obj.provider = d["provider"]
         obj.model = d["model"]
-        obj.tokenizer = tiktoken.get_encoding("cl100k_base")
+        obj.tokenizer = get_tokenizer_for_model(obj.model)
         obj.model_input_cost_per_1M_tokens = d.get(
             "model_input_cost_per_1M_tokens", 0.0
         )

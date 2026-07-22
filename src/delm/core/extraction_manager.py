@@ -10,7 +10,6 @@ from typing import Any, Optional, Dict, List
 import pandas as pd
 import instructor
 from pydantic import BaseModel
-import tiktoken
 
 from delm.utils.rate_limiter import RateLimiter
 
@@ -28,7 +27,7 @@ from delm.constants import (
     SYSTEM_EXTRACTED_DATA_JSON_COLUMN,
 )
 from delm.exceptions import InstructorError
-from delm.utils.cost_tracker import CostTracker
+from delm.utils.cost_tracker import CostTracker, get_tokenizer_for_model
 from delm.core.experiment_manager import BaseExperimentManager
 from delm.utils.few_shot import FewShotExampleSelector
 from delm.utils.type_checks import is_pydantic_model
@@ -158,6 +157,7 @@ class ExtractionManager:
         self.cost_tracker = cost_tracker
         self.semantic_cache = semantic_cache
         self.rate_limiter = rate_limiter
+        self.tokenizer = get_tokenizer_for_model(model_config.model)
 
         self.max_output_tokens = 0
 
@@ -571,8 +571,7 @@ class ExtractionManager:
             f"{system_prompt}\n{prompt}\n{json.dumps(schema.model_json_schema())}"
         )
         if tokenize:
-            tokenizer = tiktoken.get_encoding("cl100k_base")
-            input_tokens = len(tokenizer.encode(complete_prompt))
+            input_tokens = len(self.tokenizer.encode(complete_prompt))
         else:
             input_tokens = len(complete_prompt) // 4
 

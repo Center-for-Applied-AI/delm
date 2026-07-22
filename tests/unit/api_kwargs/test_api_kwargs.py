@@ -11,6 +11,7 @@ from unittest.mock import patch, MagicMock
 from delm import DELM, Schema, DELMConfig
 from delm.config import LLMExtractionConfig
 from delm.models import ExtractionVariable
+from delm.utils.cost_tracker import get_tokenizer_for_model
 
 
 @pytest.fixture
@@ -155,6 +156,7 @@ class TestApiKwargsExtractionManager:
             manager.prompt_template = model_config.prompt_template
             manager.system_prompt = model_config.system_prompt
             manager.few_shot_selector = None
+            manager.tokenizer = get_tokenizer_for_model(model_config.model)
             manager.cost_tracker = None
             manager.semantic_cache = mock_cache
             manager.rate_limiter = mock_rate_limiter
