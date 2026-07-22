@@ -13,7 +13,6 @@ from typing import Any, Dict, Optional, Union, TypeVar, List
 import yaml
 
 T = TypeVar("T", bound="BaseConfig")
-T = TypeVar("T", bound="BaseConfig")
 
 from delm.strategies import RelevanceScorer
 from delm.strategies import SplitStrategy
@@ -657,8 +656,6 @@ class DELMConfig:
         Raises:
             FileNotFoundError: If the file does not exist.
         """
-        if isinstance(path, str):
-            path = Path(path)
         if isinstance(path, str):
             path = Path(path)
         if not path.exists():

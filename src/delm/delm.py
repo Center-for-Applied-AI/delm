@@ -217,8 +217,6 @@ class DELM:
 
         # Configure logging
         if save_log_file:
-            if log_dir is None:
-                log_dir = log_dir
             current_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             log_file_name = f"{log_file_prefix}{current_time}{SYSTEM_LOG_FILE_SUFFIX}"
         else:
@@ -232,7 +230,6 @@ class DELM:
             force=override_logging,
         )
 
-        log = logging.getLogger(__name__)
         log.debug("Initialising DELM…")
 
         # Validate configuration before proceeding
