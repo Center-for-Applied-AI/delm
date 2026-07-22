@@ -3,6 +3,11 @@
 Renders hand-labeled examples into the extraction prompt. Supports limiting
 the number of examples, truncating example text to a token budget, and
 random sampling from the provided ground-truth pool.
+
+The examples block is prepended once to the final prompt (after template
+formatting) rather than injected into the template. MultipleSchema reuses
+the template for every sub-schema section, so template-level injection
+would duplicate the block per section.
 """
 
 import json
@@ -15,8 +20,6 @@ import tiktoken
 from delm.constants import SYSTEM_RANDOM_SEED
 
 log = logging.getLogger(__name__)
-
-FEW_SHOT_PLACEHOLDER = "{examples}"
 
 
 class FewShotExampleSelector:
@@ -100,27 +103,16 @@ class FewShotExampleSelector:
             lines.append(f"Output: {output_json}")
         return "\n".join(lines)
 
-    def inject_into_template(self, prompt_template: str) -> str:
-        """Insert the rendered examples block into a prompt template.
-
-        If the template contains the ``{examples}`` placeholder, it is
-        replaced in place; otherwise the block is prepended to the template.
-        Braces inside the examples (e.g. JSON outputs) are escaped so the
-        template can still be passed through ``str.format``.
+    def prepend_to_prompt(self, prompt: str) -> str:
+        """Prepend the rendered examples block to a fully formatted prompt.
 
         Args:
-            prompt_template: Extraction prompt template with ``{variables}``
-                and ``{text}`` placeholders.
+            prompt: The final extraction prompt (after template formatting).
 
         Returns:
-            The template with the examples block included.
+            The prompt with the examples block prepended once.
         """
-        examples_block = (
-            self.build_examples_block().replace("{", "{{").replace("}", "}}")
-        )
-        if FEW_SHOT_PLACEHOLDER in prompt_template:
-            return prompt_template.replace(FEW_SHOT_PLACEHOLDER, examples_block)
-        return f"{examples_block}\n\n{prompt_template}"
+        return f"{self.build_examples_block()}\n\n{prompt}"
 
     def _truncate(self, text: str) -> str:
         if self.truncate_length is None:

@@ -141,7 +141,6 @@ Note: Normalize all extracted values to English."""
 
 - **`{text}`** - The text chunk to extract from (required)
 - **`{variables}`** - Auto-generated list of variables from your schema (required)
-- **`{examples}`** - Rendered few-shot examples block (optional, see below)
 
 ## Few-Shot Examples
 
@@ -170,8 +169,8 @@ delm = DELM(
 
 Notes:
 
-- The rendered examples block replaces the `{examples}` placeholder in your
-  `prompt_template` if present; otherwise it is prepended to the template.
+- The rendered examples block is prepended once to the final prompt (this also
+  holds for `Schema.multiple`, which repeats the template per sub-schema).
 - Random sampling is seeded (`SYSTEM_RANDOM_SEED = 42`), so runs are reproducible.
 - If fewer examples are available than requested, all available examples are
   used and a warning is logged.

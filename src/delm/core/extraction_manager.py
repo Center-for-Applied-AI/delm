@@ -450,12 +450,9 @@ class ExtractionManager:
         """
         # Hot path - minimal logging. Schema is cached internally.
         schema = self.extraction_schema.create_pydantic_schema()
-        prompt_template = self.prompt_template
+        prompt = self.extraction_schema.create_prompt(text_chunk, self.prompt_template)
         if self.few_shot_selector is not None:
-            prompt_template = self.few_shot_selector.inject_into_template(
-                prompt_template
-            )
-        prompt = self.extraction_schema.create_prompt(text_chunk, prompt_template)
+            prompt = self.few_shot_selector.prepend_to_prompt(prompt)
         system_prompt = self.system_prompt
 
         estimated_input_tokens = self._estimate_input_tokens(

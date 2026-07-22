@@ -481,7 +481,10 @@ class DELM:
         if text is None:
             text = f"<{target_column_name}>"
         llm_cfg = self.config.llm_extraction_cfg
-        prompt_template = llm_cfg.prompt_template
+        prompt = self.config.schema.schema.create_prompt(
+            text=text,
+            prompt_template=llm_cfg.prompt_template,
+        )
         few_shot_selector = FewShotExampleSelector.from_optional(
             examples=llm_cfg.few_shot_examples,
             num_examples=llm_cfg.few_shot_num_examples,
@@ -489,11 +492,7 @@ class DELM:
             random_sample=llm_cfg.few_shot_random_sample,
         )
         if few_shot_selector is not None:
-            prompt_template = few_shot_selector.inject_into_template(prompt_template)
-        prompt = self.config.schema.schema.create_prompt(
-            text=text,
-            prompt_template=prompt_template,
-        )
+            prompt = few_shot_selector.prepend_to_prompt(prompt)
         return prompt
 
     ## ------------------------------ Private API ------------------------------- ##

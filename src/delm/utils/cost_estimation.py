@@ -107,10 +107,6 @@ def _compute_chunk_input_tokens(
         truncate_length=llm_cfg.few_shot_truncate_length,
         random_sample=llm_cfg.few_shot_random_sample,
     )
-    if few_shot_selector is not None:
-        user_prompt_template = few_shot_selector.inject_into_template(
-            user_prompt_template
-        )
     variables_text = extraction_schema.get_variables_text()
     log.debug(
         "Prompt setup: system_length=%d, template_length=%d, variables_length=%d",
@@ -135,6 +131,8 @@ def _compute_chunk_input_tokens(
         formatted_prompt = user_prompt_template.format(
             variables=variables_text, text=chunk
         )
+        if few_shot_selector is not None:
+            formatted_prompt = few_shot_selector.prepend_to_prompt(formatted_prompt)
         # Include schema JSON for estimation alongside system + user prompt
         complete_prompt = f"{system_prompt}\n\n{formatted_prompt}\n{schema_text}"
         chunk_input_tokens.append(delm.cost_tracker.count_tokens(complete_prompt))

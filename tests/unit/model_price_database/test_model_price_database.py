@@ -2,8 +2,12 @@
 Unit tests for the tokencost-backed model price database.
 """
 
-import pytest
+from unittest.mock import patch
 
+import pytest
+from tokencost.constants import TOKEN_COSTS
+
+import delm.utils.model_price_database as mpd
 from delm.utils.model_price_database import (
     get_model_token_limits,
     get_model_token_price,
@@ -56,11 +60,34 @@ class TestGetModelTokenPrice:
         assert input_price >= 0
         assert output_price >= 0
 
-    def test_new_model_resolved_via_live_price_refresh(self):
-        """Models missing from the bundled DB are found after a live refresh."""
-        input_price, output_price = get_model_token_price("openai", "gpt-5.6-sol")
-        assert input_price > 0
-        assert output_price > 0
+    def test_missing_model_triggers_one_refresh_and_resolves(self, monkeypatch):
+        """A model missing from the bundled DB resolves after the price feed
+        refresh; the refresh runs at most once per process. The feed is mocked
+        so the test does not depend on network access."""
+        model_key = "test-refresh-only-model"
+        assert model_key not in TOKEN_COSTS
+
+        def fake_refresh(write_file):
+            TOKEN_COSTS[model_key] = {
+                "input_cost_per_token": 1e-6,
+                "output_cost_per_token": 2e-6,
+                "max_input_tokens": 1000,
+                "max_output_tokens": 100,
+            }
+            return TOKEN_COSTS
+
+        monkeypatch.setattr(mpd, "_PRICES_REFRESHED", False)
+        try:
+            with patch.object(
+                mpd, "refresh_prices", side_effect=fake_refresh
+            ) as mock_refresh:
+                input_price, output_price = get_model_token_price("openai", model_key)
+                assert input_price == pytest.approx(1.0)
+                assert output_price == pytest.approx(2.0)
+                assert get_model_token_limits("openai", model_key) == (1000, 100)
+                mock_refresh.assert_called_once()
+        finally:
+            TOKEN_COSTS.pop(model_key, None)
 
 
 class TestGetModelTokenLimits:

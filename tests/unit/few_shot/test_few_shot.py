@@ -8,7 +8,6 @@ import tiktoken
 from delm import DELMConfig, Schema
 from delm.models import ExtractionVariable
 from delm.utils.few_shot import (
-    FEW_SHOT_PLACEHOLDER,
     FewShotExampleSelector,
     validate_few_shot_params,
 )
@@ -104,27 +103,14 @@ class TestFewShotExampleSelector:
         assert "Example 1:" in block
         assert "Example 2:" in block
 
-    def test_inject_replaces_placeholder(self, examples):
-        selector = FewShotExampleSelector(examples, num_examples=1)
-        template = f"Before\n{FEW_SHOT_PLACEHOLDER}\nAfter {{text}} {{variables}}"
-        injected = selector.inject_into_template(template)
-        assert FEW_SHOT_PLACEHOLDER not in injected
-        assert "Examples:" in injected
-
-    def test_inject_prepends_without_placeholder(self, examples):
-        selector = FewShotExampleSelector(examples, num_examples=1)
-        template = "Extract {variables} from {text}"
-        injected = selector.inject_into_template(template)
-        assert injected.startswith("Examples:")
-        assert injected.endswith(template)
-
-    def test_injected_template_survives_str_format(self, examples):
+    def test_prepend_adds_examples_block_once(self, examples):
         selector = FewShotExampleSelector(examples, num_examples=2)
-        template = "Extract {variables} from:\n{text}"
-        injected = selector.inject_into_template(template)
-        formatted = injected.format(variables="- company", text="chunk text")
-        assert "chunk text" in formatted
-        assert '"company": "Goldman Sachs"' in formatted
+        prompt = "Extract - company from:\nchunk text"
+        result = selector.prepend_to_prompt(prompt)
+        assert result.startswith("Examples:")
+        assert result.endswith(prompt)
+        assert result.count("Examples:") == 1
+        assert '"company": "Goldman Sachs"' in result
 
     def test_from_optional_returns_none_without_examples(self):
         selector = FewShotExampleSelector.from_optional(
@@ -134,6 +120,41 @@ class TestFewShotExampleSelector:
             random_sample=False,
         )
         assert selector is None
+
+
+class TestFewShotWithMultipleSchema:
+    def test_examples_block_appears_once_for_multiple_schema(self, examples):
+        """MultipleSchema repeats the template per sub-schema; the examples
+        block must still appear exactly once in the final prompt."""
+        multiple_schema = Schema.multiple(
+            companies=Schema.simple(
+                variables_list=[
+                    ExtractionVariable(
+                        name="company",
+                        description="Company name",
+                        data_type="string",
+                    )
+                ]
+            ),
+            prices=Schema.simple(
+                variables_list=[
+                    ExtractionVariable(
+                        name="price",
+                        description="Price value",
+                        data_type="number",
+                    )
+                ]
+            ),
+        )
+        selector = FewShotExampleSelector(examples, num_examples=2)
+        prompt = multiple_schema.schema.create_prompt(
+            "chunk text",
+            "Extract the following information from the text:\n\n{variables}\n\nText to analyze:\n{text}",
+        )
+        prompt = selector.prepend_to_prompt(prompt)
+        assert prompt.count("Examples:") == 1
+        assert prompt.count("## COMPANIES") == 1
+        assert prompt.count("## PRICES") == 1
 
 
 class TestFewShotValidation:

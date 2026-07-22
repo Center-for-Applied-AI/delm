@@ -188,8 +188,16 @@ def merge_jsons_for_record(json_list: List[Dict[str, Any]], schema: ExtractionSc
             for json_item in json_list:
                 if json_item is None:
                     continue
+                if isinstance(json_item, str):
+                    try:
+                        json_item = json.loads(json_item)
+                    except json.JSONDecodeError:
+                        continue
+                if not isinstance(json_item, dict):
+                    continue
                 if sub_schema_type == "simpleschema":
-                    sub_jsons.append(json_item[sub_schema_spec_name])
+                    if sub_schema_spec_name in json_item:
+                        sub_jsons.append(json_item[sub_schema_spec_name])
                 elif sub_schema_type == "nestedschema":
                     nested_json_item = {}
                     if sub_schema_spec_name in json_item:
@@ -289,8 +297,8 @@ def explode_json_results(
 
     for idx, row in df.iterrows():
         json_data = row[json_column]
-        row_has_errors = (
-            SYSTEM_ERRORS_COLUMN in row.index and pd.notna(row[SYSTEM_ERRORS_COLUMN])
+        row_has_errors = SYSTEM_ERRORS_COLUMN in row.index and pd.notna(
+            row[SYSTEM_ERRORS_COLUMN]
         )
         if row_has_errors:
             continue
