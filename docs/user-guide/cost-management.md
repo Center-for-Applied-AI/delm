@@ -89,6 +89,8 @@ print(f"Estimated total cost: ${total_cost:.2f}")
 
 You can set a hard budget limit to ensure you never accidentally overspend. If the limit is reached, DELM stops processing immediately but preserves all results extracted up to that point.
 
+Before dispatching each request, DELM reserves its worst-case cost (input tokens plus `max_completion_tokens`) against the budget, so even with many concurrent workers the in-flight requests cannot overshoot `max_budget`.
+
 ```python
 from delm import DELM
 

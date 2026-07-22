@@ -458,9 +458,10 @@ class ExtractionManager:
         prompt = self.extraction_schema.create_prompt(text_chunk, prompt_template)
         system_prompt = self.system_prompt
 
-        estimated_total_tokens = self._estimate_total_tokens(
+        estimated_input_tokens = self._estimate_input_tokens(
             system_prompt, prompt, schema, tokenize=True
         )
+        estimated_total_tokens = estimated_input_tokens + self.max_output_tokens
 
         def _instructor_extract():
             self.rate_limiter.before_request(est_tokens=estimated_total_tokens)
@@ -549,7 +550,24 @@ class ExtractionManager:
         except Exception as e:
             log.error(f"Cache error {e}, performing new extraction")
 
-        response = self.retry_handler.execute_with_retry(_instructor_extract)
+        # Reserve the worst-case cost of this request against the budget so
+        # concurrent in-flight requests cannot overshoot max_budget.
+        reserved_cost = None
+        if self.cost_tracker is not None:
+            reserved_cost = self.cost_tracker.try_reserve_budget(
+                estimated_input_tokens, self.model_config.max_completion_tokens
+            )
+            if reserved_cost is None:
+                raise ValueError(
+                    "Over budget: request reservation would exceed max_budget"
+                )
+
+        try:
+            response = self.retry_handler.execute_with_retry(_instructor_extract)
+        finally:
+            if self.cost_tracker is not None and reserved_cost is not None:
+                self.cost_tracker.release_budget_reservation(reserved_cost)
+
         response_dict = response.model_dump(mode="json")
         # Convert to dict to save to semantic cache
         try:
@@ -558,14 +576,14 @@ class ExtractionManager:
             log.error(f"Cache error {e}, did not cache result")
         return response
 
-    def _estimate_total_tokens(
+    def _estimate_input_tokens(
         self,
         system_prompt: str,
         prompt: str,
         schema: BaseModel,
         tokenize: bool = True,
     ) -> int:
-        """Estimate the total tokens for a given system prompt, prompt, and schema."""
+        """Estimate the input tokens for a given system prompt, prompt, and schema."""
         # Include schema JSON for estimation alongside system + user prompt
         complete_prompt = (
             f"{system_prompt}\n{prompt}\n{json.dumps(schema.model_json_schema())}"
@@ -575,9 +593,7 @@ class ExtractionManager:
         else:
             input_tokens = len(complete_prompt) // 4
 
-        total_tokens = input_tokens + self.max_output_tokens
-
-        return total_tokens
+        return input_tokens
 
     def parse_results_dataframe(
         self,
