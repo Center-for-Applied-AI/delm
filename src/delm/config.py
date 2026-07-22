@@ -7,10 +7,13 @@ and the top‑level ``DELMConfig`` aggregator.
 Docstrings follow Google style.
 """
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional, Union, TypeVar, List
 import yaml
+
+log = logging.getLogger(__name__)
 
 T = TypeVar("T", bound="BaseConfig")
 
@@ -594,54 +597,76 @@ class DELMConfig:
 
         return data
 
+    # Keys accepted by ``from_dict`` besides the required ``schema``.
+    _FROM_DICT_KEYS = (
+        "provider",
+        "model",
+        "base_url",
+        "mode",
+        "temperature",
+        "prompt_template",
+        "system_prompt",
+        "batch_size",
+        "max_workers",
+        "max_retries",
+        "base_delay",
+        "rate_limit_tokens",
+        "rate_limit_requests",
+        "rate_limit_period_seconds",
+        "track_cost",
+        "max_budget",
+        "model_input_cost_per_1M_tokens",
+        "model_output_cost_per_1M_tokens",
+        "max_completion_tokens",
+        "api_kwargs",
+        "few_shot_examples",
+        "few_shot_num_examples",
+        "few_shot_truncate_length",
+        "few_shot_random_sample",
+        "target_column",
+        "drop_target_column",
+        "splitting_strategy",
+        "relevance_scorer",
+        "score_filter",
+        "cache_backend",
+        "cache_path",
+        "cache_max_size_mb",
+        "cache_synchronous",
+    )
+
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "DELMConfig":
         """Create ``DELMConfig`` from a mapping.
 
-        Handles two formats:
-        1. Nested format (from to_dict()): Has 'llm_extraction', 'data_preprocessing', 'semantic_cache' keys
-        2. Flat format: All fields at top level
+        Only ``schema`` is required. Any other key that is absent falls back
+        to the ``DELMConfig`` constructor default, so configs saved by older
+        versions keep loading after new fields are added.
+
+        Args:
+            data: Mapping of configuration options.
+
+        Returns:
+            A configured ``DELMConfig`` instance.
+
+        Raises:
+            ValueError: If ``schema`` is missing.
         """
         if data is None:
             data = {}
+        if "schema" not in data:
+            raise ValueError(
+                "Config dict must contain a 'schema' key. "
+                f"Got keys: {sorted(data.keys())}"
+            )
 
-        # Check if this is nested format (from to_dict())
-        return cls(
-            schema=data["schema"],
-            provider=data["provider"],
-            model=data["model"],
-            base_url=data["base_url"],
-            mode=data["mode"],
-            temperature=data["temperature"],
-            prompt_template=data["prompt_template"],
-            system_prompt=data["system_prompt"],
-            batch_size=data["batch_size"],
-            max_workers=data["max_workers"],
-            max_retries=data["max_retries"],
-            base_delay=data["base_delay"],
-            rate_limit_tokens=data["rate_limit_tokens"],
-            rate_limit_requests=data["rate_limit_requests"],
-            rate_limit_period_seconds=data.get("rate_limit_period_seconds", 60.0),
-            track_cost=data["track_cost"],
-            max_budget=data["max_budget"],
-            model_input_cost_per_1M_tokens=data["model_input_cost_per_1M_tokens"],
-            model_output_cost_per_1M_tokens=data["model_output_cost_per_1M_tokens"],
-            max_completion_tokens=data.get("max_completion_tokens", 4096),
-            api_kwargs=data.get("api_kwargs", {}),
-            few_shot_examples=data.get("few_shot_examples"),
-            few_shot_num_examples=data.get("few_shot_num_examples", 3),
-            few_shot_truncate_length=data.get("few_shot_truncate_length"),
-            few_shot_random_sample=data.get("few_shot_random_sample", False),
-            target_column=data["target_column"],
-            drop_target_column=data["drop_target_column"],
-            splitting_strategy=data["splitting_strategy"],
-            relevance_scorer=data["relevance_scorer"],
-            score_filter=data["score_filter"],
-            cache_backend=data["cache_backend"],
-            cache_path=data["cache_path"],
-            cache_max_size_mb=data["cache_max_size_mb"],
-            cache_synchronous=data["cache_synchronous"],
-        )
+        unknown_keys = set(data) - set(cls._FROM_DICT_KEYS) - {"schema"}
+        if unknown_keys:
+            log.warning(
+                "Ignoring unknown config keys: %s", sorted(unknown_keys)
+            )
+
+        kwargs = {key: data[key] for key in cls._FROM_DICT_KEYS if key in data}
+        return cls(schema=data["schema"], **kwargs)
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "DELMConfig":
