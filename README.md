@@ -22,6 +22,10 @@ DELM is a Python toolkit for extracting structured data from unstructured text u
 pip install delm
 ```
 
+## Agent Skill
+
+The [LLM labeling skill](skills/llm-labeling/SKILL.md) guides coding agents to use DELM for labeling, annotation, classification, and structured extraction. Copy `skills/llm-labeling/` into your agent's skills directory to use it.
+
 ## Quick Start
 
 Define your extraction schema and extract structured data in just a few lines:
