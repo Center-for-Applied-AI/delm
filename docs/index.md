@@ -2,6 +2,14 @@
 
 **Data Extraction with Language Models** – A Python toolkit for extracting structured data from unstructured text using LLMs.
 
+<figure style="text-align: center;">
+  <video autoplay loop muted playsinline preload="auto" width="640" poster="assets/delm_pipeline_poster.jpg" style="max-width: 100%; height: auto; border-radius: 8px;" aria-label="Animated DELM pipeline: documents are loaded, split into chunks, scored and filtered for relevance, then sent to an LLM whose outputs are validated against a schema, collected into a table, and evaluated against labels. An experiment manager tracks config, logs, and results so runs can resume after interruption.">
+    <source src="assets/delm_pipeline.mp4" type="video/mp4" />
+    <img src="assets/delm_pipeline.png" width="640" alt="DELM pipeline diagram" />
+  </video>
+  <figcaption>Load → split → score → filter → extract with schema validation → evaluate, all checkpointed so interrupted runs resume where they stopped.</figcaption>
+</figure>
+
 ## Why DELM?
 
 Extracting structured data from documents at scale is harder than it should be. You need consistent prompts, validation logic, retry handling, cost tracking, and robust file processing—before you even get to your actual research questions.
