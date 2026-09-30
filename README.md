@@ -6,6 +6,12 @@
 
 DELM is a Python toolkit for extracting structured data from unstructured text using language models.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Center-for-Applied-AI/delm/main/docs/assets/delm_pipeline.png" width="640" alt="DELM pipeline: documents are loaded, split into chunks, scored and filtered for relevance, then sent to an LLM whose outputs are validated against a schema, collected into a table, and evaluated against labels. An experiment manager tracks config, logs, and results so runs can resume after interruption."/>
+</p>
+
+<p align="center"><em>Load → split → score → filter → extract with schema validation → evaluate, all checkpointed so interrupted runs resume where they stopped.</em></p>
+
 📖 **[Full Documentation](https://center-for-applied-ai.github.io/delm/)**
 
 ## Features
