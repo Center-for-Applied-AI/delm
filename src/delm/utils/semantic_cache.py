@@ -40,7 +40,7 @@ import os
 import threading
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Union, Optional, Mapping
+from typing import Any, Dict, Union, Optional, Mapping
 
 from delm.config import SemanticCacheConfig
 
@@ -319,8 +319,9 @@ class SQLiteWALCache(SemanticCache):
         self._local = (
             threading.local()
         )  # Thread-local storage for connections and zstd objects
-        self._all_connections = []  # Track all connections for cleanup
-        self._connections_lock = threading.Lock()  # Protect connection list
+        # Connection per owning thread, so connections of finished threads can be closed.
+        self._connections: Dict[threading.Thread, sqlite3.Connection] = {}
+        self._connections_lock = threading.Lock()  # Protect connection map
 
         # Initialize database schema with a temporary connection
         temp_db = sqlite3.connect(self.path, check_same_thread=False, timeout=120)
@@ -351,10 +352,23 @@ class SQLiteWALCache(SemanticCache):
             )
             self._local.db.execute("PRAGMA journal_mode=WAL;")
             self._local.db.execute(f"PRAGMA synchronous={self._synchronous};")
-            # Track connection for cleanup
             with self._connections_lock:
-                self._all_connections.append(self._local.db)
+                self._close_finished_thread_connections()
+                self._connections[threading.current_thread()] = self._local.db
         return self._local.db
+
+    def _close_finished_thread_connections(self):
+        """Close connections whose threads have exited. Caller holds _connections_lock.
+
+        Callers such as ConcurrentProcessor start fresh threads for every batch, and a
+        finished thread's connection is unreachable through thread-local storage. Without
+        this, every batch leaked one open connection (several file descriptors) per worker.
+        """
+        finished = [t for t in self._connections if not t.is_alive()]
+        for thread in finished:
+            self._connections.pop(thread).close()
+        if finished:
+            log.debug("SQLiteWALCache closed %d finished-thread connections", len(finished))
 
     def _get_zstd_objects(self):
         """Get thread-local zstd compressor and decompressor."""
@@ -485,12 +499,12 @@ class SQLiteWALCache(SemanticCache):
         """Close ALL database connections from all threads and clean up."""
         # Close all tracked connections from all threads
         with self._connections_lock:
-            for conn in self._all_connections:
+            for conn in self._connections.values():
                 try:
                     conn.close()
                 except Exception:
                     pass  # Connection may already be closed
-            self._all_connections.clear()
+            self._connections.clear()
 
         # Clean up current thread's local storage
         if hasattr(self._local, "db"):
