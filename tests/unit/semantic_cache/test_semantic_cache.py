@@ -4,6 +4,7 @@ Unit tests for DELM semantic cache.
 
 import pytest
 import json
+import os
 import tempfile
 import shutil
 from pathlib import Path
@@ -11,6 +12,7 @@ from unittest.mock import Mock, patch, MagicMock
 import sqlite3
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from delm.utils.semantic_cache import (
     SemanticCache,
@@ -783,3 +785,36 @@ class TestSemanticCacheFactory:
 
         with pytest.raises(ValueError, match="Unknown cache config type"):
             SemanticCacheFactory.from_config(config)
+
+
+class TestSQLiteWALCacheConnectionLifetime:
+    """Connections opened by worker threads must not outlive those threads (issue #72)."""
+
+    @staticmethod
+    def _open_fds():
+        return len(os.listdir("/dev/fd"))
+
+    @staticmethod
+    def _run_batch(cache, workers):
+        # DELM creates a fresh ThreadPoolExecutor per batch, so every batch runs on new threads.
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(lambda i: cache.get(f"key-{i}"), range(workers * 4)))
+
+    def test_descriptors_do_not_grow_with_batches(self, tmp_path):
+        cache = SQLiteWALCache(tmp_path / "cache.db")
+        workers = 8
+        self._run_batch(cache, workers)
+        baseline = self._open_fds()
+        for _ in range(20):
+            self._run_batch(cache, workers)
+        # The leak opened a WAL connection (db, -wal, -shm) per thread per batch: ~480 fds here.
+        assert self._open_fds() - baseline <= 3 * workers
+        cache.close()
+
+    def test_close_still_closes_live_thread_connections(self, tmp_path):
+        cache = SQLiteWALCache(tmp_path / "cache.db")
+        cache.set("k", b"v")
+        db = cache._get_db()
+        cache.close()
+        with pytest.raises(sqlite3.ProgrammingError):
+            db.execute("SELECT 1")
